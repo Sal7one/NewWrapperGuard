@@ -1,12 +1,10 @@
 [versions]
 # Libraries
-compose-multiplatform = "1.7.1" # aligned with IntelliJ Platform 2025.1 bundled Compose
 kotlinx-serialization-json = "1.8.0"
 
 # Gradle plugins
-kotlin = "2.1.10"
-intelliJPlatform = "2.16.0"
-composeCompiler = "1.5.15"
+kotlin = "2.2.20"
+intelliJPlatform = "2.11.0"
 
 [libraries]
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinx-serialization-json" }
