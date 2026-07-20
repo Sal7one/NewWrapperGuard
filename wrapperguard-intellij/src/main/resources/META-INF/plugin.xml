@@ -1,0 +1,18 @@
+<idea-plugin>
+    <id>com.sal7one.wrapperguard.next</id>
+    <name>WrapperGuard</name>
+    <vendor>sal7one</vendor>
+    <description><![CDATA[
+      Static analysis for wrappers, build files, and bootstrap scripts. Project code is never executed.
+    ]]></description>
+    <idea-version since-build="251"/>
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.gradle</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <projectService serviceImplementation="com.sal7one.wrapperguard.intellij.WrapperGuardProjectService"/>
+        <toolWindow id="WrapperGuard"
+                    anchor="bottom"
+                    factoryClass="com.sal7one.wrapperguard.intellij.ui.WrapperGuardToolWindowFactory"/>
+    </extensions>
+</idea-plugin>

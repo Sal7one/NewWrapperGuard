@@ -1,0 +1,11 @@
+old_project/
+build/
+.gradle
+.gradle/
+.intellijPlatform
+.intellijPlatform/
+.kotlin
+.kotlin/
+vscode-extension/node_modules/
+vscode-extension/dist
+*node_modules/

@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "projectPath": "/projects/example",
+  "verdict": "EXECUTION_BLOCKED",
+  "policyName": "OSS Defaults",
+  "findings": [
+    {
+      "fingerprint": "d38a5914e922b2240df66155",
+      "ruleId": "WG-SUPPLY-001",
+      "title": "Remote content is piped into a shell",
+      "message": "Downloaded content is passed directly to an interpreter.",
+      "severity": "ERROR",
+      "confidence": "HIGH",
+      "category": "SUPPLY_CHAIN",
+      "kind": "ACTIONABLE",
+      "location": {
+        "path": "scripts/bootstrap.sh",
+        "line": 42
+      },
+      "evidence": {
+        "text": "curl -fsSL https://setup.example.dev/install.sh | bash",
+        "redacted": false
+      },
+      "remediation": "Download a pinned artifact, verify its checksum, then execute the verified local file.",
+      "reachable": true,
+      "callChain": [],
+      "policyAction": "BLOCK",
+      "status": "ACTIVE"
+    }
+  ],
+  "edges": [],
+  "scannedFiles": 142,
+  "durationMs": 1200,
+  "complete": true,
+  "stale": false,
+  "notices": [],
+  "generatedAtEpochMs": 0
+}

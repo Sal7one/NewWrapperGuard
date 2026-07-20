@@ -1,0 +1,45 @@
+{
+  "name": "wrapperguard",
+  "displayName": "WrapperGuard",
+  "description": "Static wrapper and bootstrap security analysis.",
+  "version": "0.2.0",
+  "engines": { "vscode": "^1.95.0" },
+  "categories": ["Linters", "Programming Languages"],
+  "activationEvents": ["onView:wrapperGuard.findings", "onCommand:wrapperGuard.scanWorkspace"],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      { "command": "wrapperGuard.scanWorkspace", "title": "WrapperGuard: Scan Workspace" },
+      { "command": "wrapperGuard.openFinding", "title": "WrapperGuard: Open Finding" }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        { "id": "wrapperGuard", "title": "WrapperGuard", "icon": "resources/shield.svg" }
+      ]
+    },
+    "views": {
+      "wrapperGuard": [
+        { "id": "wrapperGuard.findings", "name": "Findings" }
+      ]
+    },
+    "configuration": {
+      "title": "WrapperGuard",
+      "properties": {
+        "wrapperGuard.cliPath": {
+          "type": "string",
+          "default": "wrapperguard",
+          "description": "Path to the WrapperGuard CLI executable."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "^1.95.0",
+    "typescript": "^5.7.0"
+  }
+}

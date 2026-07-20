@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wrapperguard.dev/schema/report-v1.json",
+  "title": "WrapperGuard Scan Report",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "projectPath",
+    "verdict",
+    "policyName",
+    "findings",
+    "scannedFiles",
+    "durationMs",
+    "complete",
+    "stale",
+    "notices"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "projectPath": {
+      "type": "string"
+    },
+    "verdict": {
+      "enum": [
+        "NOT_SCANNED",
+        "CLEAN",
+        "REVIEW_REQUIRED",
+        "EXECUTION_BLOCKED",
+        "INCOMPLETE",
+        "STALE",
+        "FAILED"
+      ]
+    },
+    "policyName": {
+      "type": "string"
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "fingerprint",
+          "ruleId",
+          "title",
+          "severity",
+          "location",
+          "policyAction"
+        ]
+      }
+    },
+    "scannedFiles": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "durationMs": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "complete": {
+      "type": "boolean"
+    },
+    "stale": {
+      "type": "boolean"
+    },
+    "notices": {
+      "type": "array"
+    }
+  }
+}

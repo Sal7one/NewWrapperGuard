@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>WrapperGuard IDE - Execution Graph</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "background": "#13121b",
+                        "primary-fixed": "#e2dfff",
+                        "on-tertiary": "#571f00",
+                        "on-error-container": "#ffdad6",
+                        "inverse-primary": "#4d44e3",
+                        "on-primary-container": "#dad7ff",
+                        "tertiary-container": "#a44100",
+                        "surface-container-highest": "#35343e",
+                        "inverse-surface": "#e4e1ee",
+                        "on-tertiary-fixed-variant": "#7b2f00",
+                        "on-secondary-fixed-variant": "#38485d",
+                        "surface-variant": "#35343e",
+                        "surface-container": "#1f1f28",
+                        "on-secondary-container": "#a9bad3",
+                        "on-tertiary-container": "#ffd2be",
+                        "outline-variant": "#464555",
+                        "on-primary": "#1d00a5",
+                        "on-surface": "#e4e1ee",
+                        "surface-container-lowest": "#0e0d16",
+                        "secondary-fixed": "#d3e4fe",
+                        "surface-container-high": "#2a2933",
+                        "on-secondary-fixed": "#0b1c30",
+                        "secondary": "#b7c8e1",
+                        "primary-container": "#4f46e5",
+                        "secondary-container": "#3a4a5f",
+                        "on-primary-fixed-variant": "#3323cc",
+                        "outline": "#918fa1",
+                        "on-tertiary-fixed": "#351000",
+                        "tertiary-fixed": "#ffdbcc",
+                        "on-secondary": "#213145",
+                        "inverse-on-surface": "#302f39",
+                        "on-error": "#690005",
+                        "primary-fixed-dim": "#c3c0ff",
+                        "surface-bright": "#393842",
+                        "on-primary-fixed": "#0f0069",
+                        "surface": "#13121b",
+                        "surface-dim": "#13121b",
+                        "error": "#ffb4ab",
+                        "surface-tint": "#c3c0ff",
+                        "tertiary": "#ffb695",
+                        "tertiary-fixed-dim": "#ffb695",
+                        "primary": "#c3c0ff",
+                        "surface-container-low": "#1b1b24",
+                        "error-container": "#93000a",
+                        "on-background": "#e4e1ee",
+                        "secondary-fixed-dim": "#b7c8e1",
+                        "on-surface-variant": "#c7c4d8"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "md": "12px",
+                        "gutter": "12px",
+                        "sm": "8px",
+                        "unit": "4px",
+                        "xs": "4px",
+                        "lg": "16px",
+                        "margin": "16px"
+                    },
+                    "fontFamily": {
+                        "code-sm": ["JetBrains Mono"],
+                        "body-base": ["Inter"],
+                        "label-caps": ["Inter"],
+                        "code-base": ["JetBrains Mono"],
+                        "headline-sm": ["Inter"],
+                        "body-sm": ["Inter"]
+                    },
+                    "fontSize": {
+                        "code-sm": ["11px", { "lineHeight": "16px", "fontWeight": "400" }],
+                        "body-base": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "label-caps": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }],
+                        "code-base": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "headline-sm": ["18px", { "lineHeight": "24px", "fontWeight": "600" }],
+                        "body-sm": ["12px", { "lineHeight": "16px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-background text-on-background h-screen flex flex-col overflow-hidden font-body-base">
+<!-- TopAppBar -->
+<header class="bg-surface-container dark:bg-surface-container border-b border-outline-variant dark:border-outline-variant flex justify-between items-center px-lg h-8 w-full docked top-0 w-full shrink-0">
+<div class="flex items-center gap-4">
+<span class="font-headline-sm text-headline-sm font-bold text-primary">WrapperGuard IDE</span>
+<nav class="hidden md:flex gap-4">
+<a class="text-on-surface-variant font-label-caps text-label-caps hover:text-primary dark:hover:text-primary-fixed transition-all scale-95 active:opacity-80" href="#">Explorer</a>
+<a class="text-on-surface-variant font-label-caps text-label-caps hover:text-primary dark:hover:text-primary-fixed transition-all scale-95 active:opacity-80" href="#">Editor</a>
+<a class="text-on-surface-variant font-label-caps text-label-caps hover:text-primary dark:hover:text-primary-fixed transition-all scale-95 active:opacity-80" href="#">Terminal</a>
+</nav>
+</div>
+<div class="flex items-center gap-3">
+<div class="relative hidden lg:block">
+<input class="bg-surface-container-highest border border-outline-variant rounded px-2 py-0.5 text-code-sm font-code-sm text-on-surface w-48 focus:border-primary focus:ring-1 focus:ring-primary outline-none" placeholder="Search..." type="text"/>
+</div>
+<button class="text-code-sm font-code-sm text-on-surface bg-surface-container-high border border-outline-variant rounded px-2 py-0.5 hover:bg-surface-bright transition-colors">Suppress</button>
+<button class="text-code-sm font-code-sm bg-primary-container text-on-primary-container rounded px-2 py-0.5 hover:bg-primary transition-colors">Open in Editor</button>
+<div class="flex items-center gap-1 border-l border-outline-variant pl-3 ml-1">
+<button class="text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-[16px]">refresh</span></button>
+<button class="text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-[16px]">settings</span></button>
+<button class="text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-[16px]">help</span></button>
+</div>
+</div>
+</header>
+<div class="flex flex-1 overflow-hidden">
+<!-- SideNavBar -->
+<aside class="bg-surface-container-low dark:bg-surface-container-low border-r border-outline-variant dark:border-outline-variant docked left-0 h-full w-16 md:w-64 flex flex-col shrink-0">
+<div class="p-md flex items-center gap-3 border-b border-outline-variant pb-md mb-sm">
+<div class="w-8 h-8 rounded bg-primary-container text-on-primary-container flex items-center justify-center font-bold text-sm shrink-0">WG</div>
+<div class="hidden md:block overflow-hidden">
+<div class="font-headline-sm text-headline-sm font-bold text-primary dark:text-primary truncate">WrapperGuard</div>
+<div class="font-body-sm text-body-sm text-on-surface-variant truncate">v2.4.0 • Security Analyst</div>
+</div>
+</div>
+<nav class="flex-1 flex flex-col gap-1 px-sm">
+<a class="flex items-center gap-3 p-2 rounded text-on-surface-variant dark:text-on-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-container-high transition-colors duration-150 ease-in-out font-body-sm text-body-sm" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="hidden md:block">Overview</span>
+</a>
+<a class="flex items-center gap-3 p-2 rounded text-on-surface-variant dark:text-on-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-container-high transition-colors duration-150 ease-in-out font-body-sm text-body-sm" href="#">
+<span class="material-symbols-outlined">security</span>
+<span class="hidden md:block">Findings</span>
+</a>
+<a class="flex items-center gap-3 p-2 rounded text-primary dark:text-primary-fixed bg-secondary-container/20 dark:bg-secondary-container/30 border-l-2 border-primary hover:bg-surface-container-high dark:hover:bg-surface-container-high transition-colors duration-150 ease-in-out font-body-sm text-body-sm" href="#">
+<span class="material-symbols-outlined">hub</span>
+<span class="hidden md:block">Execution Graph</span>
+</a>
+<a class="flex items-center gap-3 p-2 rounded text-on-surface-variant dark:text-on-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-container-high transition-colors duration-150 ease-in-out font-body-sm text-body-sm" href="#">
+<span class="material-symbols-outlined">policy</span>
+<span class="hidden md:block">Policy</span>
+</a>
+</nav>
+<div class="p-md mt-auto">
+<button class="w-full flex items-center justify-center gap-2 bg-surface-container-highest border border-outline-variant rounded py-1 text-primary hover:bg-surface-bright transition-colors font-body-sm text-body-sm">
+<span class="material-symbols-outlined text-[16px]">refresh</span>
+<span class="hidden md:inline">Rescan</span>
+</button>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 flex overflow-hidden">
+<!-- Graph Workspace -->
+<div class="flex-1 flex flex-col relative bg-[#1a1924]">
+<!-- Graph Toolbar -->
+<div class="absolute top-md left-md right-md flex justify-between items-start z-10 pointer-events-none">
+<div class="bg-surface-container border border-outline-variant rounded flex shadow-[0_4px_12px_rgba(0,0,0,0.4)] pointer-events-auto">
+<button class="p-1.5 text-on-surface-variant hover:text-primary hover:bg-surface-bright rounded-l transition-colors" title="Zoom In"><span class="material-symbols-outlined text-[18px]">zoom_in</span></button>
+<button class="p-1.5 text-on-surface-variant hover:text-primary hover:bg-surface-bright transition-colors border-l border-outline-variant" title="Zoom Out"><span class="material-symbols-outlined text-[18px]">zoom_out</span></button>
+<button class="p-1.5 text-on-surface-variant hover:text-primary hover:bg-surface-bright transition-colors border-l border-outline-variant" title="Fit to Screen"><span class="material-symbols-outlined text-[18px]">fit_screen</span></button>
+</div>
+<div class="flex gap-2 pointer-events-auto">
+<div class="bg-surface-container border border-outline-variant rounded flex items-center px-2 shadow-[0_4px_12px_rgba(0,0,0,0.4)]">
+<span class="material-symbols-outlined text-[14px] text-on-surface-variant mr-1">search</span>
+<input class="bg-transparent border-none text-code-sm font-code-sm w-32 py-1 outline-none text-on-surface focus:ring-0 p-0" placeholder="Find node..." type="text"/>
+</div>
+<button class="bg-surface-container border border-outline-variant rounded px-3 py-1 flex items-center gap-1 hover:bg-surface-bright text-body-sm font-body-sm text-on-surface shadow-[0_4px_12px_rgba(0,0,0,0.4)]">
+<span class="material-symbols-outlined text-[14px] text-error">my_location</span>
+                            Focus Finding
+                        </button>
+</div>
+</div>
+<!-- Canvas Area (Simulated Graph) -->
+<div class="flex-1 overflow-auto relative flex items-center justify-center p-8 custom-scrollbar">
+<div class="relative w-[600px] h-[500px]">
+<!-- Connecting Lines (SVG) -->
+<svg class="absolute inset-0 w-full h-full pointer-events-none" style="z-index: 0;">
+<defs>
+<marker id="arrow" markerheight="6" markerwidth="6" orient="auto-start-reverse" refx="9" refy="5" viewbox="0 0 10 10">
+<path d="M 0 0 L 10 5 L 0 10 z" fill="#464555"></path>
+</marker>
+<marker id="arrow-error" markerheight="6" markerwidth="6" orient="auto-start-reverse" refx="9" refy="5" viewbox="0 0 10 10">
+<path d="M 0 0 L 10 5 L 0 10 z" fill="#ffb4ab"></path>
+</marker>
+</defs>
+<!-- gradlew -> build.gradle.kts -->
+<path d="M 300 40 L 300 120" fill="none" marker-end="url(#arrow)" stroke="#464555" stroke-width="1.5"></path>
+<text fill="#918fa1" font-family="JetBrains Mono" font-size="10" x="310" y="85">exec</text>
+<!-- build.gradle.kts -> scripts/bootstrap.sh -->
+<path d="M 300 160 L 300 240" fill="none" marker-end="url(#arrow)" stroke="#464555" stroke-width="1.5"></path>
+<text fill="#918fa1" font-family="JetBrains Mono" font-size="10" x="310" y="205">line:91</text>
+<!-- scripts/bootstrap.sh -> tools/install.ps1 -->
+<path d="M 300 280 L 150 380" fill="none" marker-end="url(#arrow-error)" stroke="#ffb4ab" stroke-dasharray="4" stroke-width="1.5"></path>
+<text fill="#ffb4ab" font-family="JetBrains Mono" font-size="10" x="210" y="325">line:42</text>
+<!-- tools/install.ps1 -> Invoke-Expression -->
+<path d="M 150 420 L 150 480" fill="none" marker-end="url(#arrow-error)" stroke="#ffb4ab" stroke-width="2"></path>
+<text fill="#ffb4ab" font-family="JetBrains Mono" font-size="10" x="160" y="455">line:27</text>
+</svg>
+<!-- Nodes -->
+<!-- Entry Point -->
+<div class="absolute left-[240px] top-[0px] w-[120px] bg-surface-container border border-outline-variant rounded p-2 flex flex-col items-center justify-center shadow-sm z-10">
+<span class="material-symbols-outlined text-secondary text-[16px] mb-1">play_circle</span>
+<span class="font-code-sm text-code-sm text-on-surface">gradlew</span>
+</div>
+<!-- Config File -->
+<div class="absolute left-[220px] top-[120px] w-[160px] bg-surface-container border border-outline-variant rounded p-2 flex flex-col items-center justify-center shadow-sm z-10 hover:border-primary cursor-pointer transition-colors">
+<div class="flex items-center gap-1 mb-1">
+<span class="material-symbols-outlined text-primary text-[14px]">description</span>
+<span class="font-label-caps text-[9px] text-outline uppercase">Gradle Script</span>
+</div>
+<span class="font-code-sm text-code-sm text-on-surface text-center">build.gradle.kts:91</span>
+</div>
+<!-- Shell Script (Finding) -->
+<div class="absolute left-[200px] top-[240px] w-[200px] bg-error-container/20 border-2 border-error rounded p-2 flex flex-col items-center justify-center shadow-[0_0_15px_rgba(255,180,171,0.2)] z-10 cursor-pointer animate-[pulse_3s_ease-in-out_infinite]">
+<div class="flex items-center gap-1 mb-1 bg-error-container text-on-error-container px-1.5 rounded-sm border border-error/50">
+<span class="material-symbols-outlined text-[12px]">warning</span>
+<span class="font-label-caps text-[9px] uppercase">Suspicious Execution</span>
+</div>
+<span class="font-code-sm text-code-sm text-error font-bold">scripts/bootstrap.sh:42</span>
+<div class="mt-2 text-[10px] text-on-surface-variant font-code-sm border-t border-error/30 pt-1 w-full text-center">Downloads &amp; executes external script</div>
+</div>
+<!-- PowerShell Script -->
+<div class="absolute left-[70px] top-[380px] w-[160px] bg-surface-container-high border border-outline-variant rounded p-2 flex flex-col items-center justify-center shadow-sm z-10">
+<div class="flex items-center gap-1 mb-1">
+<span class="material-symbols-outlined text-tertiary text-[14px]">terminal</span>
+<span class="font-label-caps text-[9px] text-outline uppercase">PowerShell</span>
+</div>
+<span class="font-code-sm text-code-sm text-on-surface text-center">tools/install.ps1:27</span>
+</div>
+<!-- Command Execution -->
+<div class="absolute left-[70px] top-[480px] w-[160px] bg-[#2a1114] border border-error rounded p-2 flex flex-col items-center justify-center shadow-sm z-10">
+<span class="material-symbols-outlined text-error text-[16px] mb-1">code_blocks</span>
+<span class="font-code-sm text-code-sm text-error font-bold text-center">Invoke-Expression</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Inspector Panel -->
+<aside class="w-72 bg-surface-container-low border-l border-outline-variant flex flex-col shrink-0">
+<!-- Panel Header Tabs -->
+<div class="flex border-b border-outline-variant bg-surface-container-highest">
+<button class="px-3 py-2 font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors border-b-2 border-transparent">Graph Legend</button>
+<button class="px-3 py-2 font-body-sm text-body-sm text-primary border-b-2 border-primary bg-surface-container-low">Risky Path Explorer</button>
+</div>
+<div class="flex-1 overflow-y-auto p-3 custom-scrollbar">
+<div class="mb-4">
+<h3 class="font-label-caps text-label-caps text-on-surface-variant mb-2">Paths to Blockers</h3>
+<!-- Path Item 1 (Active) -->
+<div class="bg-surface-container-high border border-outline-variant rounded p-2 mb-2 cursor-pointer border-l-2 border-l-error">
+<div class="flex justify-between items-start mb-1">
+<span class="font-code-sm text-code-sm font-bold text-error">Path #1</span>
+<span class="bg-error-container/30 text-error border border-error/50 rounded-full px-1.5 py-0.5 text-[9px] font-label-caps uppercase flex items-center gap-1">
+<span class="material-symbols-outlined text-[10px]">block</span> Critical
+                                </span>
+</div>
+<div class="font-code-sm text-[10px] text-on-surface-variant flex flex-col gap-1 mt-2">
+<div class="flex items-center gap-1"><span class="w-1 h-1 rounded-full bg-secondary"></span> gradlew</div>
+<div class="pl-2 border-l border-outline-variant ml-0.5 flex flex-col gap-1">
+<div class="flex items-center gap-1"><span class="w-1 h-1 rounded-full bg-primary"></span> build.gradle.kts:91</div>
+<div class="pl-2 border-l border-outline-variant ml-0.5 flex flex-col gap-1">
+<div class="flex items-center gap-1 text-error"><span class="w-1 h-1 rounded-full bg-error"></span> bootstrap.sh:42</div>
+<div class="pl-2 border-l border-error/50 ml-0.5 flex flex-col gap-1">
+<div class="flex items-center gap-1"><span class="w-1 h-1 rounded-full bg-tertiary"></span> install.ps1:27</div>
+<div class="pl-2 border-l border-outline-variant ml-0.5">
+<div class="flex items-center gap-1 text-error font-bold">↳ Invoke-Expression</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="mt-3 flex gap-2">
+<button class="flex-1 bg-surface-container border border-outline-variant hover:border-primary text-on-surface font-body-sm text-[10px] py-1 rounded transition-colors text-center">Open Trace</button>
+<button class="flex-1 bg-primary-container text-on-primary-container font-body-sm text-[10px] py-1 rounded transition-colors text-center">Remediate</button>
+</div>
+</div>
+<!-- Path Item 2 -->
+<div class="bg-surface-container border border-outline-variant rounded p-2 mb-2 cursor-pointer hover:bg-surface-container-high transition-colors">
+<div class="flex justify-between items-start mb-1">
+<span class="font-code-sm text-code-sm text-on-surface">Path #2</span>
+<span class="bg-surface-container-highest text-secondary border border-outline-variant rounded-full px-1.5 py-0.5 text-[9px] font-label-caps uppercase flex items-center gap-1">
+<span class="material-symbols-outlined text-[10px]">info</span> Low
+                                </span>
+</div>
+<div class="font-code-sm text-[10px] text-on-surface-variant truncate">
+                                gradlew → build.gradle.kts:112 → curl
+                            </div>
+</div>
+</div>
+<div>
+<h3 class="font-label-caps text-label-caps text-on-surface-variant mb-2">Node Details</h3>
+<div class="bg-surface-container border border-outline-variant rounded p-3 text-center text-on-surface-variant font-body-sm text-body-sm italic">
+                            Select a node in the graph to view properties, source code context, and environment variables.
+                        </div>
+</div>
+</div>
+</aside>
+</main>
+</div>
+<!-- Footer -->
+<footer class="bg-surface-container-lowest dark:bg-surface-container-lowest border-t border-outline-variant dark:border-outline-variant fixed bottom-0 w-full z-50 flex items-center justify-between px-md h-6">
+<div class="font-code-sm text-code-sm text-on-surface flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+            WrapperGuard: Scanning...
+        </div>
+<div class="flex gap-4">
+<a class="font-code-sm text-code-sm text-on-surface-variant hover:bg-surface-container dark:hover:bg-surface-container-high cursor-pointer px-1 rounded transition-colors" href="#">Docs</a>
+<a class="font-code-sm text-code-sm text-on-surface-variant hover:bg-surface-container dark:hover:bg-surface-container-high cursor-pointer px-1 rounded transition-colors" href="#">Logs</a>
+<a class="font-code-sm text-code-sm text-on-surface-variant hover:bg-surface-container dark:hover:bg-surface-container-high cursor-pointer px-1 rounded transition-colors" href="#">Support</a>
+</div>
+</footer>
+<style>
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.1);
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #464555;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #918fa1;
+        }
+    </style>
+</body></html>
