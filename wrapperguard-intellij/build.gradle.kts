@@ -5,10 +5,12 @@ plugins {
     kotlin("jvm")
     id("org.jetbrains.intellij.platform")
     id("org.jetbrains.kotlin.plugin.compose")
+    id("org.jetbrains.compose")
 }
 
 repositories {
     mavenCentral()
+    google()
     intellijPlatform { defaultRepositories() }
 }
 
@@ -23,11 +25,12 @@ dependencies {
 
         // Compose + Jewel are bundled with the IntelliJ Platform since 2025.1 (build 251).
         // Consume them as platform-provided modules rather than standalone Maven artifacts.
-        // See https://github.com/rock3r/jewel-ijp-template for the canonical setup.
-        bundledModule("intellij.platform.compose")
+        // Canonical setup: https://github.com/rock3r/jewel-ijp-template
         bundledModule("intellij.platform.jewel.foundation")
         bundledModule("intellij.platform.jewel.ui")
         bundledModule("intellij.platform.jewel.ideLafBridge")
+        bundledModule("intellij.libraries.compose.foundation.desktop")
+        bundledModule("intellij.libraries.skiko")
 
         testFramework(TestFrameworkType.Platform)
     }

@@ -7,6 +7,10 @@
     ]]></description>
     <idea-version since-build="251"/>
     <depends>com.intellij.modules.platform</depends>
+    <!-- Compose + Jewel are bundled with the IntelliJ Platform since 2025.1 (build 251).
+         This module dependency wires the bundled androidx.compose / Jewel classes into the
+         plugin's classloader at runtime. -->
+    <depends>com.intellij.modules.compose</depends>
     <depends>com.intellij.gradle</depends>
 
     <extensions defaultExtensionNs="com.intellij">
