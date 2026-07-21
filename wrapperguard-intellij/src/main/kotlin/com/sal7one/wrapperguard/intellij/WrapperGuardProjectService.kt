@@ -7,6 +7,7 @@ import com.intellij.openapi.project.Project
 import com.sal7one.wrapperguard.core.model.ScanReport
 import com.sal7one.wrapperguard.core.policy.EnforcementMode
 import com.sal7one.wrapperguard.core.policy.ScanPolicy
+import com.sal7one.wrapperguard.core.policy.ScanSettings
 import com.sal7one.wrapperguard.rules.RepositoryScanner
 import java.nio.file.Path
 import java.util.concurrent.CopyOnWriteArrayList
@@ -25,7 +26,7 @@ class WrapperGuardProjectService(private val project: Project) {
      */
     fun scan(): ScanReport? {
         val root = project.basePath?.let(Path::of) ?: return null
-        return RepositoryScanner().scan(root, ScanPolicy(mode = EnforcementMode.WARN)).also {
+        return RepositoryScanner().scan(root, ScanPolicy(mode = EnforcementMode.WARN), ScanSettings()).also {
             report = it
             listeners.forEach { listener -> listener(it) }
         }
