@@ -400,6 +400,9 @@ body.vscode-light .graph-wrap { background: var(--surface); }
 .gnode-card.g-hit { outline: 1px solid var(--primary); outline-offset: 1px; }
 @keyframes wgenter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 #gInner { transition: transform 0.18s ease; }
+.detached { display: flex; flex-wrap: wrap; gap: 6px; }
+.detached-card { padding: 4px 10px; border-radius: 4px; background: var(--surface); border: 1px solid var(--border); font-size: 10px; cursor: pointer; transition: border-color 0.15s ease; }
+.detached-card:hover { border-color: var(--primary); }
 .edge-row { display: flex; align-items: center; gap: 6px; padding: 5px 6px; border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent); }
 .edge-row:nth-child(even) { background: color-mix(in srgb, var(--surface-high) 45%, transparent); }
 .edge-row .via { font-size: 10px; color: var(--text-dim); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -431,7 +434,7 @@ body.vscode-light .graph-wrap { background: var(--surface); }
       <span class="logo">🛡</span>
       <div>
         <div class="brand-name">WrapperGuard</div>
-        <div class="brand-ver mono">v0.2.0</div>
+        <div class="brand-ver mono">v0.3.0</div>
       </div>
     </div>
     <div class="app-actions">
@@ -1004,6 +1007,20 @@ function renderGraph() {
     '<input id="gFind" class="g-find" type="text" placeholder="Find node..." spellcheck="false"/>' +
     '</div>';
 
+  // Detached files: findings whose files are not part of any call chain (e.g. build.gradle).
+  const detached = [];
+  r.findings.forEach(function (f) {
+    if (!nodes.has(f.location.path) && detached.indexOf(f.location.path) < 0) detached.push(f.location.path);
+  });
+  let detachedHtml = '';
+  if (detached.length > 0) {
+    detachedHtml = '<div class="section-label" style="margin-top:12px">Detached files (' + detached.length + ')</div><div class="detached">';
+    detached.sort().forEach(function (p) {
+      detachedHtml += '<div class="detached-card mono" data-node="' + esc(p) + '" title="Click to open findings, or the file">' + esc(p) + '</div>';
+    });
+    detachedHtml += '</div>';
+  }
+
   const legend = '<div class="legend" style="margin-top:8px">' +
     '<span class="badge">entry</span>' +
     '<span class="badge warn">script hop</span>' +
@@ -1015,9 +1032,40 @@ function renderGraph() {
     '<div class="section-label">Call-chain graph (' + nodes.size + ' nodes · ' + edges.length + ' edges)</div>' +
     toolbar +
     '<div class="graph-wrap" id="graphWrap"><div class="graph" id="gInner">' + svg + cards + '</div></div>' +
+    detachedHtml +
     explorer + legend +
     '<div class="notice" style="margin-top:10px">Call chains are discovered statically — scripts are never executed during analysis.</div>';
   bindGraphEvents(r);
+}
+
+function openNodeFromGraph(n, r) {
+  const byPath = r.findings.filter(function (f) { return f.location.path === n; });
+  const finding =
+    byPath.filter(function (f) { return f.policyAction === 'BLOCK'; })[0] ||
+    byPath.filter(function (f) { return f.severity === 'ERROR'; })[0] ||
+    byPath.filter(function (f) { return f.severity === 'WARN'; })[0] ||
+    byPath[0];
+  if (finding) {
+    selectedFp = finding.fingerprint;
+    switchTab('findings');
+    renderFindings();
+  } else {
+    post('open', {
+      fingerprint: 'node-' + n,
+      ruleId: 'WG-NODE',
+      title: n,
+      message: n,
+      severity: 'INFO',
+      confidence: 'LOW',
+      category: 'AUDIT',
+      kind: 'AUDIT_EVIDENCE',
+      location: { path: n },
+      reachable: true,
+      callChain: [],
+      policyAction: 'ALLOW',
+      status: 'ACTIVE'
+    });
+  }
 }
 
 function applyZoom() {
@@ -1058,36 +1106,12 @@ function bindGraphEvents(r) {
     node.addEventListener('mouseenter', function () { setEdgeActive(node.getAttribute('data-node'), true); });
     node.addEventListener('mouseleave', function () { setEdgeActive(null, false); });
     node.addEventListener('click', function () {
-      const n = node.getAttribute('data-node');
-      const byPath = r.findings.filter(function (f) { return f.location.path === n; });
-      const finding =
-        byPath.filter(function (f) { return f.policyAction === 'BLOCK'; })[0] ||
-        byPath.filter(function (f) { return f.severity === 'ERROR'; })[0] ||
-        byPath.filter(function (f) { return f.severity === 'WARN'; })[0] ||
-        byPath[0];
-      if (finding) {
-        // Jump to the Findings tab with this finding selected in the detail pane.
-        selectedFp = finding.fingerprint;
-        switchTab('findings');
-        renderFindings();
-      } else {
-        // No findings at this node: open the file itself.
-        post('open', {
-          fingerprint: 'node-' + n,
-          ruleId: 'WG-NODE',
-          title: n,
-          message: n,
-          severity: 'INFO',
-          confidence: 'LOW',
-          category: 'AUDIT',
-          kind: 'AUDIT_EVIDENCE',
-          location: { path: n },
-          reachable: true,
-          callChain: [],
-          policyAction: 'ALLOW',
-          status: 'ACTIVE'
-        });
-      }
+      openNodeFromGraph(node.getAttribute('data-node'), r);
+    });
+  });
+  document.querySelectorAll('#panel-graph .detached-card').forEach(function (card) {
+    card.addEventListener('click', function () {
+      openNodeFromGraph(card.getAttribute('data-node'), r);
     });
   });
 }

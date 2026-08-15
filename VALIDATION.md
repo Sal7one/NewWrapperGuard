@@ -1,4 +1,4 @@
-# Validation Notes — v0.2.0
+# Validation Notes — v0.3.0
 
 Checks actually run against this revision (all commands on a clean checkout, JDK 21).
 
@@ -7,10 +7,14 @@ Checks actually run against this revision (all commands on a clean checkout, JDK
 - [x] \`:wrapperguard-intellij:buildPlugin\` — produces
       \`wrapperguard-intellij/build/distributions/wrapperguard-intellij-0.2.0-SNAPSHOT.zip\` (~2.7 MB).
 - [x] VS Code extension: \`npm ci && npm run compile\` — **green** (tsc, 0 errors).
+- [x] **Node test suite**: 19/19 passing (\`npm test\`, node:test — redaction, fingerprints,
+      policy, scanner integration).
 - [x] **Scanner parity** (TS in-process port vs Kotlin CLI) on \`/tmp/wg-demo\`,
       \`old_project/test-samples\`, and the repo root: identical verdicts, finding counts,
       blockers, edges, per-rule counts, and **zero fingerprint differences** both ways
       (\`npm run parity\`).
+- [x] **Hardening checks**: 5/5 (\`npm run hardening\`).
+- [x] **Artifacts**: \`wrapperguard-intellij-0.3.0.zip\` + \`wrapperguard-0.3.0.vsix\`.
 
 ## Tests
 - [x] \`:wrapperguard-core:test\` — \`CredentialRedactionTest\` (9 tests) green.

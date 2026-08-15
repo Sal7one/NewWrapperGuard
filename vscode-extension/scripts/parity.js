@@ -8,6 +8,7 @@ const { DEFAULT_ENFORCE_POLICY, DEFAULT_SETTINGS } = require('../dist/scanner/de
 const repoRoot = path.resolve(__dirname, '..', '..');
 const CLI = path.join(repoRoot, 'wrapperguard-cli', 'build', 'install', 'wrapperguard-cli', 'bin', 'wrapperguard-cli');
 
+const fs = require('node:fs');
 const dirs = process.argv.slice(2);
 if (dirs.length === 0) {
   dirs.push(
@@ -28,6 +29,10 @@ function runKotlin(dir) {
 
 let failed = false;
 for (const dir of dirs) {
+  if (!fs.existsSync(dir)) {
+    console.log('SKIP (missing): ' + dir);
+    continue;
+  }
   const k = runKotlin(dir);
   const t = scanProject(dir, DEFAULT_ENFORCE_POLICY, DEFAULT_SETTINGS, []);
   const kFp = new Set(k.findings.map((f) => f.fingerprint));

@@ -2,7 +2,9 @@
   "name": "wrapperguard",
   "displayName": "WrapperGuard",
   "description": "Static wrapper and bootstrap security analysis for Gradle projects. Never executes project code.",
-  "version": "0.2.0",
+  "version": "0.3.0",
+  "publisher": "sal7one",
+  "repository": { "type": "git", "url": "https://github.com/sal7one/wrapperguard" },
   "engines": { "vscode": "^1.95.0" },
   "categories": ["Linters", "Programming Languages"],
   "activationEvents": ["onStartupFinished", "onView:wrapperGuard.main", "onCommand:wrapperGuard.scanWorkspace"],
@@ -61,7 +63,8 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "parity": "node scripts/parity.js",
-    "hardening": "node scripts/hardening.js"
+    "hardening": "node scripts/hardening.js",
+    "test": "npm run compile && node --test tests/*.test.js"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

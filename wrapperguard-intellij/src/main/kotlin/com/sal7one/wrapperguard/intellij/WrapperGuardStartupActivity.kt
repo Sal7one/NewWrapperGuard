@@ -1,6 +1,7 @@
 package com.sal7one.wrapperguard.intellij
 
 import com.intellij.execution.impl.RunManagerImpl
+import com.intellij.ide.trustedProjects.TrustedProjectsListener
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.externalSystem.service.project.manage.ProjectDataImportListener
 import com.intellij.openapi.project.Project
@@ -28,6 +29,7 @@ class WrapperGuardStartupActivity : ProjectActivity {
         WrapperGuardVfsListener.register(project)
         backfillBeforeRunTasks(project)
         registerSyncGate(project)
+        registerTrustListener(project)
         // scanAsync runs on a background task; the Compose UI observes the result.
         service.scanAsync()
         // Dev/sandbox-only convenience (set by the runIde task): open the tool window on
@@ -60,6 +62,27 @@ class WrapperGuardStartupActivity : ProjectActivity {
  * actually executed (dependencies resolved, wrapper files rewritten), and any new blocker
  * surfaces in the tool window immediately.
  */
+private fun rescanOnTrustChange(project: Project) {
+    if (project.isDisposed) return
+    project.getService(WrapperGuardProjectService::class.java).scanAsync()
+}
+
+/** Re-scans whenever the project's trust state changes (trusted ⇄ untrusted). */
+internal fun registerTrustListener(project: Project) {
+    project.messageBus.connect(project).subscribe(
+        TrustedProjectsListener.TOPIC,
+        object : TrustedProjectsListener {
+            override fun onProjectTrusted(trustedProject: com.intellij.openapi.project.Project) {
+                rescanOnTrustChange(project)
+            }
+
+            override fun onProjectUntrusted(untrustedProject: com.intellij.openapi.project.Project) {
+                rescanOnTrustChange(project)
+            }
+        }
+    )
+}
+
 internal fun registerSyncGate(project: Project) {
     project.messageBus.connect(project).subscribe(
         ProjectDataImportListener.TOPIC,

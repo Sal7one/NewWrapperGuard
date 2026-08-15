@@ -7,7 +7,7 @@ on:
 
 jobs:
   gradle:
-    name: Gradle build + tests
+    name: Gradle build + tests + parity
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,17 +16,31 @@ jobs:
           distribution: temurin
           java-version: 21
       - uses: gradle/actions/setup-gradle@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - name: Build and test all modules
         run: ./gradlew build
       - name: Build plugin zip
         run: ./gradlew :wrapperguard-intellij:buildPlugin
+      - name: Scanner parity (TS vs Kotlin) + hostile-input checks
+        run: |
+          ./gradlew :wrapperguard-cli:installDist -q
+          cd vscode-extension
+          npm ci
+          npm run compile
+          node scripts/parity.js "$GITHUB_WORKSPACE/old_project/test-samples" "$GITHUB_WORKSPACE"
+          node scripts/hardening.js
+      - name: VS Code unit tests
+        working-directory: vscode-extension
+        run: npm test
       - uses: actions/upload-artifact@v4
         with:
           name: wrapperguard-plugin
           path: wrapperguard-intellij/build/distributions/*.zip
 
   vscode:
-    name: VS Code extension compile
+    name: VS Code extension compile + tests
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -37,4 +51,4 @@ jobs:
         with:
           node-version: 22
       - run: npm ci
-      - run: npm run compile
+      - run: npm test
