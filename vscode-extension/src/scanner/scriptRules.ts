@@ -34,6 +34,16 @@ function hasSuppressionWithoutReason(line: string): boolean {
   return m[1].trim() === '';
 }
 
+/** Strips the untrusted wrapperguard:ignore suffix so fingerprints stay stable. */
+function stripIgnoreSuffix(line: string): string {
+  const idx = line.toLowerCase().indexOf('wrapperguard:ignore');
+  let result = idx < 0 ? line : line.substring(0, idx).trimEnd();
+  // Drop the comment marker that introduced the ignore (shell '#', groovy '//').
+  if (result.endsWith('//')) result = result.slice(0, -2).trimEnd();
+  else if (result.endsWith('#')) result = result.slice(0, -1).trimEnd();
+  return result;
+}
+
 /**
  * Faithful port of ScriptRules (shell/batch/PowerShell per-line analysis), including the
  * exact check ordering, the eval "set -- $( Gradle JVM-opts special case, suppression, and
@@ -52,6 +62,9 @@ export function analyzeScript(
     const line = raw.trim();
     if (line === '') return;
     const lineNo = idx + 1;
+    // Evidence for line-level findings: strip any untrusted ignore-marker suffix so
+    // fingerprints stay stable when the suppression is later approved (#5).
+    const evidenceLine = stripIgnoreSuffix(line);
 
     if (line.toLowerCase().includes('wrapperguard:ignore')) {
       if (hasSuppressionWithoutReason(line)) {
@@ -70,7 +83,7 @@ export function analyzeScript(
           )
         );
       }
-      return;
+      // UNTRUSTED (#5): a repo-shipped ignore never suppresses — checks below still run.
     }
     if (commentPrefixes.some((p) => line.toLowerCase().startsWith(p.toLowerCase()))) return;
 
@@ -84,7 +97,7 @@ export function analyzeScript(
             'Remove this command or update the blocked command policy if it is approved.',
             source.relativePath,
             lineNo,
-            line,
+            evidenceLine,
             'ERROR',
             'HIGH',
             'EXECUTION'
@@ -101,7 +114,7 @@ export function analyzeScript(
           'Download, verify, and execute pinned artifacts instead of piping network output into an interpreter.',
           source.relativePath,
           lineNo,
-          line,
+          evidenceLine,
           'ERROR',
           'HIGH',
           'SUPPLY_CHAIN'
@@ -115,7 +128,7 @@ export function analyzeScript(
           'Review why wrapper/bootstrap code needs network access.',
           source.relativePath,
           lineNo,
-          line,
+          evidenceLine,
           'WARN',
           'MEDIUM',
           'NETWORK'
@@ -131,7 +144,7 @@ export function analyzeScript(
           'Remove insecure TLS flags and fix the certificate trust chain.',
           source.relativePath,
           lineNo,
-          line,
+          evidenceLine,
           'ERROR',
           'HIGH',
           'NETWORK'
@@ -148,7 +161,7 @@ export function analyzeScript(
           'Avoid eval/iex/base64 execution in wrapper and bootstrap scripts.',
           source.relativePath,
           lineNo,
-          line,
+          evidenceLine,
           'ERROR',
           'HIGH',
           'OBFUSCATION'
@@ -164,7 +177,7 @@ export function analyzeScript(
           'Wrapper files should be reviewed and committed, not rewritten by bootstrap scripts.',
           source.relativePath,
           lineNo,
-          line,
+          evidenceLine,
           'ERROR',
           'HIGH',
           'WRAPPER'
@@ -180,7 +193,7 @@ export function analyzeScript(
           'Confirm this cannot delete project or user data unexpectedly.',
           source.relativePath,
           lineNo,
-          line,
+          evidenceLine,
           'WARN',
           'MEDIUM',
           'FILE_SYSTEM'
@@ -196,7 +209,7 @@ export function analyzeScript(
           'Avoid privilege escalation or execution policy bypass in project bootstrap code.',
           source.relativePath,
           lineNo,
-          line,
+          evidenceLine,
           'WARN',
           'MEDIUM',
           'EXECUTION'
@@ -205,7 +218,7 @@ export function analyzeScript(
     }
 
     if (ENVIRONMENT_LEAK.test(line)) {
-      const { masked, changed } = maskSecretValues(line);
+      const { masked, changed } = maskSecretValues(evidenceLine);
       findings.push(
         finding(
           RuleIds.CREDENTIALS_ENV_LEAK,

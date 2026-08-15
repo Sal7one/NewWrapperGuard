@@ -54,7 +54,6 @@ class BuildScriptRules private constructor(
 
         REPOSITORY_PATTERNS.forEach { pattern ->
             pattern.findAll(source.content).forEach { match ->
-                if (isSuppressed(source.content, match.range.first)) return@forEach
                 val url = match.groupValues.getOrNull(1).orEmpty()
                 findings += checkRepositoryUrl(source, url, match.value, lineNumber(source.content, match.range.first), settings)
             }
@@ -62,7 +61,6 @@ class BuildScriptRules private constructor(
 
         REMOTE_SCRIPT_PATTERNS.forEach { pattern ->
             pattern.findAll(source.content).forEach { match ->
-                if (isSuppressed(source.content, match.range.first)) return@forEach
                 findings += base(
                     RuleIds.SUPPLY_REMOTE_SCRIPT,
                     "Remote Gradle script inclusion",
@@ -75,7 +73,6 @@ class BuildScriptRules private constructor(
 
         PROCESS_EXECUTION_PATTERNS.forEach { pattern ->
             pattern.findAll(source.content).forEach { match ->
-                if (isSuppressed(source.content, match.range.first)) return@forEach
                 findings += base(
                     RuleIds.EXECUTION_PROCESS,
                     "Process execution in $scriptType build logic",
@@ -88,7 +85,6 @@ class BuildScriptRules private constructor(
 
         NETWORK_CODE_PATTERNS.forEach { pattern ->
             pattern.findAll(source.content).forEach { match ->
-                if (isSuppressed(source.content, match.range.first)) return@forEach
                 findings += base(
                     RuleIds.NETWORK_CLIENT,
                     "Network client usage in $scriptType build logic",
@@ -101,7 +97,6 @@ class BuildScriptRules private constructor(
 
         DYNAMIC_CODE_PATTERNS.forEach { pattern ->
             pattern.findAll(source.content).forEach { match ->
-                if (isSuppressed(source.content, match.range.first)) return@forEach
                 findings += base(
                     RuleIds.OBFUSCATION_DYNAMIC,
                     "Dynamic or reflective code execution in $scriptType build logic",
@@ -114,7 +109,6 @@ class BuildScriptRules private constructor(
 
         CREDENTIAL_PATTERNS.forEach { pattern ->
             pattern.findAll(source.content).forEach { match ->
-                if (isSuppressed(source.content, match.range.first)) return@forEach
                 val (maskedEvidence, didRedact) = CredentialRedaction.mask(match.value.take(160))
                 findings += base(
                     RuleIds.CREDENTIALS_HARDCODED,
@@ -129,7 +123,6 @@ class BuildScriptRules private constructor(
 
         UNSTABLE_DEP_PATTERNS.forEach { pattern ->
             pattern.findAll(source.content).forEach { match ->
-                if (isSuppressed(source.content, match.range.first)) return@forEach
                 findings += base(
                     RuleIds.SUPPLY_UNSTABLE_DEP,
                     "Unpinned or changing dependency version",
@@ -141,7 +134,6 @@ class BuildScriptRules private constructor(
         }
 
         Regex("""\bmavenLocal\s*\(""").findAll(source.content).forEach { match ->
-            if (isSuppressed(source.content, match.range.first)) return@forEach
             findings += base(
                 RuleIds.REPO_MAVEN_LOCAL,
                 "mavenLocal() is enabled",
@@ -152,7 +144,6 @@ class BuildScriptRules private constructor(
         }
 
         Regex("""\bflatDir\s*\{""").findAll(source.content).forEach { match ->
-            if (isSuppressed(source.content, match.range.first)) return@forEach
             findings += base(
                 RuleIds.REPO_FLAT_DIR,
                 "flatDir repository is enabled",
@@ -165,7 +156,6 @@ class BuildScriptRules private constructor(
         if (isInit) {
             INIT_SCRIPT_PATTERNS.forEach { pattern ->
                 pattern.findAll(source.content).forEach { match ->
-                    if (isSuppressed(source.content, match.range.first)) return@forEach
                     findings += base(
                         RuleIds.SUPPLY_INIT_LIFECYCLE,
                         "Init script hooks into Gradle lifecycle",
@@ -234,13 +224,6 @@ class BuildScriptRules private constructor(
         location = SourceLocation(source.relativePath, lineNumber),
         evidence = Evidence(evidence, redacted = redacted), remediation = remediation
     )
-
-    private fun isSuppressed(content: String, charIndex: Int): Boolean {
-        val safeIndex = charIndex.coerceIn(0, content.length)
-        val lineStart = content.lastIndexOf('\n', (safeIndex - 1).coerceAtLeast(0)).let { if (it == -1) 0 else it + 1 }
-        val lineEnd = content.indexOf('\n', safeIndex).let { if (it == -1) content.length else it }
-        return content.substring(lineStart, lineEnd).contains("wrapperguard:ignore", ignoreCase = true)
-    }
 
     private fun hasSuppressionWithoutReason(line: String): Boolean {
         val match = Regex("""wrapperguard:ignore\b(.*)$""", RegexOption.IGNORE_CASE).find(line) ?: return false

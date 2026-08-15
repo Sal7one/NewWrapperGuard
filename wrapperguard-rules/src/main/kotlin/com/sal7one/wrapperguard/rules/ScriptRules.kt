@@ -11,7 +11,12 @@ import com.sal7one.wrapperguard.core.util.UrlAllowlist
 /**
  * Shell/batch/PowerShell per-line analysis. Ports old_project's ScriptAnalyzer line engine
  * faithfully, including the exact check ordering, the `eval "set -- $("` Gradle JVM-opts
- * special case, `wrapperguard:ignore` suppression, and generated-then-executed detection.
+ * special case, and generated-then-executed detection.
+ *
+ * SUPPRESSION MODEL (#5): a `wrapperguard:ignore` marker shipped inside a repository is
+ * UNTRUSTED — it never suppresses findings by itself. Findings on ignored lines are emitted
+ * normally (the marker is stripped from line-level evidence so fingerprints stay stable),
+ * and only a trusted external baseline (user-approved fingerprint) marks them SUPPRESSED.
  *
  * One [ScriptRules] instance handles all three script flavors via a [flavor] parameter that
  * selects the network-command pattern and comment prefixes.
@@ -37,6 +42,9 @@ class ScriptRules private constructor(
             val line = raw.trim()
             if (line.isBlank()) return@forEachIndexed
             val lineNumber = idx + 1
+            // Evidence for line-level findings: strip any untrusted ignore-marker suffix so
+            // fingerprints stay stable when the suppression is later approved.
+            val evidenceLine = stripIgnoreSuffix(line)
 
             if (line.contains("wrapperguard:ignore", ignoreCase = true)) {
                 if (hasSuppressionWithoutReason(line)) {
@@ -48,18 +56,19 @@ class ScriptRules private constructor(
                         FindingCategory.CONFIGURATION, FindingKind.AUDIT_EVIDENCE
                     )
                 }
-                return@forEachIndexed
+                // UNTRUSTED (#5): the checks below still run — a repository must not be able
+                // to suppress its own payload.
             }
             if (flavor.commentPrefixes.any { line.startsWith(it, ignoreCase = true) }) return@forEachIndexed
 
             settings.blockedCommands.forEach { blocked ->
-                val blockedPattern = Regex("""(?<![\w./-])${Regex.escape(blocked)}(?![\w-])""", RegexOption.IGNORE_CASE)
+                val blockedPattern = Regex("""(?<![w./-])${Regex.escape(blocked)}(?![w-])""", RegexOption.IGNORE_CASE)
                 if (blockedPattern.containsMatchIn(line)) {
                     findings += finding(
                         RuleIds.SUPPLY_BLOCKED_COMMAND,
                         "Blocked command detected: $blocked",
                         "Remove this command or update the blocked command policy if it is approved.",
-                        source, lineNumber, line, Severity.ERROR, Confidence.HIGH,
+                        source, lineNumber, evidenceLine, Severity.ERROR, Confidence.HIGH,
                         FindingCategory.EXECUTION
                     )
                 }
@@ -70,7 +79,7 @@ class ScriptRules private constructor(
                     RuleIds.SUPPLY_PIPE_TO_SHELL,
                     "Remote content is piped into a shell",
                     "Download, verify, and execute pinned artifacts instead of piping network output into an interpreter.",
-                    source, lineNumber, line, Severity.ERROR, Confidence.HIGH,
+                    source, lineNumber, evidenceLine, Severity.ERROR, Confidence.HIGH,
                     FindingCategory.SUPPLY_CHAIN
                 )
             } else if (flavor.networkCommandPattern.containsMatchIn(line)) {
@@ -78,7 +87,7 @@ class ScriptRules private constructor(
                     RuleIds.NETWORK_COMMAND,
                     "Network-capable command detected",
                     "Review why wrapper/bootstrap code needs network access.",
-                    source, lineNumber, line, Severity.WARN, Confidence.MEDIUM,
+                    source, lineNumber, evidenceLine, Severity.WARN, Confidence.MEDIUM,
                     FindingCategory.NETWORK
                 )
             }
@@ -88,19 +97,19 @@ class ScriptRules private constructor(
                     RuleIds.NETWORK_INSECURE_TLS,
                     "TLS verification is disabled",
                     "Remove insecure TLS flags and fix the certificate trust chain.",
-                    source, lineNumber, line, Severity.ERROR, Confidence.HIGH,
+                    source, lineNumber, evidenceLine, Severity.ERROR, Confidence.HIGH,
                     FindingCategory.NETWORK
                 )
             }
 
-            // eval "set -- $(...)" is standard Gradle JVM-opts parsing; skip it
-            val isGradleJvmOptsEval = line.trimStart().startsWith("eval \"set -- \$(")
+            // eval "set -- $(" is standard Gradle JVM-opts parsing; skip it
+            val isGradleJvmOptsEval = line.trimStart().startsWith("eval \"set -- $(")
             if (!isGradleJvmOptsEval && ENCODED_EXECUTION.containsMatchIn(line)) {
                 findings += finding(
                     RuleIds.OBFUSCATION_ENCODED_EXEC,
                     "Encoded or dynamic execution pattern detected",
                     "Avoid eval/iex/base64 execution in wrapper and bootstrap scripts.",
-                    source, lineNumber, line, Severity.ERROR, Confidence.HIGH,
+                    source, lineNumber, evidenceLine, Severity.ERROR, Confidence.HIGH,
                     FindingCategory.OBFUSCATION
                 )
             }
@@ -110,7 +119,7 @@ class ScriptRules private constructor(
                     RuleIds.WRAPPER_MUTATION,
                     "Script mutates Gradle wrapper files",
                     "Wrapper files should be reviewed and committed, not rewritten by bootstrap scripts.",
-                    source, lineNumber, line, Severity.ERROR, Confidence.HIGH,
+                    source, lineNumber, evidenceLine, Severity.ERROR, Confidence.HIGH,
                     FindingCategory.WRAPPER
                 )
             }
@@ -120,7 +129,7 @@ class ScriptRules private constructor(
                     RuleIds.FILE_SYSTEM_DESTRUCTIVE,
                     "Destructive file-system command detected",
                     "Confirm this cannot delete project or user data unexpectedly.",
-                    source, lineNumber, line, Severity.WARN, Confidence.MEDIUM,
+                    source, lineNumber, evidenceLine, Severity.WARN, Confidence.MEDIUM,
                     FindingCategory.FILE_SYSTEM
                 )
             }
@@ -130,13 +139,13 @@ class ScriptRules private constructor(
                     RuleIds.EXECUTION_PRIVILEGE,
                     "Privilege or execution policy change detected",
                     "Avoid privilege escalation or execution policy bypass in project bootstrap code.",
-                    source, lineNumber, line, Severity.WARN, Confidence.MEDIUM,
+                    source, lineNumber, evidenceLine, Severity.WARN, Confidence.MEDIUM,
                     FindingCategory.EXECUTION
                 )
             }
 
             if (ENVIRONMENT_LEAK.containsMatchIn(line)) {
-                val (maskedLine, didRedact) = CredentialRedaction.mask(line)
+                val (maskedLine, didRedact) = CredentialRedaction.mask(evidenceLine)
                 findings += finding(
                     RuleIds.CREDENTIALS_ENV_LEAK,
                     "Potential environment secret exposure",
@@ -222,8 +231,18 @@ class ScriptRules private constructor(
     )
 
     private fun hasSuppressionWithoutReason(line: String): Boolean {
-        val match = Regex("""wrapperguard:ignore\b(.*)$""", RegexOption.IGNORE_CASE).find(line) ?: return false
+        val match = Regex("""wrapperguard:ignore(.*)$""", RegexOption.IGNORE_CASE).find(line) ?: return false
         return match.groupValues[1].trim().isBlank()
+    }
+
+    /** Strips the untrusted wrapperguard:ignore suffix so fingerprints stay stable. */
+    private fun stripIgnoreSuffix(line: String): String {
+        val idx = line.indexOf("wrapperguard:ignore", ignoreCase = true)
+        var result = if (idx < 0) line else line.substring(0, idx).trimEnd()
+        // Drop the comment marker that introduced the ignore (shell '#', groovy '//').
+        if (result.endsWith("//")) result = result.dropLast(2).trimEnd()
+        else if (result.endsWith("#")) result = result.dropLast(1).trimEnd()
+        return result
     }
 
     companion object {

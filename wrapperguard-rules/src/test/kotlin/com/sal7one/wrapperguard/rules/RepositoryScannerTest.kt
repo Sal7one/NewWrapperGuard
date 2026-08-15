@@ -87,10 +87,14 @@ class RepositoryScannerTest {
     }
 
     @Test
-    fun `wrapperguard ignore suppresses the suppressed finding`() {
+    fun `repo-shipped wrapperguard ignore is untrusted and does not suppress`() {
         val report = scanner.scan(samples.resolve("simple-ignore-comment"), warn, ScanSettings())
-        val hasSuppressedViolation = report.findings.any { it.ruleId == RuleIds.SUPPLY_PIPE_TO_SHELL }
-        assertFalse(hasSuppressedViolation, "Suppressed line should not produce pipe-to-shell: ${report.findings.map { it.ruleId }}")
+        val violation = report.findings.firstOrNull { it.ruleId == RuleIds.SUPPLY_PIPE_TO_SHELL }
+        assertTrue(violation != null, "Untrusted repo ignore must NOT suppress the finding: ${report.findings.map { it.ruleId }}")
+        assertFalse(
+            violation!!.evidence!!.text.contains("wrapperguard:ignore", ignoreCase = true),
+            "Ignore marker must be stripped from evidence"
+        )
     }
 
     @Test

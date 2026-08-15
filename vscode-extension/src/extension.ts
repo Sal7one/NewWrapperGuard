@@ -94,6 +94,20 @@ export function activate(context: vscode.ExtensionContext): void {
     edit.insert(fileUri, new vscode.Position(line, text.length), marker);
     await vscode.workspace.applyEdit(edit);
     await doc.save();
+    // #5: the inline marker alone is UNTRUSTED — approving the suppression means adding
+    // the fingerprint to the trusted external baseline too. The scanner strips the marker
+    // from evidence, so the fingerprint stays stable and the baseline matches after rescan.
+    await mkdir(context.globalStorageUri.fsPath, { recursive: true });
+    let entries: Array<{ fingerprint: string; ruleId?: string; reason?: string }> = [];
+    try {
+      entries = JSON.parse(await readFile(baselineUri.fsPath, 'utf8')) as Array<{ fingerprint: string; ruleId?: string; reason?: string }>;
+    } catch {
+      entries = [];
+    }
+    if (!entries.some((e) => e.fingerprint === finding.fingerprint)) {
+      entries.push({ fingerprint: finding.fingerprint, ruleId: finding.ruleId, reason });
+      await writeFile(baselineUri.fsPath, JSON.stringify(entries, null, 2), 'utf8');
+    }
     void vscode.window.showInformationMessage('WrapperGuard: suppressed ' + finding.ruleId + ' — rescanning.');
     await scan();
   };

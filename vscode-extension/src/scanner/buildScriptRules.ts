@@ -68,15 +68,6 @@ function lineNumber(content: string, charIndex: number): number {
   return upto.split('\n').length;
 }
 
-function isSuppressed(content: string, charIndex: number): boolean {
-  const safeIndex = Math.min(Math.max(charIndex, 0), content.length);
-  const lineStart = content.lastIndexOf('\n', safeIndex - 1 < 0 ? 0 : safeIndex - 1);
-  const start = lineStart === -1 ? 0 : lineStart + 1;
-  const nextNl = content.indexOf('\n', safeIndex);
-  const lineEnd = nextNl === -1 ? content.length : nextNl;
-  return content.substring(start, lineEnd).toLowerCase().includes('wrapperguard:ignore');
-}
-
 function hasSuppressionWithoutReason(rawLine: string): boolean {
   const m = /wrapperguard:ignore\b(.*)$/.exec(rawLine);
   if (!m) return false;
@@ -147,7 +138,6 @@ export function analyzeBuildScript(
     pattern.lastIndex = 0;
     let m: RegExpExecArray | null;
     while ((m = pattern.exec(source.content)) !== null) {
-      if (isSuppressed(source.content, m.index)) continue;
       const url = m[1] ?? '';
       findings.push(checkRepositoryUrl(relPath, url, m[0], lineNumber(source.content, m.index), settings));
     }
@@ -157,7 +147,6 @@ export function analyzeBuildScript(
     pattern.lastIndex = 0;
     let m: RegExpExecArray | null;
     while ((m = pattern.exec(source.content)) !== null) {
-      if (isSuppressed(source.content, m.index)) continue;
       findings.push(
         base(
           RuleIds.SUPPLY_REMOTE_SCRIPT,
@@ -178,7 +167,6 @@ export function analyzeBuildScript(
     pattern.lastIndex = 0;
     let m: RegExpExecArray | null;
     while ((m = pattern.exec(source.content)) !== null) {
-      if (isSuppressed(source.content, m.index)) continue;
       findings.push(
         base(
           RuleIds.EXECUTION_PROCESS,
@@ -199,7 +187,6 @@ export function analyzeBuildScript(
     pattern.lastIndex = 0;
     let m: RegExpExecArray | null;
     while ((m = pattern.exec(source.content)) !== null) {
-      if (isSuppressed(source.content, m.index)) continue;
       findings.push(
         base(
           RuleIds.NETWORK_CLIENT,
@@ -220,7 +207,6 @@ export function analyzeBuildScript(
     pattern.lastIndex = 0;
     let m: RegExpExecArray | null;
     while ((m = pattern.exec(source.content)) !== null) {
-      if (isSuppressed(source.content, m.index)) continue;
       findings.push(
         base(
           RuleIds.OBFUSCATION_DYNAMIC,
@@ -241,7 +227,6 @@ export function analyzeBuildScript(
     pattern.lastIndex = 0;
     let m: RegExpExecArray | null;
     while ((m = pattern.exec(source.content)) !== null) {
-      if (isSuppressed(source.content, m.index)) continue;
       const { masked, changed } = maskSecretValues(take(m[0], 160));
       findings.push(
         base(
@@ -265,7 +250,6 @@ export function analyzeBuildScript(
     pattern.lastIndex = 0;
     let m: RegExpExecArray | null;
     while ((m = pattern.exec(source.content)) !== null) {
-      if (isSuppressed(source.content, m.index)) continue;
       findings.push(
         base(
           RuleIds.SUPPLY_UNSTABLE_DEP,
@@ -286,7 +270,6 @@ export function analyzeBuildScript(
   mavenLocal.lastIndex = 0;
   let ml: RegExpExecArray | null;
   while ((ml = mavenLocal.exec(source.content)) !== null) {
-    if (isSuppressed(source.content, ml.index)) continue;
     findings.push(
       base(
         RuleIds.REPO_MAVEN_LOCAL,
@@ -306,7 +289,6 @@ export function analyzeBuildScript(
   flatDir.lastIndex = 0;
   let fd: RegExpExecArray | null;
   while ((fd = flatDir.exec(source.content)) !== null) {
-    if (isSuppressed(source.content, fd.index)) continue;
     findings.push(
       base(
         RuleIds.REPO_FLAT_DIR,
@@ -327,7 +309,6 @@ export function analyzeBuildScript(
       pattern.lastIndex = 0;
       let m: RegExpExecArray | null;
       while ((m = pattern.exec(source.content)) !== null) {
-        if (isSuppressed(source.content, m.index)) continue;
         findings.push(
           base(
             RuleIds.SUPPLY_INIT_LIFECYCLE,
