@@ -2,10 +2,12 @@ package com.sal7one.wrapperguard.intellij
 
 import com.intellij.execution.impl.RunManagerImpl
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.externalSystem.service.project.manage.ProjectDataImportListener
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.ProjectActivity
 import com.sal7one.wrapperguard.intellij.execution.WrapperGuardBeforeRunTask
 import com.sal7one.wrapperguard.intellij.execution.WrapperGuardBeforeRunTaskProvider
+import com.sal7one.wrapperguard.intellij.execution.runGuardScan
 
 /**
  * Scans the project as early as possible after open. The scanner is pure text analysis
@@ -25,6 +27,7 @@ class WrapperGuardStartupActivity : ProjectActivity {
         val service = project.getService(WrapperGuardProjectService::class.java)
         WrapperGuardVfsListener.register(project)
         backfillBeforeRunTasks(project)
+        registerSyncGate(project)
         // scanAsync runs on a background task; the Compose UI observes the result.
         service.scanAsync()
         // Dev/sandbox-only convenience (set by the runIde task): open the tool window on
@@ -47,6 +50,31 @@ class WrapperGuardStartupActivity : ProjectActivity {
  *
  * Top-level and internal so the guard smoke tests can exercise it directly.
  */
+/**
+ * Gradle-sync gate (#1). The BLOCKING half is provided by the before-run guard: a Gradle
+ * sync executes through an [com.intellij.openapi.externalSystem.service.execution.ExternalSystemRunConfiguration],
+ * which [WrapperGuardBeforeRunTaskProvider.isApplicable] covers, so a sync is hard-blocked
+ * exactly like any other Gradle run when ENFORCE finds blockers.
+ *
+ * This half re-validates AFTER each import finishes: the report then reflects what the sync
+ * actually executed (dependencies resolved, wrapper files rewritten), and any new blocker
+ * surfaces in the tool window immediately.
+ */
+internal fun registerSyncGate(project: Project) {
+    project.messageBus.connect(project).subscribe(
+        ProjectDataImportListener.TOPIC,
+        object : ProjectDataImportListener {
+            override fun onFinalTasksFinished(projectPath: String?) {
+                if (project.isDisposed) return
+                ApplicationManager.getApplication().executeOnPooledThread {
+                    val report = runCatching { runGuardScan(project) }.getOrNull() ?: return@executeOnPooledThread
+                    project.getService(WrapperGuardProjectService::class.java).publishExternalReport(report)
+                }
+            }
+        }
+    )
+}
+
 internal fun backfillBeforeRunTasks(project: Project) {
     val action = Runnable {
         if (project.isDisposed) return@Runnable

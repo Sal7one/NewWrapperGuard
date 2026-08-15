@@ -1,5 +1,6 @@
 package com.sal7one.wrapperguard.cli
 
+import com.sal7one.wrapperguard.core.export.SarifExporter
 import com.sal7one.wrapperguard.core.model.BaselineEntry
 import com.sal7one.wrapperguard.core.model.FindingStatus
 import com.sal7one.wrapperguard.core.model.PolicyAction
@@ -39,7 +40,9 @@ fun main(args: Array<String>) {
     val policy = ScanPolicy(mode = if (enforce) EnforcementMode.ENFORCE else EnforcementMode.WARN)
     val report = RepositoryScanner().scan(path, policy, ScanSettings(), baseline)
 
-    if (jsonOutput) {
+    if ("--sarif" in args) {
+        println(JSON.encodeToString(SarifExporter.toSarif(report)))
+    } else if (jsonOutput) {
         println(JSON.encodeToString(report))
     } else {
         println("WrapperGuard: " + report.verdict + " — " + report.findings.size + " findings in " + report.scannedFiles + " files")

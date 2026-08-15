@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { scanWorkspaceNative } from './scanner/entry';
+import { toSarif } from './scanner/sarif';
 import { WrapperGuardWebviewProvider, openFindingInEditor } from './webviewUi';
 import { Finding, ScanState } from './models';
 import { WrapperGuardState } from './state';
@@ -27,10 +28,11 @@ export function activate(context: vscode.ExtensionContext): void {
     state.set({ kind: 'scanning' });
     renderAll(state.get());
     try {
-      const { report, rawJson } = await vscode.window.withProgress(
+      const { report, rawJson, settings } = await vscode.window.withProgress(
         { location: vscode.ProgressLocation.Notification, title: 'WrapperGuard: Scanning workspace' },
         () => scanWorkspaceNative(root, baselineUri.fsPath)
       );
+      provider.setSettings(settings);
       state.set({ kind: 'scanned', report, rawJson });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -58,6 +60,23 @@ export function activate(context: vscode.ExtensionContext): void {
     }
     await writeFile(destination.fsPath, current.rawJson, 'utf8');
     void vscode.window.showInformationMessage(`WrapperGuard report exported to ${destination.fsPath}`);
+  };
+
+  const exportSarif = async (): Promise<void> => {
+    const current = state.get();
+    if (current.kind !== 'scanned') {
+      void vscode.window.showInformationMessage('Run a scan before exporting a report.');
+      return;
+    }
+    const destination = await vscode.window.showSaveDialog({
+      defaultUri: vscode.Uri.file('wrapperguard.sarif.json'),
+      filters: { 'SARIF report': ['sarif', 'json'] }
+    });
+    if (!destination) {
+      return;
+    }
+    await writeFile(destination.fsPath, JSON.stringify(toSarif(current.report), null, 2), 'utf8');
+    void vscode.window.showInformationMessage('WrapperGuard SARIF exported to ' + destination.fsPath);
   };
 
   const copyEvidence = async (finding: Finding): Promise<void> => {
@@ -154,6 +173,7 @@ export function activate(context: vscode.ExtensionContext): void {
   provider.handlers = {
     scan: () => void scan(),
     exportReport: () => void exportReport(),
+    exportSarif: () => void exportSarif(),
     openFinding: (finding: Finding) => void openFindingInEditor(finding),
     copyEvidence: (finding: Finding) => void copyEvidence(finding),
     suppress: (finding: Finding) => void suppress(finding),
@@ -182,7 +202,8 @@ export function activate(context: vscode.ExtensionContext): void {
       webviewOptions: { retainContextWhenHidden: true }
     }),
     vscode.commands.registerCommand('wrapperGuard.scanWorkspace', scan),
-    vscode.commands.registerCommand('wrapperGuard.exportReport', exportReport)
+    vscode.commands.registerCommand('wrapperGuard.exportReport', exportReport),
+    vscode.commands.registerCommand('wrapperGuard.exportSarif', exportSarif)
   );
 
   status.show();

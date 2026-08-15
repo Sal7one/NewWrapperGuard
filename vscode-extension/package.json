@@ -10,7 +10,8 @@
   "contributes": {
     "commands": [
       { "command": "wrapperGuard.scanWorkspace", "title": "WrapperGuard: Scan Workspace", "icon": "$(refresh)" },
-      { "command": "wrapperGuard.exportReport", "title": "WrapperGuard: Export Report (JSON)", "icon": "$(export)" }
+      { "command": "wrapperGuard.exportReport", "title": "WrapperGuard: Export Report (JSON)", "icon": "$(export)" },
+      { "command": "wrapperGuard.exportSarif", "title": "WrapperGuard: Export SARIF", "icon": "$(export)" }
     ],
     "viewsContainers": {
       "activitybar": [
@@ -35,6 +36,23 @@
           "type": "boolean",
           "default": true,
           "description": "Run a scan automatically when a workspace folder is opened."
+        },
+        "wrapperGuard.allowedHosts": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "Additional hosts allowed in URLs and repositories (merged with the built-in defaults)."
+        },
+        "wrapperGuard.blockedCommands": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "Additional commands blocked in wrapper/script files (merged with the built-in defaults)."
+        },
+        "wrapperGuard.requireDistributionSha256": {
+          "type": "boolean",
+          "default": false,
+          "description": "Require distributionSha256Sum in gradle-wrapper.properties."
         }
       }
     }

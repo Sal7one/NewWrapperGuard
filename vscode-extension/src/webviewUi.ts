@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { Finding, ScanState } from './models';
+import { Finding, ScanSettings, ScanState } from './models';
 
 /** Actions the webview UI can request; wired to real commands by the extension host. */
 export interface UiHandlers {
@@ -10,6 +10,7 @@ export interface UiHandlers {
   suppress(finding: Finding): void;
   baseline(finding: Finding): void;
   unbaseline(finding: Finding): void;
+  exportSarif(): void;
 }
 
 export async function openFindingInEditor(finding: Finding): Promise<void> {
@@ -51,7 +52,8 @@ export class WrapperGuardWebviewProvider implements vscode.WebviewViewProvider {
     copyEvidence: () => undefined,
     suppress: () => undefined,
     baseline: () => undefined,
-    unbaseline: () => undefined
+    unbaseline: () => undefined,
+    exportSarif: () => undefined
   };
 
   private view?: vscode.WebviewView;
@@ -99,6 +101,9 @@ export class WrapperGuardWebviewProvider implements vscode.WebviewViewProvider {
             this.handlers.unbaseline(msg.finding);
           }
           break;
+        case 'sarif':
+          this.handlers.exportSarif();
+          break;
         case 'webview-error':
           this.onWebviewError?.((msg as { message?: string }).message ?? 'unknown error');
           break;
@@ -109,8 +114,17 @@ export class WrapperGuardWebviewProvider implements vscode.WebviewViewProvider {
   /** Pushes the latest scan state; the webview re-renders all panes from it. */
   setState(s: ScanState): void {
     this.lastState = s;
-    const payload = s.kind === 'scanned' ? { kind: s.kind, report: s.report } : { kind: s.kind, error: s.kind === 'failed' ? s.error : undefined };
+    const payload = s.kind === 'scanned'
+      ? { kind: s.kind, report: s.report, settings: this.lastSettings }
+      : { kind: s.kind, error: s.kind === 'failed' ? s.error : undefined, settings: this.lastSettings };
     this.view?.webview.postMessage({ type: 'state', state: payload });
+  }
+
+  private lastSettings?: ScanSettings;
+
+  /** Active scanner settings (shown in the Policy pane). */
+  setSettings(settings: ScanSettings): void {
+    this.lastSettings = settings;
   }
 
   private buildHtml(): string {
@@ -341,6 +355,8 @@ main { flex: 1 1 auto; padding: 4px 10px 12px; overflow-y: auto; }
 .remediation p { margin: 0; font-size: 11px; line-height: 15px; }
 .detail-actions { display: flex; gap: 6px; padding-top: 10px; flex-wrap: wrap; }
 /* execution graph */
+.graph { position: relative; min-height: 170px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); padding: 6px; margin-top: 4px; }
+.gnode { position: absolute; transform: translateX(-50%); max-width: 31%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: var(--surface-highest); border: 1px solid var(--border-strong); border-radius: 999px; padding: 3px 8px; font-size: 10px; font-family: var(--vscode-editor-font-family); color: var(--text); }
 .edge-row { display: flex; align-items: center; gap: 6px; padding: 5px 6px; border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent); }
 .edge-row:nth-child(even) { background: color-mix(in srgb, var(--surface-high) 45%, transparent); }
 .edge-row .via { font-size: 10px; color: var(--text-dim); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -570,6 +586,7 @@ function renderOverview() {
   html += '<div class="btn-row">';
   html += '<button class="btn btn-primary" id="ovRescan">⟳ Rescan Project</button>';
   html += '<button class="btn btn-ghost" id="ovExport">⤓ Export JSON</button>';
+  html += '<button class="btn btn-ghost" id="ovExportSarif">⤓ Export SARIF</button>';
   html += '</div>';
 
   if (!r.complete) {
@@ -583,6 +600,7 @@ function renderOverview() {
   panel.innerHTML = html;
   byId('ovRescan').addEventListener('click', function () { post('scan'); });
   byId('ovExport').addEventListener('click', function () { post('export'); });
+  byId('ovExportSarif').addEventListener('click', function () { post('sarif'); });
 }
 
 function groupFindings() {
@@ -754,7 +772,43 @@ function renderGraph() {
     panel.innerHTML = '<div class="empty-note">No script call chains detected in this project.</div>';
     return;
   }
-  let html = '<div class="section-label">Script call chains (' + edges.length + ')</div>';
+  // Canvas: nodes laid out in columns by depth (roots at depth 0).
+  const children = {};
+  const parents = {};
+  const nodes = new Set();
+  edges.forEach(function (e) {
+    (children[e.from.path] = children[e.from.path] || []).push(e.to.path);
+    (parents[e.to.path] = parents[e.to.path] || []).push(e.from.path);
+    nodes.add(e.from.path);
+    nodes.add(e.to.path);
+  });
+  const depth = {};
+  const queue = [];
+  nodes.forEach(function (n) {
+    if (!parents[n]) {
+      depth[n] = 0;
+      queue.push(n);
+    }
+  });
+  while (queue.length > 0) {
+    const n = queue.shift();
+    (children[n] || []).forEach(function (c) {
+      if (depth[c] === undefined) {
+        depth[c] = (depth[n] || 0) + 1;
+        queue.push(c);
+      }
+    });
+  }
+  const ordered = Array.from(nodes).sort();
+  let canvas = '<div class="graph">';
+  ordered.forEach(function (n, i) {
+    const d = depth[n] === undefined ? 0 : depth[n];
+    const top = 8 + (i % 6) * 26;
+    canvas += '<div class="gnode" style="left:' + (6 + d * 33) + '%;top:' + top + 'px" title="' + esc(n) + '">' + esc(n.split('/').pop() || n) + '</div>';
+  });
+  canvas += '</div>';
+  let html = '<div class="section-label">Call-chain graph (' + edges.length + ' edges)</div>' + canvas;
+  html += '<div class="section-label" style="margin-top:10px">Edges</div>';
   edges.forEach(function (e) {
     html += '<div class="edge-row mono">';
     html += '<span class="path-chip">' + esc(e.from.path) + ':' + (e.from.line != null ? e.from.line : '') + '</span>';
@@ -770,6 +824,7 @@ function renderGraph() {
 function renderPolicy() {
   const panel = byId('panel-policy');
   const r = report();
+  const s = state.settings;
   let rows = '';
   if (r) {
     rows += '<div class="policy-row"><span class="k">Policy</span><span class="v">' + esc(r.policyName) + '</span></div>';
@@ -778,14 +833,25 @@ function renderPolicy() {
     rows += '<div class="policy-row"><span class="k">Requires reachable</span><span class="v">yes</span></div>';
     rows += '<div class="policy-row"><span class="k">INFO / audit evidence</span><span class="v">never blocks</span></div>';
     rows += '<div class="policy-row"><span class="k">Credential evidence</span><span class="v">redacted by default</span></div>';
-    rows += '<div class="legend">' +
-      '<span class="badge err">ERROR → BLOCK</span>' +
-      '<span class="badge warn">WARN → REVIEW</span>' +
-      '<span class="badge">INFO → ALLOW</span>' +
-      '</div>';
   } else {
     rows = '<div class="empty-note">Run a scan to load the active policy.</div>';
   }
+  if (s) {
+    rows += '<div class="section-label">Allowed hosts (' + s.allowedHosts.length + ')</div>';
+    rows += '<div class="legend">' + s.allowedHosts.map(function (h) { return '<span class="badge ok">' + esc(h) + '</span>'; }).join('') + '</div>';
+    rows += '<div class="section-label">Blocked commands (' + s.blockedCommands.length + ')</div>';
+    rows += '<div class="legend">' + s.blockedCommands.map(function (c) { return '<span class="badge err">' + esc(c) + '</span>'; }).join('') + '</div>';
+    rows += '<div class="policy-row"><span class="k">Require distribution checksum</span><span class="v">' + (s.requireDistributionSha256 ? 'yes' : 'no') + '</span></div>';
+    rows += '<div class="policy-row"><span class="k">Max file bytes</span><span class="v mono">' + s.maxFileBytes + '</span></div>';
+    rows += '<div class="policy-row"><span class="k">Max script depth</span><span class="v mono">' + s.maxScriptDepth + '</span></div>';
+    rows += '<div class="policy-row"><span class="k">Trusted wrapper checksums</span><span class="v">' + Object.keys(s.trustedWrapperChecksums).length + ' entry(ies)</span></div>';
+    rows += '<div class="notice" style="margin-top:8px">Edit these in Settings → wrapperGuard.* (allowedHosts, blockedCommands, requireDistributionSha256).</div>';
+  }
+  rows += '<div class="legend" style="margin-top:8px">' +
+    '<span class="badge err">ERROR → BLOCK</span>' +
+    '<span class="badge warn">WARN → REVIEW</span>' +
+    '<span class="badge">INFO → ALLOW</span>' +
+    '</div>';
   panel.innerHTML = rows +
     '<div class="notice" style="margin-top:10px">Repository content (inline ignores, baselines, project policies) may tighten but never silently weaken your local policy. A never-scanned project is never treated as protected.</div>';
 }
