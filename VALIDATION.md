@@ -31,10 +31,20 @@ Checks actually run against this revision (all commands on a clean checkout, JDK
 ## IDE
 - [x] Sandbox IDE (IntelliJ 2025.3 IU) launched with the plugin; log confirms
       \`Loaded custom plugins: WrapperGuard (0.2.0-SNAPSHOT)\` and the demo project opened.
-- [ ] Visual pass on the latest UI batch — **human step, in progress** (tabs, chips, banners,
-      Policy redesign; run \`./gradlew :wrapperguard-intellij:runIde\`).
-- [ ] Plugin Verifier vs IntelliJ IDEA 2025.3 + Android Studio 2025.3.4.7 — running.
-- [ ] Real Android Studio install test (install the zip from the release page into AS).
+- [ ] Visual pass on the latest UI batch — **human step** (tabs, chips, banners, Policy
+      redesign; run \`./gradlew :wrapperguard-intellij:runIde\` — sandbox IDE was launched
+      with the demo project at /tmp/wg-demo for this pass).
+- [x] Plugin Verifier vs IntelliJ IDEA 2025.3 (IU-253.28294.334) — **Compatible**; 4 deprecated
+      + 7 experimental API usages, no incompatibilities. (Android Studio is not verifier-checked:
+      IPGP 2.11 mangles the AS installer URL for 2025.3.x.)
+- [ ] Real Android Studio install test — zip installed into
+      \`~/Library/Application Support/Google/AndroidStudio2026.1.1/plugins/wrapperguard/\`
+      (AS 2026.1, build 261 ≥ sinceBuild 252). **Awaiting AS launch to confirm it loads.**
+
+## Release state
+- Local commit \`7b07538\` + tag \`v0.2.0\`. Per owner decision **no GitHub push, release,
+  or Marketplace submission yet** — repo stays private/local until the v0.3 guard items land.
+- License: Apache-2.0. \`old_project/\` is git-ignored (kept locally as the migration reference).
 
 ## Known gaps (deliberate, tracked in BACKLOG.md)
 - Gradle-sync gate, TOCTOU execution seal, trusted/untrusted suppression model,

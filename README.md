@@ -83,4 +83,4 @@ allowed; back-fill; stale→rescan) live in \`wrapperguard-intellij/src/test\`.
 
 ## License
 
-To be confirmed by the project owner (MIT or Apache-2.0).
+Apache-2.0 — see `LICENSE`.
