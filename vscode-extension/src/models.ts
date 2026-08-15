@@ -38,12 +38,19 @@ export interface Finding {
   status: string;
 }
 
+export interface ScriptEdge {
+  from: SourceLocation;
+  to: SourceLocation;
+  viaCommand: string;
+}
+
 export interface ScanReport {
   schemaVersion: number;
   projectPath: string;
   verdict: ScanVerdict;
   policyName: string;
   findings: Finding[];
+  edges: ScriptEdge[];
   scannedFiles: number;
   durationMs: number;
   complete: boolean;

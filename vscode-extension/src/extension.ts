@@ -1,21 +1,17 @@
 import * as vscode from 'vscode';
 import { scanWorkspace } from './cliRunner';
-import { FindingsTreeProvider } from './findingsTree';
-import { SummaryProvider } from './summaryTree';
-import { showFindingDetails, openFindingInEditor } from './findingDetails';
+import { WrapperGuardWebviewProvider, openFindingInEditor } from './webviewUi';
 import { Finding, ScanState } from './models';
 import { WrapperGuardState } from './state';
 import { writeFile } from 'node:fs/promises';
 
 export function activate(context: vscode.ExtensionContext): void {
   const state = new WrapperGuardState();
-  const findings = new FindingsTreeProvider();
-  const summary = new SummaryProvider();
+  const provider = new WrapperGuardWebviewProvider();
   const status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 80);
 
   const renderAll = (s: ScanState): void => {
-    findings.setState(s);
-    summary.setState(s);
+    provider.setState(s);
     renderStatus(status, s);
   };
 
@@ -66,25 +62,21 @@ export function activate(context: vscode.ExtensionContext): void {
     void vscode.window.showInformationMessage('WrapperGuard: evidence copied to the clipboard.');
   };
 
+  provider.handlers = {
+    scan: () => void scan(),
+    exportReport: () => void exportReport(),
+    openFinding: (finding: Finding) => void openFindingInEditor(finding),
+    copyEvidence: (finding: Finding) => void copyEvidence(finding)
+  };
+
   context.subscriptions.push(
     status,
     state.onDidChange(renderAll),
-    vscode.window.registerTreeDataProvider('wrapperGuard.summary', summary),
-    vscode.window.registerTreeDataProvider('wrapperGuard.findings', findings),
-    vscode.commands.registerCommand('wrapperGuard.scanWorkspace', scan),
-    vscode.commands.registerCommand('wrapperGuard.exportReport', exportReport),
-    vscode.commands.registerCommand('wrapperGuard.showFindingDetails', (finding: Finding) =>
-      showFindingDetails(finding, state.get())
-    ),
-    vscode.commands.registerCommand('wrapperGuard.openFinding', async (finding: Finding) => {
-      const root = vscode.workspace.workspaceFolders?.[0]?.uri;
-      if (!root) {
-        void vscode.window.showWarningMessage('Open a workspace folder first.');
-        return;
-      }
-      await openFindingInEditor(finding, root);
+    vscode.window.registerWebviewViewProvider(WrapperGuardWebviewProvider.viewType, provider, {
+      webviewOptions: { retainContextWhenHidden: true }
     }),
-    vscode.commands.registerCommand('wrapperGuard.copyEvidence', copyEvidence)
+    vscode.commands.registerCommand('wrapperGuard.scanWorkspace', scan),
+    vscode.commands.registerCommand('wrapperGuard.exportReport', exportReport)
   );
 
   status.show();
@@ -93,6 +85,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
 function renderStatus(status: vscode.StatusBarItem, s: ScanState): void {
   status.backgroundColor = undefined;
+  status.color = undefined;
   switch (s.kind) {
     case 'not-scanned':
       status.text = '$(shield) WrapperGuard: Not scanned';

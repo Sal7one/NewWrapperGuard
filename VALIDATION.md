@@ -48,4 +48,5 @@ Checks actually run against this revision (all commands on a clean checkout, JDK
 
 ## Known gaps (deliberate, tracked in BACKLOG.md)
 - Gradle-sync gate, TOCTOU execution seal, trusted/untrusted suppression model,
-  wrapper-JAR checksum escalation, VS Code extension feature completion → v0.3.
+  wrapper-JAR checksum escalation → v0.3. VS Code: suppression/baseline actions
+  (blocked on the trusted-baseline model), execution-graph canvas, policy editing.
