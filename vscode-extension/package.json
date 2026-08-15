@@ -42,7 +42,8 @@
   "scripts": {
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "parity": "node scripts/parity.js"
+    "parity": "node scripts/parity.js",
+    "hardening": "node scripts/hardening.js"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

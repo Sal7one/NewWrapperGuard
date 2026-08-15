@@ -15,7 +15,8 @@ import { findingFingerprint } from './fingerprints';
 
 const EXCLUDED_DIRS = new Set(['.git', '.gradle', '.idea', 'build', 'out', '.intellijPlatform', '.kotlin', 'node_modules']);
 
-function walkFiles(root: string, out: string[]): void {
+function walkFiles(root: string, out: string[], depth: number, maxDepth: number): void {
+  if (depth > maxDepth) return;
   let entries: fs.Dirent[];
   try {
     entries = fs.readdirSync(root, { withFileTypes: true });
@@ -25,7 +26,8 @@ function walkFiles(root: string, out: string[]): void {
   for (const e of entries) {
     if (EXCLUDED_DIRS.has(e.name)) continue;
     const p = path.join(root, e.name);
-    if (e.isDirectory()) walkFiles(p, out);
+    // Directory symlinks are never followed (matches Files.walk) — no symlink loops.
+    if (e.isDirectory()) walkFiles(p, out, depth + 1, maxDepth);
     else if (e.isFile()) out.push(p);
   }
 }
@@ -75,7 +77,7 @@ export function scanProject(
   const completed = new Set<string>();
   const active = new Set<string>();
 
-  const roots = findScanRoots(normalizedRoot);
+  const roots = findScanRoots(normalizedRoot, settings, notices);
   if (roots.length === 0) {
     notices.push({ code: RuleIds.SCAN_ROOT, message: 'No Gradle wrapper or build scripts found to scan.' });
   }
@@ -207,11 +209,36 @@ function analyze(
   }
   let content: string;
   try {
-    content = fs.readFileSync(file, 'utf8');
+    content = readTextSmart(file);
   } catch (e) {
     notices.push({
       code: RuleIds.SCAN_FILE_READ,
       message: 'Could not read file: ' + (e instanceof Error ? e.message : String(e)),
+      location: { path: relative }
+    });
+    return;
+  }
+  // Hardening: binary/null-byte content is not analyzed as text.
+  if (content.indexOf('\u0000') >= 0) {
+    notices.push({
+      code: RuleIds.SCAN_FILE_READ,
+      message: 'File contains null bytes (binary content).',
+      location: { path: relative }
+    });
+    return;
+  }
+  // Hardening: reject single oversized lines instead of feeding them to regexes (ReDoS budget).
+  let oversized = false;
+  for (const line of content.split('\n')) {
+    if (line.length > settings.maxLineLength) {
+      oversized = true;
+      break;
+    }
+  }
+  if (oversized) {
+    notices.push({
+      code: RuleIds.SCAN_FILE_SKIPPED,
+      message: 'File contains a line longer than ' + settings.maxLineLength + ' characters.',
       location: { path: relative }
     });
     return;
@@ -236,7 +263,7 @@ function analyze(
   }
 }
 
-function findScanRoots(root: string): string[] {
+function findScanRoots(root: string, settings: ScanSettings, notices: ScanNotice[]): string[] {
   const seeds = [
     'gradlew',
     'gradlew.bat',
@@ -253,11 +280,41 @@ function findScanRoots(root: string): string[] {
     .filter((p) => fs.existsSync(p) && fs.statSync(p).isFile());
 
   const all: string[] = [];
-  walkFiles(root, all);
+  walkFiles(root, all, 0, settings.maxDirectoryDepth);
   const extra = all
     .filter((p) => !seeds.includes(p) && isScannable(path.basename(p)) && rulesFor(path.basename(p)).length > 0)
     .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
-  return Array.from(new Set([...seeds, ...extra]));
+  const limited: string[] = [];
+  let capped = false;
+  for (const p of extra) {
+    if (seeds.length + limited.length >= settings.maxFilesPerScan) {
+      capped = true;
+      break;
+    }
+    limited.push(p);
+  }
+  if (capped) {
+    notices.push({
+      code: RuleIds.SCAN_ROOT,
+      message: 'File count limit reached (' + settings.maxFilesPerScan + '); the scan may be incomplete.'
+    });
+  }
+  return Array.from(new Set([...seeds, ...limited]));
+}
+
+/** Reads text honoring UTF-8 BOM and UTF-16 LE/BE encodings (hostile-input hardening). */
+function readTextSmart(file: string): string {
+  const bytes = fs.readFileSync(file);
+  if (bytes.length >= 2 && bytes[0] === 0xfe && bytes[1] === 0xff) {
+    return Buffer.from(bytes.subarray(2)).swap16().toString('utf16le');
+  }
+  if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xfe) {
+    return bytes.subarray(2).toString('utf16le');
+  }
+  if (bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
+    return bytes.subarray(3).toString('utf8');
+  }
+  return bytes.toString('utf8');
 }
 
 function circularFinding(relative: string, callChain: Finding['callChain']): Finding {

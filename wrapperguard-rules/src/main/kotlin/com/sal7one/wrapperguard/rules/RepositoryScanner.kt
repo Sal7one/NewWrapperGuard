@@ -62,7 +62,7 @@ class RepositoryScanner(
         val active = linkedSetOf<Path>()
 
         // Seed roots (wrapper scripts, settings, build scripts, catalog, init scripts).
-        val roots = findScanRoots(normalizedRoot)
+        val roots = findScanRoots(normalizedRoot, settings, notices)
         if (roots.isEmpty()) {
             notices += ScanNotice(RuleIds.SCAN_ROOT, "No Gradle wrapper or build scripts found to scan.")
         }
@@ -169,8 +169,22 @@ class RepositoryScanner(
             notices += ScanNotice(RuleIds.SCAN_FILE_SKIPPED, "File exceeds the configured size limit.", SourceLocation(relative))
             return
         }
-        val content = runCatching { Files.readString(file) }.getOrElse {
+        val content = runCatching { readTextSmart(file) }.getOrElse {
             notices += ScanNotice(RuleIds.SCAN_FILE_READ, "Could not read file: ${it.message}", SourceLocation(relative))
+            return
+        }
+        // Hardening: binary/null-byte content is not analyzed as text.
+        if (content.indexOf('\u0000') >= 0) {
+            notices += ScanNotice(RuleIds.SCAN_FILE_READ, "File contains null bytes (binary content).", SourceLocation(relative))
+            return
+        }
+        // Hardening: reject single oversized lines instead of feeding them to regexes (ReDoS budget).
+        if (content.lines().any { it.length > settings.maxLineLength }) {
+            notices += ScanNotice(
+                RuleIds.SCAN_FILE_SKIPPED,
+                "File contains a line longer than ${settings.maxLineLength} characters.",
+                SourceLocation(relative)
+            )
             return
         }
         val source = TextSource(file, relative, content)
@@ -185,7 +199,7 @@ class RepositoryScanner(
         }
     }
 
-    private fun findScanRoots(root: Path): List<Path> {
+    private fun findScanRoots(root: Path, settings: ScanSettings, notices: MutableList<ScanNotice>): List<Path> {
         // Seed with the canonical Gradle entry points at the project root.
         val seeds: MutableList<Path> = listOf(
             "gradlew", "gradlew.bat",
@@ -196,17 +210,44 @@ class RepositoryScanner(
             "init.gradle", "init.gradle.kts"
         ).map { root.resolve(it) }.filter { Files.exists(it) && Files.isRegularFile(it) }.toMutableList()
 
-        // Walk the whole tree (excluding build/VCS dirs) for anything router-recognizable.
-        // This catches fixtures and projects that keep gradlew/scripts in subdirectories, and
-        // any standalone .sh/.bat/.ps1 wrapper/bootstrap scripts.
-        Files.walk(root).use { stream ->
+        // Walk the tree (excluding build/VCS dirs, capped by depth and file count) for
+        // anything router-recognizable. Files.walk never follows directory symlinks, which
+        // also prevents symlink loops. maxDepth prunes hostile deep directory trees.
+        var capped = false
+        Files.walk(root, settings.maxDirectoryDepth).use { stream ->
             stream.filter { Files.isRegularFile(it) && !isExcluded(root, it) }
                 .filter { path -> FileTypeRouter.rulesFor(path).isNotEmpty() }
                 .filter { path -> path !in seeds }
                 .sorted() // deterministic order — must match the TypeScript port
-                .forEach { seeds.add(it) }
+                .forEach {
+                    if (seeds.size >= settings.maxFilesPerScan) {
+                        capped = true
+                        return@forEach
+                    }
+                    seeds.add(it)
+                }
+        }
+        if (capped) {
+            notices += ScanNotice(
+                RuleIds.SCAN_ROOT,
+                "File count limit reached (${settings.maxFilesPerScan}); the scan may be incomplete."
+            )
         }
         return seeds.distinct()
+    }
+
+    /** Reads text honoring UTF-8 BOM and UTF-16 LE/BE encodings (hostile-input hardening). */
+    private fun readTextSmart(file: Path): String {
+        val bytes = Files.readAllBytes(file)
+        return when {
+            bytes.size >= 2 && bytes[0] == 0xFE.toByte() && bytes[1] == 0xFF.toByte() ->
+                String(bytes, 2, bytes.size - 2, Charsets.UTF_16BE)
+            bytes.size >= 2 && bytes[0] == 0xFF.toByte() && bytes[1] == 0xFE.toByte() ->
+                String(bytes, 2, bytes.size - 2, Charsets.UTF_16LE)
+            bytes.size >= 3 && bytes[0] == 0xEF.toByte() && bytes[1] == 0xBB.toByte() && bytes[2] == 0xBF.toByte() ->
+                String(bytes, 3, bytes.size - 3, Charsets.UTF_8)
+            else -> String(bytes, Charsets.UTF_8)
+        }
     }
 
     private fun isExcluded(root: Path, file: Path): Boolean {
