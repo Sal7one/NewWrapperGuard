@@ -30,6 +30,11 @@ These rules govern every item below and must not be violated by any feature.
 - [x] IntelliJ plugin launches in IDEA 2025.3 via Jewel/Compose (`composeUI()` + `com.intellij.modules.compose`).
 - [x] Four-tab Compose UI (Overview / Findings / Execution Graph / Policy) with theme-adaptive colors and per-tab scroll.
 - [x] VS Code extension compiles; status bar + findings tree skeleton consumes CLI JSON.
+- [x] Run guard: before-run task blocks BLOCK-policy findings, auto-attaches to new configs, back-fills existing ones, blocked dialog with Run Once.
+- [x] File-change rescan: VFS watcher marks STALE immediately; content-hash-gated 3 s debounced rescan; single-flight with pending-rescan.
+- [x] Credential redaction at rule creation + export sanitization pass (evidence.redacted flag; tests in core).
+- [x] Headless end-to-end guard smoke tests + rescan tests (`wrapperguard-intellij/src/test`).
+- [x] CLI e2e validated against `schema/wrapperguard-report.schema.json`; exit codes 0/2 verified.
 
 ## Now — make it a guard (not a viewer)
 
@@ -45,17 +50,17 @@ These rules govern every item below and must not be violated by any feature.
 - [ ] Block sync (when policy says BLOCK) via the sync gate, with the execution-blocked dialog.
 
 ### 3. Run guard
-- [ ] **`BeforeRunTaskProvider`** that runs a fresh scan before every applicable run configuration and returns `false` to hard-block when policy says BLOCK. Port `old_project/execution/ExecutionGuard.kt`.
-- [ ] Block only on **policy-selected actionable findings** (`policyAction == BLOCK`).
-- [ ] Auto-attach the task to **new** run configs (`createTask`) and **back-fill** existing configs on project open (`RunManagerImpl`).
-- [ ] **State the protection scope honestly in the UI:** Protected = IDE Gradle run configurations, supported IDE script configurations, Gradle sync when the sync gate is active. Not protected = external terminals, CLI invocations, processes launched by other plugins, scripts run outside the IDE. (CLI/CI covers the second category later.)
-- [ ] Execution-blocked `DialogWrapper` matching `design_reference/execution_blocked_dialog` — intercepted command, policy violations, "No project code was executed.", Run Once / Review Blockers.
+- [x] **`BeforeRunTaskProvider`** that runs a fresh scan before every applicable run configuration and returns `false` to hard-block when policy says BLOCK. Port `old_project/execution/ExecutionGuard.kt`.
+- [x] Block only on **policy-selected actionable findings** (`policyAction == BLOCK`).
+- [x] Auto-attach the task to **new** run configs (`createTask`) and **back-fill** existing configs on project open (`RunManagerImpl`).
+- [x] **State the protection scope honestly in the UI:** Protected = IDE Gradle run configurations, supported IDE script configurations, Gradle sync when the sync gate is active. Not protected = external terminals, CLI invocations, processes launched by other plugins, scripts run outside the IDE. (CLI/CI covers the second category later.)
+- [x] Execution-blocked `DialogWrapper` matching `design_reference/execution_blocked_dialog` — intercepted command, policy violations, "No project code was executed.", Run Once / Review Blockers.
 
 ### 4. TOCTOU & freshness (execution seal)
 - [ ] **Execution seal**: before launch, compute a seal over file hashes + policy hash + baseline/suppression hash + scanner version + rule version. Revalidate immediately before process launch; abort if any protected input changed.
 - [ ] **Save unsaved editor documents** (or explicitly account for them) before scanning, so the seal reflects what will actually run.
-- [ ] **Mark STALE immediately** when a relevant VFS event arrives; debounce only the *rescan*, not the stale state.
-- [ ] **Single-flight scanning**: only one authoritative scan generation exists. Cancel or supersede older scans; only the latest generation may publish a report.
+- [x] **Mark STALE immediately** when a relevant VFS event arrives; debounce only the *rescan*, not the stale state.
+- [x] **Single-flight scanning**: only one authoritative scan generation exists. Cancel or supersede older scans; only the latest generation may publish a report.
 
 ### 5. Trusted policy / baseline model
 - [ ] **Distinguish trusted vs untrusted suppression sources.** User/org-approved baselines and inline ignores are trusted; ones found *inside* a freshly-opened repo are untrusted until approved. Untrusted suppressions do not affect verdicts until the user accepts them.
@@ -69,8 +74,8 @@ These rules govern every item below and must not be violated by any feature.
 - [ ] Policy for internally-approved custom wrappers.
 
 ### 7. File-change rescans
-- [ ] **Rescan on relevant file changes** — `BulkFileListener` watching `gradlew`, `gradlew.bat`, `gradle-wrapper.properties`, `*.gradle`, `*.gradle.kts`, `*.sh`, `*.bat`, `*.cmd`, `*.ps1`, `libs.versions.toml`. Debounce (~3 s) to absorb sync write bursts. Debounce only the rescan — mark STALE immediately.
-- [ ] **File-hash change detection** — only re-emit findings when content actually changed (not on VFS timestamp refreshes).
+- [x] **Rescan on relevant file changes** — `BulkFileListener` watching `gradlew`, `gradlew.bat`, `gradle-wrapper.properties`, `*.gradle`, `*.gradle.kts`, `*.sh`, `*.bat`, `*.cmd`, `*.ps1`, `libs.versions.toml`. Debounce (~3 s) to absorb sync write bursts. Debounce only the rescan — mark STALE immediately.
+- [x] **File-hash change detection** — only re-emit findings when content actually changed (not on VFS timestamp refreshes).
 
 ### 8. Project scoping (single project, never the world)
 - [ ] **Scan exactly one project per launch** — the open IntelliJ project's `basePath`. Never walk up into a shared parent folder that holds many projects; never scan sibling projects.
@@ -86,8 +91,8 @@ These rules govern every item below and must not be violated by any feature.
 - [ ] Tests for each of the above against hostile fixtures.
 
 ### 10. Secret redaction everywhere
-- [ ] **Redact credential values by default in UI, logs, JSON, SARIF, Markdown export.** Store only a safe preview + fingerprint.
-- [ ] Never log complete environment variables, tokens, or authorization headers.
+- [x] **Redact credential values by default in UI, logs, JSON, SARIF, Markdown export.** Store only a safe preview + fingerprint.
+- [x] Never log complete environment variables, tokens, or authorization headers.
 
 ## Next — UI polish
 - [ ] Fix any remaining overflow/clipping in the four tabs (now wrapped in scroll containers).

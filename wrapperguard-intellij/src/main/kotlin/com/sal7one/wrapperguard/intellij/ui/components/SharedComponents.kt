@@ -55,7 +55,8 @@ fun StatusBadge(text: String, tone: Color, modifier: Modifier = Modifier) {
 }
 
 /**
- * A metric tile: tiny uppercase label, a large count, and an optional sublabel.
+ * A metric tile: tiny uppercase label, a large count, an optional sublabel, and an optional
+ * trailing slot (used for the Files tile's scan-coverage progress bar).
  * Designed to tile 2×N across the Overview grid.
  */
 @Composable
@@ -66,6 +67,7 @@ fun MetricTile(
     modifier: Modifier = Modifier,
     sublabel: String? = null,
     accentBorder: Boolean = true,
+    trailing: (@Composable () -> Unit)? = null,
     onClick: (() -> Unit)? = null
 ) {
     Column(
@@ -103,6 +105,10 @@ fun MetricTile(
                     modifier = Modifier.padding(bottom = 4.dp)
                 )
             }
+        }
+        if (trailing != null) {
+            Spacer(Modifier.height(8.dp))
+            trailing()
         }
     }
 }

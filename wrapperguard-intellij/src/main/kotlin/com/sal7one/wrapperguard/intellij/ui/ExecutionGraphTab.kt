@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -101,10 +102,13 @@ private fun CallChainCard(finding: Finding, onOpenFinding: (Finding) -> Unit) {
         borderColor = severityColor(finding.severity).copy(alpha = 0.4f)
     ) {
         Column(modifier = Modifier.padding(PaddingValues(14.dp)), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Row {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 StatusBadge(finding.severity.name, severityColor(finding.severity))
                 Spacer(Modifier.width(8.dp))
-                Text(finding.title, fontSize = 12.5.sp, fontWeight = FontWeight.Medium)
+                Text(finding.title, fontSize = 12.5.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                org.jetbrains.jewel.ui.component.OutlinedButton(onClick = { onOpenFinding(finding) }) {
+                    Text("Open Trace", fontSize = 11.sp)
+                }
             }
             finding.callChain.forEachIndexed { i, link ->
                 Row {

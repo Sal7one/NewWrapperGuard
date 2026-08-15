@@ -1,3 +1,4 @@
+import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 
 plugins {
@@ -14,6 +15,7 @@ repositories {
 dependencies {
     implementation(project(":wrapperguard-core"))
     implementation(project(":wrapperguard-rules"))
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
 
     intellijPlatform {
         // Target 2025.3 for development; sinceBuild=252 keeps the plugin installable on 2025.2+,
@@ -32,6 +34,10 @@ dependencies {
 
         testFramework(TestFrameworkType.Platform)
     }
+
+    testImplementation("junit:junit:4.13.2")
+    testRuntimeOnly("org.junit.vintage:junit-vintage-engine:5.11.4")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.11.4")
 }
 
 intellijPlatform {
@@ -51,3 +57,24 @@ intellijPlatform {
 }
 
 kotlin { jvmToolchain(21) }
+
+tasks.test { useJUnitPlatform() }
+
+tasks.runIde {
+    // Sandbox-only: auto-open the WrapperGuard tool window so visual checks and
+    // screenshots of the dev IDE do not need a manual click.
+    jvmArgs("-Dwrapperguard.autoshow=true")
+}
+
+intellijPlatform {
+    pluginVerification {
+        ides {
+            // Binary-compat check against the development IDE. IC is no longer published
+            // since 2025.3, so verify against the full IDE (IU).
+            // NB: Android Studio is not verified here — IPGP 2.11 mangles the AS installer
+            // URL for 2025.3.x; the real Android Studio install test is a manual step
+            // (install the release zip into AS from the GitHub release).
+            create(IntelliJPlatformType.IntellijIdeaUltimate, "2025.3")
+        }
+    }
+}

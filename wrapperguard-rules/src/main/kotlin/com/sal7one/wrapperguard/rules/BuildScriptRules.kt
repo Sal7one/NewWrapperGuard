@@ -4,6 +4,7 @@ import com.sal7one.wrapperguard.core.model.*
 import com.sal7one.wrapperguard.core.policy.ScanSettings
 import com.sal7one.wrapperguard.core.spi.Rule
 import com.sal7one.wrapperguard.core.spi.TextSource
+import com.sal7one.wrapperguard.core.util.CredentialRedaction
 import com.sal7one.wrapperguard.core.util.Fingerprints
 import com.sal7one.wrapperguard.core.util.UrlAllowlist
 import java.net.URI
@@ -114,12 +115,14 @@ class BuildScriptRules private constructor(
         CREDENTIAL_PATTERNS.forEach { pattern ->
             pattern.findAll(source.content).forEach { match ->
                 if (isSuppressed(source.content, match.range.first)) return@forEach
+                val (maskedEvidence, didRedact) = CredentialRedaction.mask(match.value.take(160))
                 findings += base(
                     RuleIds.CREDENTIALS_HARDCODED,
                     "Hardcoded credential-like value",
                     "Use environment variables, Gradle credentials providers, or a secret manager.",
-                    source, lineNumber(source.content, match.range.first), redact(match.value.take(160)),
-                    Severity.WARN, Confidence.MEDIUM, FindingCategory.CREDENTIALS
+                    source, lineNumber(source.content, match.range.first), maskedEvidence,
+                    Severity.WARN, Confidence.MEDIUM, FindingCategory.CREDENTIALS,
+                    redacted = didRedact
                 )
             }
         }
@@ -222,13 +225,14 @@ class BuildScriptRules private constructor(
     private fun base(
         ruleId: String, title: String, remediation: String?, source: TextSource,
         lineNumber: Int, evidence: String, severity: Severity, confidence: Confidence,
-        category: FindingCategory, kind: FindingKind = FindingKind.ACTIONABLE
+        category: FindingCategory, kind: FindingKind = FindingKind.ACTIONABLE,
+        redacted: Boolean = false
     ): Finding = Finding(
         fingerprint = Fingerprints.finding(ruleId, source.relativePath, evidence),
         ruleId = ruleId, title = title, message = title,
         severity = severity, confidence = confidence, category = category, kind = kind,
         location = SourceLocation(source.relativePath, lineNumber),
-        evidence = Evidence(evidence), remediation = remediation
+        evidence = Evidence(evidence, redacted = redacted), remediation = remediation
     )
 
     private fun isSuppressed(content: String, charIndex: Int): Boolean {
@@ -242,9 +246,6 @@ class BuildScriptRules private constructor(
         val match = Regex("""wrapperguard:ignore\b(.*)$""", RegexOption.IGNORE_CASE).find(line) ?: return false
         return match.groupValues[1].trim().isBlank()
     }
-
-    private fun redact(value: String): String =
-        value.replace(Regex("""(['"])[^'"]{4,}(['"])"""), "$1[redacted]$2")
 
     companion object {
         private val REPOSITORY_PATTERNS = listOf(

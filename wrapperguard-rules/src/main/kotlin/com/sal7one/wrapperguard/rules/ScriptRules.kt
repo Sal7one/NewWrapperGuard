@@ -4,6 +4,7 @@ import com.sal7one.wrapperguard.core.model.*
 import com.sal7one.wrapperguard.core.policy.ScanSettings
 import com.sal7one.wrapperguard.core.spi.Rule
 import com.sal7one.wrapperguard.core.spi.TextSource
+import com.sal7one.wrapperguard.core.util.CredentialRedaction
 import com.sal7one.wrapperguard.core.util.Fingerprints
 import com.sal7one.wrapperguard.core.util.UrlAllowlist
 
@@ -135,33 +136,36 @@ class ScriptRules private constructor(
             }
 
             if (ENVIRONMENT_LEAK.containsMatchIn(line)) {
+                val (maskedLine, didRedact) = CredentialRedaction.mask(line)
                 findings += finding(
                     RuleIds.CREDENTIALS_ENV_LEAK,
                     "Potential environment secret exposure",
                     "Do not print or transmit environment variables that may contain secrets.",
-                    source, lineNumber, line, Severity.WARN, Confidence.MEDIUM,
-                    FindingCategory.CREDENTIALS
+                    source, lineNumber, maskedLine, Severity.WARN, Confidence.MEDIUM,
+                    FindingCategory.CREDENTIALS, redacted = didRedact
                 )
             }
 
             URL_PATTERN.findAll(line).forEach { match ->
                 val url = match.value.trimEnd('.', ',', ';')
+                val (safeUrl, urlRedacted) = CredentialRedaction.mask(url)
                 val allowed = UrlAllowlist.isAllowed(url, settings.allowedHosts, settings.allowedUrlPatterns)
                 findings += if (allowed) {
                     finding(
                         RuleIds.NETWORK_URL_APPROVED,
                         "Approved URL observed",
                         null,
-                        source, lineNumber, url, Severity.INFO, Confidence.LOW,
-                        FindingCategory.NETWORK, FindingKind.AUDIT_EVIDENCE
+                        source, lineNumber, safeUrl, Severity.INFO, Confidence.LOW,
+                        FindingCategory.NETWORK, FindingKind.AUDIT_EVIDENCE,
+                        redacted = urlRedacted
                     )
                 } else {
                     finding(
                         RuleIds.NETWORK_URL_NOT_ALLOWLISTED,
                         "URL is not allowlisted",
                         "Verify the URL and add it to the allowlist only if it is trusted.",
-                        source, lineNumber, url, Severity.WARN, Confidence.MEDIUM,
-                        FindingCategory.NETWORK
+                        source, lineNumber, safeUrl, Severity.WARN, Confidence.MEDIUM,
+                        FindingCategory.NETWORK, redacted = urlRedacted
                     )
                 }
             }
@@ -201,7 +205,8 @@ class ScriptRules private constructor(
         severity: Severity,
         confidence: Confidence,
         category: FindingCategory,
-        kind: FindingKind = FindingKind.ACTIONABLE
+        kind: FindingKind = FindingKind.ACTIONABLE,
+        redacted: Boolean = false
     ): Finding = Finding(
         fingerprint = Fingerprints.finding(ruleId, source.relativePath, evidence),
         ruleId = ruleId,
@@ -212,7 +217,7 @@ class ScriptRules private constructor(
         category = category,
         kind = kind,
         location = SourceLocation(source.relativePath, lineNumber),
-        evidence = Evidence(evidence),
+        evidence = Evidence(evidence, redacted = redacted),
         remediation = remediation
     )
 
