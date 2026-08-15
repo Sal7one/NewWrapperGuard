@@ -144,6 +144,9 @@ export class WrapperGuardWebviewProvider implements vscode.WebviewViewProvider {
   --error: #ffb4ab; --warn: #ffb695; --ok: #7ee787; --info: #8ab4f8;
   --mono-bg: #1e1e1e; --mono-bar: #2d2d2d;
   --tok-kw: #569cd6; --tok-str: #ce9178; --tok-com: #6a9955; --tok-op: #d4d4d4;
+  /* graph aliases (SVG/CSS used these names before the tokens were unified) */
+  --wg-border: var(--border); --wg-border-strong: var(--border-strong);
+  --wg-error: var(--error); --wg-text-dim: var(--text-dim);
 }
 body.vscode-light {
   --bg: #fbfbfd; --surface: #ffffff; --surface-low: #f6f6f8; --surface-lowest: #f1f1f4;
