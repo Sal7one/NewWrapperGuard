@@ -12,9 +12,19 @@ const execFileAsync = promisify(execFile);
  */
 export async function scanWorkspace(root: vscode.Uri): Promise<{ report: ScanReport; rawJson: string }> {
   const cliPath = vscode.workspace.getConfiguration('wrapperGuard').get<string>('cliPath', 'wrapperguard');
-  const { stdout } = await execFileAsync(cliPath, [root.fsPath, '--json', '--enforce'], {
-    cwd: root.fsPath,
-    maxBuffer: 10 * 1024 * 1024
-  });
-  return { report: JSON.parse(stdout) as ScanReport, rawJson: stdout };
+  try {
+    const { stdout } = await execFileAsync(cliPath, [root.fsPath, '--json', '--enforce'], {
+      cwd: root.fsPath,
+      maxBuffer: 10 * 1024 * 1024
+    });
+    return { report: JSON.parse(stdout) as ScanReport, rawJson: stdout };
+  } catch (error) {
+    // Exit code 2 is a successful scan: BLOCK-policy findings were found. The report is
+    // still printed to stdout; only treat other failures (spawn errors, code 1) as errors.
+    const err = error as { code?: number | string; stdout?: string };
+    if ((err.code === 2 || err.code === '2') && err.stdout) {
+      return { report: JSON.parse(err.stdout) as ScanReport, rawJson: err.stdout };
+    }
+    throw error;
+  }
 }
