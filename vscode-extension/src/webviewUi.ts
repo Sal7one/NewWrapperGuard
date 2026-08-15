@@ -375,6 +375,25 @@ body.vscode-light .graph-wrap { background: var(--surface); }
 .path-step { font-family: var(--vscode-editor-font-family); font-size: 9px; color: var(--text-dim); padding-left: 10px; border-left: 1px solid var(--border); margin-left: 4px; }
 .path-step.path-last { color: var(--error); font-weight: 700; border-left-color: var(--error); }
 .path-rule { font-family: var(--vscode-editor-font-family); font-size: 9px; color: var(--text-dim); padding-left: 14px; margin-top: 3px; }
+.g-toolbar { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.g-tools { display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; box-shadow: 0 3px 10px rgba(0,0,0,0.35); }
+.g-btn { background: transparent; border: none; color: var(--text-dim); width: 26px; height: 24px; cursor: pointer; font-size: 13px; }
+.g-btn:hover { color: var(--primary); background: var(--surface-high); }
+.g-btn + .g-btn { border-left: 1px solid var(--border); }
+.g-find { flex: 1; min-width: 0; height: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 11px; padding: 0 8px; outline: none; }
+.g-find:focus { border-color: var(--primary); }
+.g-edge { transition: opacity 0.15s ease; }
+.g-edge.dim { opacity: 0.1; }
+.g-edge.active path { stroke-width: 2.6; }
+.g-edge.err path { stroke-dasharray: 5 4; animation: wgdash 1.1s linear infinite; }
+@keyframes wgdash { to { stroke-dashoffset: -18; } }
+.gnode-card { transition: opacity 0.15s ease; animation: wgenter 0.28s ease both; cursor: pointer; }
+.gnode-card:hover { border-color: var(--primary); }
+.gnode-card.dim-node { opacity: 0.15; }
+.gnode-card.g-neighbor { outline: 1px solid var(--primary); outline-offset: 1px; }
+.gnode-card.g-hit { outline: 1px solid var(--primary); outline-offset: 1px; }
+@keyframes wgenter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+#gInner { transition: transform 0.18s ease; }
 .edge-row { display: flex; align-items: center; gap: 6px; padding: 5px 6px; border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent); }
 .edge-row:nth-child(even) { background: color-mix(in srgb, var(--surface-high) 45%, transparent); }
 .edge-row .via { font-size: 10px; color: var(--text-dim); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -459,6 +478,8 @@ let state = { kind: 'not-scanned' };
 let selectedFp = null;
 let filterText = '';
 let wide = window.matchMedia('(min-width: 540px)').matches;
+let zoomScale = 1;
+let nodeSearch = '';
 
 const VERDICT = {
   NOT_SCANNED: ['dim', 'Not scanned'],
@@ -791,7 +812,6 @@ function renderGraph() {
     return;
   }
 
-  // Blockers per file (for suspicious styling) and their paths (for the explorer).
   const blockerByPath = {};
   r.findings.forEach(function (f) {
     if (f.policyAction !== 'BLOCK') return;
@@ -802,7 +822,6 @@ function renderGraph() {
     if (f.policyAction === 'BLOCK') suspLines[f.location.path + ':' + (f.location.line != null ? f.location.line : '')] = f;
   });
 
-  // Depth layout (roots at layer 0), deterministic column order per layer.
   const children = {};
   const parents = {};
   const nodes = new Set();
@@ -829,58 +848,103 @@ function renderGraph() {
       }
     });
   }
+
+  // Barycenter ordering (two passes) to reduce edge crossings.
   const layers = {};
   Array.from(nodes).sort().forEach(function (n) {
     const d = depth[n] === undefined ? 0 : depth[n];
     (layers[d] = layers[d] || []).push(n);
   });
-  const maxCol = Object.keys(layers).reduce(function (m, k) { return Math.max(m, layers[k].length); }, 1);
-  const maxDepth = Object.keys(layers).length;
-  const colW = 210;
-  const rowH = 150;
-  const W = Math.max(420, maxCol * colW + 60);
-  const H = maxDepth * rowH + 120;
+  const layerKeys = Object.keys(layers).map(Number).sort(function (a, b) { return a - b; });
+  const order = {};
+  layerKeys.forEach(function (d) { order[d] = layers[d].slice().sort(); });
+  function avgParentPos(n) {
+    const ps = parents[n] || [];
+    if (ps.length === 0) return 0;
+    let s = 0;
+    let c = 0;
+    ps.forEach(function (p) {
+      const dd = depth[p];
+      const idx = (order[dd] || []).indexOf(p);
+      if (idx >= 0) {
+        s += idx;
+        c++;
+      }
+    });
+    return c > 0 ? s / c : 0;
+  }
+  function avgChildPos(n) {
+    const cs = children[n] || [];
+    if (cs.length === 0) return 0;
+    let s = 0;
+    let c = 0;
+    cs.forEach(function (ch) {
+      const dd = depth[ch];
+      const idx = (order[dd] || []).indexOf(ch);
+      if (idx >= 0) {
+        s += idx;
+        c++;
+      }
+    });
+    return c > 0 ? s / c : 0;
+  }
+  for (let i = 1; i < layerKeys.length; i++) {
+    const d = layerKeys[i];
+    order[d].sort(function (a, b) { return avgParentPos(a) - avgParentPos(b); });
+  }
+  for (let i = layerKeys.length - 2; i >= 0; i--) {
+    const d = layerKeys[i];
+    order[d].sort(function (a, b) { return avgChildPos(a) - avgChildPos(b); });
+  }
 
-  // Node positions.
+  const maxCol = layerKeys.reduce(function (m, d) { return Math.max(m, order[d].length); }, 1);
+  const maxDepth = layerKeys.length;
+  const colW = 224;
+  const rowH = 152;
+  const W = Math.max(460, maxCol * colW + 70);
+  const H = maxDepth * rowH + 90;
+
   const pos = {};
-  Object.keys(layers).forEach(function (dk) {
-    const d = parseInt(dk, 10);
-    layers[dk].forEach(function (n, i) {
-      const x = 30 + i * colW;
-      const y = 30 + d * rowH;
-      pos[n] = { x: x, y: y };
+  layerKeys.forEach(function (d, li) {
+    const list = order[d];
+    const layerW = list.length * colW;
+    const startX = (W - layerW) / 2;
+    list.forEach(function (n, i) {
+      pos[n] = { x: Math.round(startX + i * colW), y: 46 + li * rowH };
     });
   });
 
-  // SVG edges with arrow markers + labels.
   let svg = '<svg class="g-svg" viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '">';
   svg += '<defs>';
+  svg += '<pattern id="wgGrid" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="1.5" cy="1.5" r="1.5" fill="var(--wg-border)" opacity="0.35"></circle></pattern>';
   svg += '<marker id="wgArrow" markerHeight="7" markerWidth="7" orient="auto-start-reverse" refX="9" refY="5" viewBox="0 0 10 10"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--wg-border-strong)"></path></marker>';
   svg += '<marker id="wgArrowErr" markerHeight="7" markerWidth="7" orient="auto-start-reverse" refX="9" refY="5" viewBox="0 0 10 10"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--wg-error)"></path></marker>';
   svg += '</defs>';
+  svg += '<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="url(#wgGrid)"></rect>';
   edges.forEach(function (e) {
     const a = pos[e.from.path];
     const b = pos[e.to.path];
     if (!a || !b) return;
     const x1 = a.x + 90;
-    const y1 = a.y + 64;
+    const y1 = a.y + 62;
     const x2 = b.x + 90;
-    const y2 = b.y;
+    const y2 = b.y + 2;
     const key = e.to.path + ':' + (e.to.line != null ? e.to.line : '');
     const err = suspLines[key];
     const stroke = err ? 'var(--wg-error)' : 'var(--wg-border-strong)';
-    const dash = err ? ' stroke-dasharray="4"' : '';
     const marker = err ? 'url(#wgArrowErr)' : 'url(#wgArrow)';
-    svg += '<path d="M ' + x1 + ' ' + y1 + ' C ' + x1 + ' ' + (y1 + 36) + ', ' + x2 + ' ' + (y2 - 36) + ', ' + x2 + ' ' + y2 + '" fill="none" marker-end="' + marker + '" stroke="' + stroke + '" stroke-width="1.5"' + dash + '></path>';
+    svg += '<g class="g-edge' + (err ? ' err' : '') + '" data-from="' + esc(e.from.path) + '" data-to="' + esc(e.to.path) + '">';
+    svg += '<path d="M ' + x1 + ' ' + y1 + ' C ' + x1 + ' ' + (y1 + 38) + ', ' + x2 + ' ' + (y2 - 38) + ', ' + x2 + ' ' + y2 + '" fill="none" marker-end="' + marker + '" stroke="' + stroke + '" stroke-width="1.6"></path>';
     const label = (e.from.line != null ? 'line:' + e.from.line : '') || (e.viaCommand || '').slice(0, 24);
     if (label) {
-      svg += '<text x="' + ((x1 + x2) / 2 + 8) + '" y="' + ((y1 + y2) / 2) + '" fill="' + (err ? 'var(--wg-error)' : 'var(--wg-text-dim)') + '" font-family="var(--vscode-editor-font-family)" font-size="9">' + esc(label) + '</text>';
+      svg += '<text x="' + ((x1 + x2) / 2 + 9) + '" y="' + ((y1 + y2) / 2) + '" fill="' + (err ? 'var(--wg-error)' : 'var(--wg-text-dim)') + '" font-family="var(--vscode-editor-font-family)" font-size="9">' + esc(label) + '</text>';
     }
+    svg += '</g>';
   });
   svg += '</svg>';
 
-  // Node cards.
   let cards = '';
+  let cardIndex = 0;
   Array.from(nodes).sort().forEach(function (n) {
     const p = pos[n];
     if (!p) return;
@@ -888,14 +952,15 @@ function renderGraph() {
     const ext = base.indexOf('.') >= 0 ? base.slice(base.lastIndexOf('.') + 1).toUpperCase() : 'SCRIPT';
     const blocker = blockerByPath[n];
     const isEntry = !parents[n];
-    let card = '<div class="gnode-card' + (blocker ? ' g-sus' : '') + (isEntry ? ' g-entry' : '') + '" style="left:' + p.x + 'px;top:' + p.y + 'px">';
+    let card = '<div class="gnode-card' + (blocker ? ' g-sus' : '') + (isEntry ? ' g-entry' : '') + '" data-node="' + esc(n) + '" style="left:' + p.x + 'px;top:' + p.y + 'px;animation-delay:' + (cardIndex * 45) + 'ms">';
+    cardIndex++;
     if (isEntry) {
-      card += '<div class="g-cat">▶ Entry point</div>';
+      card += '<div class="g-cat">&#9654; Entry point</div>';
     } else {
       card += '<div class="g-cat">' + esc(ext) + '</div>';
     }
     if (blocker) {
-      card += '<div class="g-badge">⛔ Suspicious execution</div>';
+      card += '<div class="g-badge">&#9940; Suspicious execution</div>';
     }
     card += '<div class="g-name mono">' + esc(n) + '</div>';
     if (blocker) {
@@ -905,7 +970,6 @@ function renderGraph() {
     cards += card;
   });
 
-  // Risky path explorer: chains of blocker findings.
   let explorer = '';
   const blockerFindings = r.findings.filter(function (f) { return f.policyAction === 'BLOCK'; });
   if (blockerFindings.length > 0) {
@@ -917,76 +981,134 @@ function renderGraph() {
       explorer += '<div class="path-head"><span class="path-title mono">Path #' + (i + 1) + '</span><span class="badge err">Critical</span></div>';
       chain.forEach(function (step, si) {
         const last = si === chain.length - 1;
-        explorer += '<div class="path-step mono' + (last ? ' path-last' : '') + '">' + (last ? '↳ ' : '· ') + esc(step) + '</div>';
+        explorer += '<div class="path-step mono' + (last ? ' path-last' : '') + '">' + (last ? '&#8618; ' : '&#183; ') + esc(step) + '</div>';
       });
       explorer += '<div class="path-rule mono">' + esc(f.ruleId) + ' — ' + esc(f.title) + '</div>';
       explorer += '</div>';
     });
   }
 
+  const toolbar =
+    '<div class="g-toolbar">' +
+    '<div class="g-tools">' +
+    '<button class="g-btn" id="gZoomIn" title="Zoom in">+</button>' +
+    '<button class="g-btn" id="gZoomOut" title="Zoom out">-</button>' +
+    '<button class="g-btn" id="gFit" title="Fit to view">&#10534;</button>' +
+    '</div>' +
+    '<input id="gFind" class="g-find" type="text" placeholder="Find node..." spellcheck="false"/>' +
+    '</div>';
+
   const legend = '<div class="legend" style="margin-top:8px">' +
-    '<span class="badge">▶ entry</span>' +
+    '<span class="badge">entry</span>' +
     '<span class="badge warn">script hop</span>' +
     '<span class="badge err">blocker</span>' +
+    '<span class="badge">hover to trace</span>' +
     '</div>';
 
   panel.innerHTML =
-    '<div class="section-label">Call-chain graph (' + edges.length + ' edges)</div>' +
-    '<div class="graph-wrap"><div class="graph">' + svg + cards + '</div></div>' +
+    '<div class="section-label">Call-chain graph (' + nodes.size + ' nodes · ' + edges.length + ' edges)</div>' +
+    toolbar +
+    '<div class="graph-wrap" id="graphWrap"><div class="graph" id="gInner">' + svg + cards + '</div></div>' +
     explorer + legend +
     '<div class="notice" style="margin-top:10px">Call chains are discovered statically — scripts are never executed during analysis.</div>';
+  bindGraphEvents(r);
 }
 
-function renderPolicy() {
-  const panel = byId('panel-policy');
-  const r = report();
-  const s = state.settings;
-  let rows = '';
-  if (r) {
-    rows += '<div class="policy-row"><span class="k">Policy</span><span class="v">' + esc(r.policyName) + '</span></div>';
-    rows += '<div class="policy-row"><span class="k">Mode</span><span class="v">ENFORCE</span></div>';
-    rows += '<div class="policy-row"><span class="k">Block when</span><span class="v">actionable · severity ≥ ERROR</span></div>';
-    rows += '<div class="policy-row"><span class="k">Requires reachable</span><span class="v">yes</span></div>';
-    rows += '<div class="policy-row"><span class="k">INFO / audit evidence</span><span class="v">never blocks</span></div>';
-    rows += '<div class="policy-row"><span class="k">Credential evidence</span><span class="v">redacted by default</span></div>';
-  } else {
-    rows = '<div class="empty-note">Run a scan to load the active policy.</div>';
+function applyZoom() {
+  const inner = byId('gInner');
+  if (inner) {
+    inner.style.transform = 'scale(' + zoomScale + ')';
+    inner.style.transformOrigin = 'top left';
   }
-  if (s) {
-    rows += '<div class="section-label">Allowed hosts (' + s.allowedHosts.length + ')</div>';
-    rows += '<div class="legend">' + s.allowedHosts.map(function (h) { return '<span class="badge ok">' + esc(h) + '</span>'; }).join('') + '</div>';
-    rows += '<div class="section-label">Blocked commands (' + s.blockedCommands.length + ')</div>';
-    rows += '<div class="legend">' + s.blockedCommands.map(function (c) { return '<span class="badge err">' + esc(c) + '</span>'; }).join('') + '</div>';
-    rows += '<div class="policy-row"><span class="k">Require distribution checksum</span><span class="v">' + (s.requireDistributionSha256 ? 'yes' : 'no') + '</span></div>';
-    rows += '<div class="policy-row"><span class="k">Max file bytes</span><span class="v mono">' + s.maxFileBytes + '</span></div>';
-    rows += '<div class="policy-row"><span class="k">Max script depth</span><span class="v mono">' + s.maxScriptDepth + '</span></div>';
-    rows += '<div class="policy-row"><span class="k">Trusted wrapper checksums</span><span class="v">' + Object.keys(s.trustedWrapperChecksums).length + ' entry(ies)</span></div>';
-    rows += '<div class="notice" style="margin-top:8px">Edit these in Settings → wrapperGuard.* (allowedHosts, blockedCommands, requireDistributionSha256).</div>';
-  }
-  rows += '<div class="legend" style="margin-top:8px">' +
-    '<span class="badge err">ERROR → BLOCK</span>' +
-    '<span class="badge warn">WARN → REVIEW</span>' +
-    '<span class="badge">INFO → ALLOW</span>' +
-    '</div>';
-  panel.innerHTML = rows +
-    '<div class="notice" style="margin-top:10px">Repository content (inline ignores, baselines, project policies) may tighten but never silently weaken your local policy. A never-scanned project is never treated as protected.</div>';
 }
+
+function bindGraphEvents(r) {
+  const zIn = byId('gZoomIn');
+  const zOut = byId('gZoomOut');
+  const zFit = byId('gFit');
+  if (zIn) zIn.addEventListener('click', function () { zoomScale = Math.min(2, zoomScale + 0.2); applyZoom(); });
+  if (zOut) zOut.addEventListener('click', function () { zoomScale = Math.max(0.4, zoomScale - 0.2); applyZoom(); });
+  if (zFit) zFit.addEventListener('click', function () {
+    const wrap = byId('graphWrap');
+    if (!wrap) return;
+    const avail = wrap.clientWidth - 20;
+    const svg = wrap.querySelector('svg');
+    const w = svg ? svg.getAttribute('width') : 460;
+    zoomScale = Math.min(2, Math.max(0.4, avail / Number(w)));
+    applyZoom();
+  });
+  const find = byId('gFind');
+  if (find) find.addEventListener('input', function (e) {
+    nodeSearch = e.target.value.toLowerCase();
+    const cardsAll = document.querySelectorAll('#panel-graph .gnode-card');
+    cardsAll.forEach(function (c) {
+      const n = c.getAttribute('data-node') || '';
+      const hit = !nodeSearch || n.toLowerCase().indexOf(nodeSearch) >= 0;
+      c.classList.toggle('g-hit', !!nodeSearch && hit);
+      c.classList.toggle('dim-node', !!nodeSearch && !hit);
+    });
+  });
+  document.querySelectorAll('#panel-graph .gnode-card').forEach(function (node) {
+    node.addEventListener('mouseenter', function () { setEdgeActive(node.getAttribute('data-node'), true); });
+    node.addEventListener('mouseleave', function () { setEdgeActive(null, false); });
+    node.addEventListener('click', function () {
+      const n = node.getAttribute('data-node');
+      const blocker = r.findings.filter(function (f) { return f.policyAction === 'BLOCK' && f.location.path === n; })[0];
+      if (blocker) {
+        selectedFp = blocker.fingerprint;
+        switchTab('findings');
+        renderFindings();
+      }
+    });
+  });
+}
+
+function setEdgeActive(nodeName, on) {
+  const edgeEls = document.querySelectorAll('#panel-graph .g-edge');
+  const nodeEls = document.querySelectorAll('#panel-graph .gnode-card');
+  const neighbors = new Set();
+  if (on && nodeName) {
+    edgeEls.forEach(function (g) {
+      const f = g.getAttribute('data-from');
+      const t = g.getAttribute('data-to');
+      if (f === nodeName) neighbors.add(t);
+      if (t === nodeName) neighbors.add(f);
+    });
+  }
+  edgeEls.forEach(function (g) {
+    const f = g.getAttribute('data-from');
+    const t = g.getAttribute('data-to');
+    const active = on && nodeName && (f === nodeName || t === nodeName);
+    g.classList.toggle('dim', on && !active);
+    g.classList.toggle('active', !!active);
+  });
+  nodeEls.forEach(function (c) {
+    const n = c.getAttribute('data-node');
+    const isSelf = n === nodeName;
+    const isNeighbor = on && neighbors.has(n);
+    c.classList.toggle('dim-node', on && !isSelf && !isNeighbor);
+    c.classList.toggle('g-neighbor', isNeighbor);
+  });
+}
+
 
 /* tabs */
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(function (t) { t.classList.toggle('active', t.getAttribute('data-tab') === name); });
+  document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.remove('active'); });
+  byId('panel-' + name).classList.add('active');
+}
+
 byId('tabs').addEventListener('click', function (e) {
   const tab = e.target.closest('.tab');
   if (!tab) return;
-  document.querySelectorAll('.tab').forEach(function (t) { t.classList.toggle('active', t === tab); });
-  document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.remove('active'); });
-  byId('panel-' + tab.getAttribute('data-tab')).classList.add('active');
+  switchTab(tab.getAttribute('data-tab'));
 });
 
 byId('rescanBtn').addEventListener('click', function () { post('scan'); });
 byId('exportBtn').addEventListener('click', function () { post('export'); });
 byId('settingsBtn').addEventListener('click', function () {
-  document.querySelectorAll('.tab').forEach(function (t) { t.classList.toggle('active', t.getAttribute('data-tab') === 'policy'); });
-  document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.remove('active'); });
-  byId('panel-policy').classList.add('active');
+  switchTab('policy');
 });
 byId('filterInput').addEventListener('input', function (e) {
   filterText = e.target.value;
