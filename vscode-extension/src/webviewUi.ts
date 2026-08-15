@@ -939,6 +939,7 @@ function renderGraph() {
     const err = suspLines[key];
     const marker = err ? 'url(#wgArrowErr)' : 'url(#wgArrow)';
     svg += '<g class="g-edge' + (err ? ' err' : '') + '" data-from="' + esc(e.from.path) + '" data-to="' + esc(e.to.path) + '">';
+    svg += '<title>' + esc(e.viaCommand) + '</title>';
     svg += '<path d="M ' + x1 + ' ' + y1 + ' C ' + x1 + ' ' + (y1 + 38) + ', ' + x2 + ' ' + (y2 - 38) + ', ' + x2 + ' ' + y2 + '" marker-end="' + marker + '"></path>';
     const label = (e.from.line != null ? 'line:' + e.from.line : '') || (e.viaCommand || '').slice(0, 24);
     if (label) {
@@ -957,7 +958,7 @@ function renderGraph() {
     const ext = base.indexOf('.') >= 0 ? base.slice(base.lastIndexOf('.') + 1).toUpperCase() : 'SCRIPT';
     const blocker = blockerByPath[n];
     const isEntry = !parents[n];
-    let card = '<div class="gnode-card' + (blocker ? ' g-sus' : '') + (isEntry ? ' g-entry' : '') + '" data-node="' + esc(n) + '" style="left:' + p.x + 'px;top:' + p.y + 'px;animation-delay:' + (cardIndex * 45) + 'ms">';
+    let card = '<div class="gnode-card' + (blocker ? ' g-sus' : '') + (isEntry ? ' g-entry' : '') + '" data-node="' + esc(n) + '" title="Click to open findings, or the file" style="left:' + p.x + 'px;top:' + p.y + 'px;animation-delay:' + (cardIndex * 45) + 'ms">';
     cardIndex++;
     if (isEntry) {
       card += '<div class="g-cat">&#9654; Entry point</div>';
@@ -1058,11 +1059,34 @@ function bindGraphEvents(r) {
     node.addEventListener('mouseleave', function () { setEdgeActive(null, false); });
     node.addEventListener('click', function () {
       const n = node.getAttribute('data-node');
-      const blocker = r.findings.filter(function (f) { return f.policyAction === 'BLOCK' && f.location.path === n; })[0];
-      if (blocker) {
-        selectedFp = blocker.fingerprint;
+      const byPath = r.findings.filter(function (f) { return f.location.path === n; });
+      const finding =
+        byPath.filter(function (f) { return f.policyAction === 'BLOCK'; })[0] ||
+        byPath.filter(function (f) { return f.severity === 'ERROR'; })[0] ||
+        byPath.filter(function (f) { return f.severity === 'WARN'; })[0] ||
+        byPath[0];
+      if (finding) {
+        // Jump to the Findings tab with this finding selected in the detail pane.
+        selectedFp = finding.fingerprint;
         switchTab('findings');
         renderFindings();
+      } else {
+        // No findings at this node: open the file itself.
+        post('open', {
+          fingerprint: 'node-' + n,
+          ruleId: 'WG-NODE',
+          title: n,
+          message: n,
+          severity: 'INFO',
+          confidence: 'LOW',
+          category: 'AUDIT',
+          kind: 'AUDIT_EVIDENCE',
+          location: { path: n },
+          reachable: true,
+          callChain: [],
+          policyAction: 'ALLOW',
+          status: 'ACTIVE'
+        });
       }
     });
   });
