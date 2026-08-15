@@ -123,13 +123,28 @@ export function activate(context: vscode.ExtensionContext): void {
     await scan();
   };
 
+  /** Restore: remove the fingerprint from the trusted baseline and rescan. */
+  const removeBaseline = async (finding: Finding): Promise<void> => {
+    let entries: Array<{ fingerprint: string; ruleId?: string; reason?: string }> = [];
+    try {
+      entries = JSON.parse(await readFile(baselineUri.fsPath, 'utf8')) as Array<{ fingerprint: string; ruleId?: string; reason?: string }>;
+    } catch {
+      entries = [];
+    }
+    const next = entries.filter((e) => e.fingerprint !== finding.fingerprint);
+    await writeFile(baselineUri.fsPath, JSON.stringify(next, null, 2), 'utf8');
+    void vscode.window.showInformationMessage('WrapperGuard: removed ' + finding.ruleId + ' from the baseline — rescanning.');
+    await scan();
+  };
+
   provider.handlers = {
     scan: () => void scan(),
     exportReport: () => void exportReport(),
     openFinding: (finding: Finding) => void openFindingInEditor(finding),
     copyEvidence: (finding: Finding) => void copyEvidence(finding),
     suppress: (finding: Finding) => void suppress(finding),
-    baseline: (finding: Finding) => void addBaseline(finding)
+    baseline: (finding: Finding) => void addBaseline(finding),
+    unbaseline: (finding: Finding) => void removeBaseline(finding)
   };
 
   const log = vscode.window.createOutputChannel('WrapperGuard');

@@ -9,6 +9,7 @@ export interface UiHandlers {
   copyEvidence(finding: Finding): void;
   suppress(finding: Finding): void;
   baseline(finding: Finding): void;
+  unbaseline(finding: Finding): void;
 }
 
 export async function openFindingInEditor(finding: Finding): Promise<void> {
@@ -49,7 +50,8 @@ export class WrapperGuardWebviewProvider implements vscode.WebviewViewProvider {
     openFinding: () => undefined,
     copyEvidence: () => undefined,
     suppress: () => undefined,
-    baseline: () => undefined
+    baseline: () => undefined,
+    unbaseline: () => undefined
   };
 
   private view?: vscode.WebviewView;
@@ -90,6 +92,11 @@ export class WrapperGuardWebviewProvider implements vscode.WebviewViewProvider {
         case 'baseline':
           if (msg.finding) {
             this.handlers.baseline(msg.finding);
+          }
+          break;
+        case 'unbaseline':
+          if (msg.finding) {
+            this.handlers.unbaseline(msg.finding);
           }
           break;
         case 'webview-error':
@@ -287,6 +294,8 @@ main { flex: 1 1 auto; padding: 4px 10px 12px; overflow-y: auto; }
 .finding-row .body { flex: 1; min-width: 0; }
 .finding-row .title { font-size: 12px; font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .finding-row .where { font-size: 10px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.finding-row.suppressed { opacity: 0.55; }
+.finding-row.suppressed:hover { opacity: 0.9; }
 .finding-row .badges { display: flex; gap: 4px; margin-top: 3px; flex-wrap: wrap; }
 .badge {
   font-size: 9px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
@@ -579,9 +588,13 @@ function renderOverview() {
 function groupFindings() {
   const r = report();
   if (!r) return null;
-  const groups = { blockers: [], errors: [], warnings: [], info: [] };
+  const groups = { blockers: [], errors: [], warnings: [], info: [], suppressed: [] };
   r.findings.forEach(function (f) {
-    if (f.status !== 'ACTIVE') return; // suppressed/fixed findings are not actionable
+    if (f.status === 'SUPPRESSED') {
+      groups.suppressed.push(f);
+      return;
+    }
+    if (f.status !== 'ACTIVE') return; // fixed findings are not actionable
     if (f.policyAction === 'BLOCK') groups.blockers.push(f);
     else if (f.severity === 'ERROR') groups.errors.push(f);
     else if (f.severity === 'WARN') groups.warnings.push(f);
@@ -598,10 +611,11 @@ function matchesFilter(f) {
 
 function rowHtml(f) {
   const sev = SEV_ICON[f.severity] || SEV_ICON.INFO;
+  const suppressed = f.status === 'SUPPRESSED';
   const badges = '<span class="badge ' + sev[1] + '">' + esc(f.ruleId) + '</span>' +
     '<span class="badge">' + esc(f.category) + '</span>' +
-    (f.policyAction === 'BLOCK' ? '<span class="badge err">BLOCK</span>' : '');
-  return '<div class="finding-row' + (f.fingerprint === selectedFp ? ' selected' : '') + '" data-fp="' + esc(f.fingerprint) + '">' +
+    (suppressed ? '<span class="badge">BASELINED</span>' : (f.policyAction === 'BLOCK' ? '<span class="badge err">BLOCK</span>' : ''));
+  return '<div class="finding-row' + (suppressed ? ' suppressed' : '') + (f.fingerprint === selectedFp ? ' selected' : '') + '" data-fp="' + esc(f.fingerprint) + '">' +
     '<span class="ficon ' + sev[1] + '">' + sev[0] + '</span>' +
     '<div class="body">' +
     '<div class="title">' + esc(f.title) + '</div>' +
@@ -636,7 +650,8 @@ function renderFindings() {
       ['blockers', '⛔ Execution Blockers', 'err'],
       ['errors', '✖ Errors', 'err'],
       ['warnings', '▲ Warnings', 'warn'],
-      ['info', 'ℹ Info', 'info']
+      ['info', 'ℹ Info', 'info'],
+      ['suppressed', '◌ Suppressed (baseline)', 'info']
     ];
     defs.forEach(function (d) {
       const items = groups[d[0]].filter(matchesFilter);
@@ -665,6 +680,8 @@ function renderFindings() {
   if (suppressBtn) suppressBtn.addEventListener('click', function () { if (sel) post('suppress', sel); });
   const baselineBtn = byId('detailBaseline');
   if (baselineBtn) baselineBtn.addEventListener('click', function () { if (sel) post('baseline', sel); });
+  const unbaselineBtn = byId('detailUnbaseline');
+  if (unbaselineBtn) unbaselineBtn.addEventListener('click', function () { if (sel) post('unbaseline', sel); });
   document.querySelectorAll('.js-copy').forEach(function (b) {
     b.addEventListener('click', function () { if (sel) post('copy', sel); });
   });
@@ -718,8 +735,12 @@ function detailHtmlFor(f, withBack) {
   html += '<div class="detail-actions">';
   html += '<button class="btn btn-primary" id="detailOpen" style="height:26px;font-size:11px">⌨ Open in Editor</button>';
   html += '<button class="btn btn-ghost js-copy" style="height:26px;font-size:11px">⧉ Copy Evidence</button>';
-  html += '<button class="btn btn-ghost" id="detailSuppress" style="height:26px;font-size:11px" title="Add a wrapperguard:ignore marker at this line">◌ Suppress finding</button>';
-  html += '<button class="btn btn-ghost" id="detailBaseline" style="height:26px;font-size:11px" title="Add to your trusted baseline (stored outside the repository)">◈ Add to Baseline</button>';
+  if (f.status === 'SUPPRESSED') {
+    html += '<button class="btn btn-ghost" id="detailUnbaseline" style="height:26px;font-size:11px" title="Remove this finding from your trusted baseline and rescan">↩ Restore (remove from baseline)</button>';
+  } else {
+    html += '<button class="btn btn-ghost" id="detailSuppress" style="height:26px;font-size:11px" title="Add a wrapperguard:ignore marker at this line">◌ Suppress finding</button>';
+    html += '<button class="btn btn-ghost" id="detailBaseline" style="height:26px;font-size:11px" title="Add to your trusted baseline (stored outside the repository)">◈ Add to Baseline</button>';
+  }
   html += '</div>';
   return html;
 }
