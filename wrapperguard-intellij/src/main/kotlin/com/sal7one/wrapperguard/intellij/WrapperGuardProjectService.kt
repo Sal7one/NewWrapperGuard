@@ -8,7 +8,7 @@ import com.intellij.util.concurrency.AppExecutorUtil
 import com.sal7one.wrapperguard.core.model.ScanReport
 import com.sal7one.wrapperguard.core.policy.EnforcementMode
 import com.sal7one.wrapperguard.core.policy.ScanPolicy
-import com.sal7one.wrapperguard.core.policy.ScanSettings
+import com.sal7one.wrapperguard.intellij.settings.buildScanSettings
 import com.sal7one.wrapperguard.rules.RepositoryScanner
 import java.nio.file.Files
 import java.nio.file.Path
@@ -51,7 +51,7 @@ class WrapperGuardProjectService(private val project: Project) {
      */
     fun scan(): ScanReport? {
         val root = project.basePath?.let(Path::of) ?: return null
-        val result = RepositoryScanner().scan(root, ScanPolicy(mode = EnforcementMode.WARN), ScanSettings())
+        val result = RepositoryScanner().scan(root, ScanPolicy(mode = EnforcementMode.WARN), buildScanSettings())
         refreshHashes(root)
         stale = false
         report = result

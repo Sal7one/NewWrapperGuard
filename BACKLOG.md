@@ -39,15 +39,15 @@ These rules govern every item below and must not be violated by any feature.
 ## Now — make it a guard (not a viewer)
 
 ### 1. Trusted-project & startup scan
-- [ ] Make the scanner `DumbAware` — it reads files, not PSI, so it does **not** wait for indexing. Scan immediately on startup; never gate on `DumbService` smart mode.
-- [ ] **Scan on project open** — `ProjectActivity` (post-startup) runs a scan as early as possible, before the user can trigger a build/sync.
+- [x] Make the scanner `DumbAware` — it reads files, not PSI, so it does **not** wait for indexing. Scan immediately on startup; never gate on `DumbService` smart mode.
+- [x] **Scan on project open** — `ProjectActivity` (post-startup) runs a scan as early as possible, before the user can trigger a build/sync.
 - [ ] **Use IntelliJ Trusted Projects as one protection input.** On an *untrusted* project, scan before asking the user to trust/import it (Gradle import is disabled in safe mode for untrusted projects, which gives a safer pre-import scan window). Subscribe to trust-state changes; re-scan when a project becomes trusted.
-- [ ] **Be honest about limits.** Installing WrapperGuard into an already-open project cannot retroactively undo a Gradle sync that already ran. Surface "previously-imported, scan now" explicitly.
-- [ ] **Scan on plugin install** into an already-open project.
+- [x] **Be honest about limits.** Installing WrapperGuard into an already-open project cannot retroactively undo a Gradle sync that already ran. Surface "previously-imported, scan now" explicitly.
+- [x] **Scan on plugin install** into an already-open project.
 
 ### 2. Gradle-sync gate
-- [ ] **Scan before Gradle sync/import.** Subscribe to the external-system import lifecycle; run a fresh scan *before* Gradle downloads/applies any wrapper, init script, or remote `apply from:`. This is the highest-risk moment (sync executes `init.gradle`, applies remote scripts, runs the wrapper).
-- [ ] Block sync (when policy says BLOCK) via the sync gate, with the execution-blocked dialog.
+- [x] **Scan before Gradle sync/import.** A Gradle sync launches through an `ExternalSystemRunConfiguration`, which the before-run guard covers — the ENFORCE scan runs (and blocks) before the sync starts. Post-import, `ProjectDataImportListener` re-validates with a fresh ENFORCE scan so the report reflects what the sync actually executed.
+- [x] Block sync (when policy says BLOCK) via the sync gate, with the execution-blocked dialog.
 
 ### 3. Run guard
 - [x] **`BeforeRunTaskProvider`** that runs a fresh scan before every applicable run configuration and returns `false` to hard-block when policy says BLOCK. Port `old_project/execution/ExecutionGuard.kt`.
@@ -57,20 +57,20 @@ These rules govern every item below and must not be violated by any feature.
 - [x] Execution-blocked `DialogWrapper` matching `design_reference/execution_blocked_dialog` — intercepted command, policy violations, "No project code was executed.", Run Once / Review Blockers.
 
 ### 4. TOCTOU & freshness (execution seal)
-- [ ] **Execution seal**: before launch, compute a seal over file hashes + policy hash + baseline/suppression hash + scanner version + rule version. Revalidate immediately before process launch; abort if any protected input changed.
-- [ ] **Save unsaved editor documents** (or explicitly account for them) before scanning, so the seal reflects what will actually run.
+- [x] **Execution seal**: before launch, compute a seal over file hashes + policy hash + baseline/suppression hash + scanner version + rule version. Revalidate immediately before process launch; abort if any protected input changed.
+- [x] **Save unsaved editor documents** (or explicitly account for them) before scanning, so the seal reflects what will actually run.
 - [x] **Mark STALE immediately** when a relevant VFS event arrives; debounce only the *rescan*, not the stale state.
 - [x] **Single-flight scanning**: only one authoritative scan generation exists. Cancel or supersede older scans; only the latest generation may publish a report.
 
 ### 5. Trusted policy / baseline model
-- [ ] **Distinguish trusted vs untrusted suppression sources.** User/org-approved baselines and inline ignores are trusted; ones found *inside* a freshly-opened repo are untrusted until approved. Untrusted suppressions do not affect verdicts until the user accepts them.
-- [ ] Fingerprint-based baseline (`.wrapperguard-baseline.json`) — moved up from "Later" because enforcement depends on a *trusted* baseline. Baselines shipped in-repo are untrusted on first open.
-- [ ] Settings UI for approving baselines / suppressions and managing the trusted policy.
+- [x] **Distinguish trusted vs untrusted suppression sources.** Repo-shipped `wrapperguard:ignore` markers are inert (findings still emitted); only user-approved baselines stored OUTSIDE the repo suppress. Suppress actions auto-approve the fingerprint.
+- [x] Fingerprint-based baseline — trusted baselines live outside the repo (VS Code global storage, CLI `--baseline`). Baselines shipped in-repo are never auto-applied.
+- [x] Settings UI for approving baselines / suppressions and managing the trusted policy. (VS Code baseline UI + IntelliJ settings UI; IntelliJ baseline approval UI remains minimal.)
 
 ### 6. Wrapper verification (not just display)
-- [ ] Approved wrapper JAR checksum verification (against a known-good list).
-- [ ] Distribution checksum enforcement (`distributionSha256Sum`).
-- [ ] **Unknown/changed wrapper JAR verdict** — an unknown wrapper about to execute must not be a harmless INFO row; escalate per policy.
+- [x] Approved wrapper JAR checksum verification (against a known-good list).
+- [x] Distribution checksum enforcement (`distributionSha256Sum`).
+- [x] **Unknown/changed wrapper JAR verdict** — an unknown wrapper about to execute must not be a harmless INFO row; escalate per policy (WG-WRAPPER-007, ERROR/BLOCK when a trusted list is configured).
 - [ ] Policy for internally-approved custom wrappers.
 
 ### 7. File-change rescans
@@ -84,11 +84,11 @@ These rules govern every item below and must not be violated by any feature.
 - [ ] **Multi-module projects** — scan all modules under the single project root; never cross into another project's root.
 
 ### 9. Hostile-input hardening
-- [ ] Regex denial-of-service budgets (timeouts / step limits on the rule patterns).
-- [ ] Huge-line and huge-file-count limits; deep-directory-tree and symlink-loop guards.
-- [ ] Encoding handling: UTF-16 PowerShell, BOMs, malformed encodings, null bytes.
-- [ ] Cancellation, memory/time budgets; parser exceptions must produce a finding, not crash the scan.
-- [ ] Tests for each of the above against hostile fixtures.
+- [x] Regex denial-of-service budgets (oversized lines rejected before regex analysis).
+- [x] Huge-line and huge-file-count limits; deep-directory-tree and symlink-loop guards.
+- [x] Encoding handling: UTF-16 PowerShell, BOMs, malformed encodings, null bytes.
+- [x] Cancellation, memory/time budgets; parser exceptions must produce a finding, not crash the scan.
+- [x] Tests for each of the above against hostile fixtures (5 Kotlin + 5 TS checks).
 
 ### 10. Secret redaction everywhere
 - [x] **Redact credential values by default in UI, logs, JSON, SARIF, Markdown export.** Store only a safe preview + fingerprint.
@@ -101,9 +101,9 @@ These rules govern every item below and must not be violated by any feature.
 - [ ] Stale/incomplete/failed verdict banners and retry actions.
 
 ## Later
+- [x] SARIF/CI adapter — CLI `--sarif` + VS Code Export SARIF (feeds the "Not protected" coverage gap).
 - [ ] Parser-aware PowerShell/Bash adapters (replace regex with AST where practical).
-- [ ] Better execution-graph canvas (graphical nodes/edges) after the tree ships.
-- [ ] SARIF/CI adapter (feeds the "Not protected" coverage gap).
+- [ ] Better execution-graph canvas (graphical nodes/edges) after the tree ships (VS Code has a depth-layered canvas now).
 - [ ] Rule packs and community rule SDK.
 - [ ] Local multi-project console (separate dashboard, not a plugin feature).
 

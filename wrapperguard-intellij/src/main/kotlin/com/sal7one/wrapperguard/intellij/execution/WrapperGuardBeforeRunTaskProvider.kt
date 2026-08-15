@@ -25,8 +25,8 @@ import com.sal7one.wrapperguard.core.model.Severity
 import com.sal7one.wrapperguard.core.model.SourceLocation
 import com.sal7one.wrapperguard.core.policy.EnforcementMode
 import com.sal7one.wrapperguard.core.policy.ScanPolicy
-import com.sal7one.wrapperguard.core.policy.ScanSettings
 import com.sal7one.wrapperguard.core.util.Fingerprints
+import com.sal7one.wrapperguard.intellij.settings.buildScanSettings
 import com.sal7one.wrapperguard.intellij.WrapperGuardProjectService
 import com.sal7one.wrapperguard.rules.RepositoryScanner
 import com.sal7one.wrapperguard.rules.RuleIds
@@ -135,7 +135,7 @@ open class WrapperGuardBeforeRunTaskProvider : BeforeRunTaskProvider<WrapperGuar
  */
 internal fun runGuardScan(project: Project): ScanReport? {
     val root = project.basePath?.let(Path::of) ?: return null
-    return RepositoryScanner().scan(root, ScanPolicy(mode = EnforcementMode.ENFORCE), ScanSettings())
+    return RepositoryScanner().scan(root, ScanPolicy(mode = EnforcementMode.ENFORCE), buildScanSettings())
 }
 
 /**

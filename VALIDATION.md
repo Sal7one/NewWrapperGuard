@@ -50,7 +50,15 @@ Checks actually run against this revision (all commands on a clean checkout, JDK
   or Marketplace submission yet** — repo stays private/local until the v0.3 guard items land.
 - License: Apache-2.0. \`old_project/\` is git-ignored (kept locally as the migration reference).
 
+## v0.3 items completed (this revision)
+- Gradle-sync gate: sync launches are guarded via ExternalSystemRunConfiguration; post-import ENFORCE re-validation.
+- TOCTOU execution seal: save-all-documents + before/after content-hash seals with retry; WG-SCAN-TOCTOU blocker.
+- Trusted/untrusted suppression: repo-shipped wrapperguard:ignore is inert; only external user-approved baselines suppress; suppress auto-baselines.
+- Wrapper-JAR escalation: WG-WRAPPER-007 ERROR when a trusted checksum list is configured.
+- Hostile-input hardening: UTF-16/BOM, null bytes, line caps, depth/file caps, symlink safety (5+5 tests).
+- VS Code: graph canvas, settings-driven policy (allowedHosts/blockedCommands/checksums), SARIF export; CLI --sarif.
+- IntelliJ settings UI (Settings → Tools → WrapperGuard): hosts, checksum requirement, scan toggles.
+
 ## Known gaps (deliberate, tracked in BACKLOG.md)
-- Gradle-sync gate, TOCTOU execution seal, trusted/untrusted suppression model,
-  wrapper-JAR checksum escalation → v0.3. VS Code: suppression/baseline actions
-  (blocked on the trusted-baseline model), execution-graph canvas, policy editing.
+- IntelliJ Trusted-Project trust-state input, parser-aware PowerShell/Bash AST adapters,
+  IntelliJ baseline-approval UI, rule-pack SDK.
