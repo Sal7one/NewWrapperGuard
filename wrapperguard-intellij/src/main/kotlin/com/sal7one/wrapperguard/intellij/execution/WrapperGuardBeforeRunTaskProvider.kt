@@ -6,19 +6,30 @@ import com.intellij.execution.configurations.RunConfiguration
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.openapi.actionSystem.DataContext
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.editor.Document
+import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.externalSystem.service.execution.ExternalSystemRunConfiguration
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
+import com.sal7one.wrapperguard.core.model.Confidence
+import com.sal7one.wrapperguard.core.model.Evidence
 import com.sal7one.wrapperguard.core.model.Finding
+import com.sal7one.wrapperguard.core.model.FindingCategory
+import com.sal7one.wrapperguard.core.model.FindingKind
 import com.sal7one.wrapperguard.core.model.FindingStatus
 import com.sal7one.wrapperguard.core.model.PolicyAction
 import com.sal7one.wrapperguard.core.model.ScanReport
+import com.sal7one.wrapperguard.core.model.ScanVerdict
+import com.sal7one.wrapperguard.core.model.Severity
+import com.sal7one.wrapperguard.core.model.SourceLocation
 import com.sal7one.wrapperguard.core.policy.EnforcementMode
 import com.sal7one.wrapperguard.core.policy.ScanPolicy
 import com.sal7one.wrapperguard.core.policy.ScanSettings
+import com.sal7one.wrapperguard.core.util.Fingerprints
 import com.sal7one.wrapperguard.intellij.WrapperGuardProjectService
 import com.sal7one.wrapperguard.rules.RepositoryScanner
+import com.sal7one.wrapperguard.rules.RuleIds
 import java.nio.file.Path
 
 /**
@@ -75,13 +86,17 @@ open class WrapperGuardBeforeRunTaskProvider : BeforeRunTaskProvider<WrapperGuar
         if (!isApplicable(configuration)) return true
 
         val project = configuration.project
+        // The execution seal must reflect what will actually run: flush unsaved editor
+        // documents before scanning (backlog #4: save unsaved documents, or account for them).
+        FileDocumentManager.getInstance().saveAllDocuments()
+
         val report = if (ApplicationManager.getApplication().isUnitTestMode) {
             // Headless smoke tests drive the same path without the modal progress wrapper.
             runCatching { runGuardScan(project) }.getOrNull()
         } else {
             var result: ScanReport? = null
             ProgressManager.getInstance().runProcessWithProgressSynchronously(
-                { result = runCatching { runGuardScan(project) }.getOrNull() },
+                { result = runGuardedScanWithSeal(project) },
                 "WrapperGuard: Scanning project before run…",
                 false,
                 project
@@ -121,4 +136,53 @@ open class WrapperGuardBeforeRunTaskProvider : BeforeRunTaskProvider<WrapperGuar
 internal fun runGuardScan(project: Project): ScanReport? {
     val root = project.basePath?.let(Path::of) ?: return null
     return RepositoryScanner().scan(root, ScanPolicy(mode = EnforcementMode.ENFORCE), ScanSettings())
+}
+
+/**
+ * TOCTOU execution seal (backlog #3): computes the content-hash seal of every watched file
+ * before and after the scan. A file that changed mid-scan triggers one retry on the new
+ * content; a project that is still churning returns a synthetic WG-SCAN-TOCTOU blocker so
+ * the launch is refused rather than allowed on unverified content.
+ */
+internal fun runGuardedScanWithSeal(project: Project): ScanReport? {
+    val service = project.getService(WrapperGuardProjectService::class.java)
+    val sealBefore = service.computeSeal() ?: return runCatching { runGuardScan(project) }.getOrNull()
+    var report = runCatching { runGuardScan(project) }.getOrNull()
+    val sealAfter = service.computeSeal()
+    if (sealAfter != sealBefore) {
+        report = runCatching { runGuardScan(project) }.getOrNull()
+        if (service.computeSeal() != sealAfter) {
+            return toctouBlockedReport(project)
+        }
+    }
+    return report
+}
+
+/** Synthetic blocker used when protected files keep changing during the pre-run scan. */
+internal fun toctouBlockedReport(project: Project): ScanReport {
+    val root = project.basePath ?: "<project>"
+    val finding = Finding(
+        fingerprint = Fingerprints.finding(RuleIds.SCAN_TOCTOU, root, "seal-mismatch"),
+        ruleId = RuleIds.SCAN_TOCTOU,
+        title = "Project changed while scanning",
+        message = "Protected files kept changing during the pre-run scan; the execution seal could not be established.",
+        severity = Severity.ERROR,
+        confidence = Confidence.HIGH,
+        category = FindingCategory.EXECUTION,
+        kind = FindingKind.ACTIONABLE,
+        location = SourceLocation(root),
+        evidence = Evidence("execution seal mismatch"),
+        remediation = "Wait for the project to settle, then run again.",
+        policyAction = PolicyAction.BLOCK,
+        status = FindingStatus.ACTIVE
+    )
+    return ScanReport(
+        projectPath = root,
+        verdict = ScanVerdict.EXECUTION_BLOCKED,
+        policyName = "OSS Defaults",
+        findings = listOf(finding),
+        scannedFiles = 0,
+        durationMs = 0,
+        complete = true
+    )
 }

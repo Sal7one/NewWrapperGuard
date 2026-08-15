@@ -63,6 +63,7 @@ object RuleIds {
     const val SCAN_DEPTH_LIMIT = "WG-SCAN-DEPTH"
     const val SCAN_UNRESOLVED = "WG-SCAN-UNRESOLVED"
     const val SCAN_ROOT = "WG-SCAN-ROOT"
+    const val SCAN_TOCTOU = "WG-SCAN-TOCTOU"
     const val SCAN_FILE_SKIPPED = "WG-FILE-SKIPPED"
     const val SCAN_FILE_READ = "WG-FILE-READ"
 }

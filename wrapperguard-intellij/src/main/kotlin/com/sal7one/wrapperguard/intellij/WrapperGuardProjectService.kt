@@ -131,6 +131,16 @@ class WrapperGuardProjectService(private val project: Project) {
     }
 
     /**
+     * Execution seal: content hashes of every watched file at this instant. The run guard
+     * compares two such seals (before/after its scan) so a file changing mid-scan cannot
+     * slip through — see WrapperGuardBeforeRunTaskProvider.
+     */
+    fun computeSeal(): Map<String, String>? {
+        val root = project.basePath?.let(Path::of) ?: return null
+        return runCatching { computeWatchedHashes(root) }.getOrNull()
+    }
+
+    /**
      * Publishes a report produced outside the normal scan flow (e.g. the pre-run guard's
      * ENFORCE-mode scan) so the tool window reflects what actually gated the run. The
      * hash baseline and stale state are refreshed to match that scan.
@@ -201,6 +211,7 @@ class WrapperGuardProjectService(private val project: Project) {
             name == "gradlew" ||
                 name == "gradlew.bat" ||
                 name == "gradle-wrapper.properties" ||
+                name == "gradle-wrapper.jar" ||
                 name == "libs.versions.toml" ||
                 name.endsWith(".gradle") ||
                 name.endsWith(".gradle.kts") ||

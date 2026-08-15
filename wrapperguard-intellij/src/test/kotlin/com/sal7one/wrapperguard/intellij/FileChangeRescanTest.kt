@@ -1,6 +1,9 @@
 package com.sal7one.wrapperguard.intellij
 
 import com.intellij.testFramework.HeavyPlatformTestCase
+import com.sal7one.wrapperguard.core.model.PolicyAction
+import com.sal7one.wrapperguard.core.model.ScanVerdict
+import com.sal7one.wrapperguard.intellij.execution.toctouBlockedReport
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.CopyOnWriteArrayList
@@ -45,6 +48,13 @@ class FileChangeRescanTest : HeavyPlatformTestCase() {
         }
         assertTrue("debounced rescan must publish a fresh report", refreshed)
         assertFalse(service.stale)
+    }
+
+    fun testWrapperJarWatchedAndToctouReportBlocks() {
+        assertTrue(WrapperGuardProjectService.isWatchedFileName("gradle-wrapper.jar"))
+        val report = toctouBlockedReport(project)
+        assertEquals(ScanVerdict.EXECUTION_BLOCKED, report.verdict)
+        assertTrue(report.findings.any { it.ruleId == "WG-SCAN-TOCTOU" && it.policyAction == PolicyAction.BLOCK })
     }
 
     fun testUnchangedContentRestoresFreshnessWithoutRescan() {
