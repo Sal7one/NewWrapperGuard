@@ -384,8 +384,11 @@ body.vscode-light .graph-wrap { background: var(--surface); }
 .g-find:focus { border-color: var(--primary); }
 .g-edge { transition: opacity 0.15s ease; }
 .g-edge.dim { opacity: 0.1; }
+.g-edge path { stroke: var(--wg-border-strong); fill: none; stroke-width: 1.6; }
 .g-edge.active path { stroke-width: 2.6; }
-.g-edge.err path { stroke-dasharray: 5 4; animation: wgdash 1.1s linear infinite; }
+.g-edge.err path { stroke: var(--wg-error); stroke-dasharray: 5 4; animation: wgdash 1.1s linear infinite; }
+.g-elabel { fill: var(--wg-text-dim); }
+.g-edge.err .g-elabel { fill: var(--wg-error); }
 @keyframes wgdash { to { stroke-dashoffset: -18; } }
 .gnode-card { transition: opacity 0.15s ease; animation: wgenter 0.28s ease both; cursor: pointer; }
 .gnode-card:hover { border-color: var(--primary); }
@@ -917,8 +920,8 @@ function renderGraph() {
   let svg = '<svg class="g-svg" viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '">';
   svg += '<defs>';
   svg += '<pattern id="wgGrid" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="1.5" cy="1.5" r="1.5" fill="var(--wg-border)" opacity="0.35"></circle></pattern>';
-  svg += '<marker id="wgArrow" markerHeight="7" markerWidth="7" orient="auto-start-reverse" refX="9" refY="5" viewBox="0 0 10 10"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--wg-border-strong)"></path></marker>';
-  svg += '<marker id="wgArrowErr" markerHeight="7" markerWidth="7" orient="auto-start-reverse" refX="9" refY="5" viewBox="0 0 10 10"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--wg-error)"></path></marker>';
+  svg += '<marker id="wgArrow" markerHeight="7" markerWidth="7" orient="auto-start-reverse" refX="9" refY="5" viewBox="0 0 10 10"><path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke"></path></marker>';
+  svg += '<marker id="wgArrowErr" markerHeight="7" markerWidth="7" orient="auto-start-reverse" refX="9" refY="5" viewBox="0 0 10 10"><path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke"></path></marker>';
   svg += '</defs>';
   svg += '<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="url(#wgGrid)"></rect>';
   edges.forEach(function (e) {
@@ -931,13 +934,12 @@ function renderGraph() {
     const y2 = b.y + 2;
     const key = e.to.path + ':' + (e.to.line != null ? e.to.line : '');
     const err = suspLines[key];
-    const stroke = err ? 'var(--wg-error)' : 'var(--wg-border-strong)';
     const marker = err ? 'url(#wgArrowErr)' : 'url(#wgArrow)';
     svg += '<g class="g-edge' + (err ? ' err' : '') + '" data-from="' + esc(e.from.path) + '" data-to="' + esc(e.to.path) + '">';
-    svg += '<path d="M ' + x1 + ' ' + y1 + ' C ' + x1 + ' ' + (y1 + 38) + ', ' + x2 + ' ' + (y2 - 38) + ', ' + x2 + ' ' + y2 + '" fill="none" marker-end="' + marker + '" stroke="' + stroke + '" stroke-width="1.6"></path>';
+    svg += '<path d="M ' + x1 + ' ' + y1 + ' C ' + x1 + ' ' + (y1 + 38) + ', ' + x2 + ' ' + (y2 - 38) + ', ' + x2 + ' ' + y2 + '" marker-end="' + marker + '"></path>';
     const label = (e.from.line != null ? 'line:' + e.from.line : '') || (e.viaCommand || '').slice(0, 24);
     if (label) {
-      svg += '<text x="' + ((x1 + x2) / 2 + 9) + '" y="' + ((y1 + y2) / 2) + '" fill="' + (err ? 'var(--wg-error)' : 'var(--wg-text-dim)') + '" font-family="var(--vscode-editor-font-family)" font-size="9">' + esc(label) + '</text>';
+      svg += '<text class="g-elabel" x="' + ((x1 + x2) / 2 + 9) + '" y="' + ((y1 + y2) / 2) + '" font-family="var(--vscode-editor-font-family)" font-size="9">' + esc(label) + '</text>';
     }
     svg += '</g>';
   });
