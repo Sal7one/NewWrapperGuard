@@ -32,9 +32,11 @@ function getNonce(): string {
 }
 
 /**
- * The WrapperGuard sidebar as a real web app: header, editor-style tabs
- * (Overview / Findings / Execution Graph / Policy), verdict status pill, and a
- * design-token-matched UI per design_reference/vs_code_finding_details.
+ * The WrapperGuard sidebar as a real web app, following design_reference/
+ * vs_code_finding_details and intellij_plugin_overview: app bar, editor-style tabs,
+ * verdict pill + summary card, searchable grouped findings with a syntax-highlighted
+ * evidence snippet and full finding detail, execution graph, policy pane, and a
+ * status footer with blocker chip.
  */
 export class WrapperGuardWebviewProvider implements vscode.WebviewViewProvider {
   static readonly viewType = 'wrapperGuard.main';
@@ -96,6 +98,7 @@ export class WrapperGuardWebviewProvider implements vscode.WebviewViewProvider {
   --primary: #c3c0ff; --primary-container: #4f46e5; --on-primary-container: #dad7ff;
   --error: #ffb4ab; --warn: #ffb695; --ok: #7ee787; --info: #8ab4f8;
   --mono-bg: #1e1e1e; --mono-bar: #2d2d2d;
+  --tok-kw: #569cd6; --tok-str: #ce9178; --tok-com: #6a9955; --tok-op: #d4d4d4;
 }
 body.vscode-light {
   --bg: #fbfbfd; --surface: #ffffff; --surface-low: #f6f6f8; --surface-lowest: #f1f1f4;
@@ -105,73 +108,85 @@ body.vscode-light {
   --primary: #3d34c4; --primary-container: #4f46e5; --on-primary-container: #ffffff;
   --error: #b3261e; --warn: #9a6700; --ok: #22863a; --info: #005fb8;
   --mono-bg: #f3f3f7; --mono-bar: #e4e4ea;
+  --tok-kw: #0000ff; --tok-str: #a31515; --tok-com: #008000; --tok-op: #333333;
 }
 * { box-sizing: border-box; }
 body {
   margin: 0; padding: 0; color: var(--text); background: var(--bg);
   font-family: var(--vscode-font-family); font-size: 13px; line-height: 18px;
+  display: flex; flex-direction: column; height: 100vh;
 }
 button { font-family: var(--vscode-font-family); }
 .mono { font-family: var(--vscode-editor-font-family); }
-/* ── app header ─────────────────────────── */
-.app-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 8px 10px; background: var(--surface-low);
-  border-bottom: 1px solid var(--border);
+/* ── app bar ───────────────────────────── */
+.app-bar {
+  display: flex; align-items: center; justify-content: space-between; flex: 0 0 auto;
+  padding: 5px 10px; background: var(--surface-low); border-bottom: 1px solid var(--border);
 }
 .brand { display: flex; align-items: center; gap: 8px; }
 .logo {
-  width: 26px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border-radius: 6px; display: flex; align-items: center; justify-content: center;
   background: color-mix(in srgb, var(--primary-container) 30%, transparent);
   border: 1px solid color-mix(in srgb, var(--primary) 35%, transparent);
-  color: var(--primary); font-size: 14px;
+  color: var(--primary); font-size: 13px;
 }
-.brand-name { font-size: 14px; font-weight: 700; color: var(--primary); line-height: 16px; }
+.brand-name { font-size: 13px; font-weight: 700; color: var(--primary); line-height: 15px; }
 .brand-ver { font-size: 10px; color: var(--text-dim); }
-.header-actions { display: flex; gap: 6px; }
-.btn {
-  display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px;
-  border-radius: 4px; font-size: 11px; font-weight: 500; cursor: pointer; white-space: nowrap;
+.app-actions { display: flex; gap: 2px; }
+.icon-btn {
+  background: transparent; border: none; color: var(--text-dim); cursor: pointer;
+  width: 24px; height: 24px; border-radius: 4px; font-size: 13px; display: flex; align-items: center; justify-content: center;
 }
-.btn:disabled { opacity: 0.5; cursor: default; }
-.btn-primary { background: var(--primary-container); color: var(--on-primary-container); border: 1px solid transparent; }
-.btn-primary:hover:not(:disabled) { background: color-mix(in srgb, var(--primary-container) 85%, var(--text)); }
-.btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border-strong); }
-.btn-ghost:hover:not(:disabled) { background: var(--surface-high); }
+.icon-btn:hover:not(:disabled) { color: var(--primary); background: var(--surface-high); }
+.icon-btn:disabled { opacity: 0.5; cursor: default; }
+.spin { animation: wgspin 1s linear infinite; display: inline-block; }
+@keyframes wgspin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 /* ── tabs ───────────────────────────────── */
-.tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--surface-low); }
+.tabs { display: flex; flex: 0 0 auto; border-bottom: 1px solid var(--border); background: var(--surface-low); }
 .tab {
   flex: 1; background: transparent; border: none; color: var(--text-dim);
-  padding: 7px 4px 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.05em;
+  padding: 6px 2px 5px; font-size: 10px; font-weight: 700; letter-spacing: 0.05em;
   text-transform: uppercase; cursor: pointer; border-bottom: 2px solid transparent;
+  display: flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap;
 }
+.tab .ticon { font-size: 12px; }
 .tab:hover { color: var(--primary); }
 .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
-/* ── status pill strip ──────────────────── */
-.status-strip { padding: 8px 10px 4px; }
+.tcount {
+  font-size: 9px; padding: 0 5px; border-radius: 999px; background: var(--surface-highest);
+  color: var(--text-dim); font-weight: 700;
+}
+/* ── status + summary card ─────────────── */
+.status-card {
+  flex: 0 0 auto; margin: 8px 10px 0; padding: 8px 10px; border: 1px solid var(--border);
+  border-radius: 4px; background: var(--surface); display: flex; flex-direction: column; gap: 6px;
+}
 .pill {
-  display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px;
-  border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0.05em;
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px;
+  border-radius: 999px; font-size: 10px; font-weight: 700; letter-spacing: 0.05em;
   text-transform: uppercase; border: 1px solid var(--border-strong); color: var(--text-dim);
 }
 .pill.err { color: var(--error); border-color: color-mix(in srgb, var(--error) 50%, transparent); background: color-mix(in srgb, var(--error) 12%, transparent); }
 .pill.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 50%, transparent); background: color-mix(in srgb, var(--warn) 12%, transparent); }
 .pill.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 50%, transparent); background: color-mix(in srgb, var(--ok) 12%, transparent); }
-.counts { display: inline-flex; gap: 10px; margin-left: 8px; font-size: 11px; color: var(--text-dim); }
-.counts .err { color: var(--error); }
-.counts .warn { color: var(--warn); }
-/* ── panes ──────────────────────────────── */
-main { padding: 4px 10px 12px; overflow-y: auto; }
+.srow { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+.srow .sic { font-size: 11px; }
+.srow .sic.err { color: var(--error); }
+.srow .sic.warn { color: var(--warn); }
+.srow .sic.info { color: var(--info); }
+.srow .val { margin-left: auto; font-weight: 700; font-family: var(--vscode-editor-font-family); font-size: 11px; }
+/* ── panes ─────────────────────────────── */
+main { flex: 1 1 auto; padding: 4px 10px 12px; overflow-y: auto; }
 .tab-panel { display: none; }
 .tab-panel.active { display: block; }
 .section-label {
   font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
-  color: var(--text-dim); margin: 10px 0 5px;
+  color: var(--text-dim); margin: 12px 0 5px;
 }
 /* overview */
-.hero { text-align: center; padding: 28px 10px; color: var(--text-dim); }
+.hero { text-align: center; padding: 26px 10px; color: var(--text-dim); }
 .hero .big { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
-.hero .btn { margin-top: 12px; height: 30px; font-size: 12px; padding: 0 16px; }
+.hero .btn { margin-top: 12px; }
 .banner {
   display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 4px;
   border: 1px solid var(--border); background: var(--surface); font-size: 12px; font-weight: 600;
@@ -179,22 +194,51 @@ main { padding: 4px 10px 12px; overflow-y: auto; }
 .banner.err { color: var(--error); border-color: color-mix(in srgb, var(--error) 45%, transparent); background: color-mix(in srgb, var(--error) 10%, var(--surface)); }
 .banner.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, transparent); background: color-mix(in srgb, var(--warn) 10%, var(--surface)); }
 .banner.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, transparent); background: color-mix(in srgb, var(--ok) 10%, var(--surface)); }
-.tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 8px; }
-.tile {
-  background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
-  padding: 8px 10px; display: flex; flex-direction: column; gap: 2px;
+.alert-card {
+  margin-top: 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface-highest);
+  padding: 6px 10px; display: flex; flex-direction: column; gap: 3px; font-size: 11px;
 }
-.tile .label { font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-dim); }
-.tile .value { font-size: 18px; font-weight: 700; line-height: 22px; }
-.tile .value.err { color: var(--error); }
-.tile .value.warn { color: var(--warn); }
-.tile .value.ok { color: var(--ok); }
-.meta { margin-top: 10px; font-size: 11px; color: var(--text-dim); display: flex; flex-direction: column; gap: 2px; }
-.meta .mono { font-size: 10px; }
-.notice { font-size: 11px; color: var(--text-dim); border-left: 2px solid var(--border-strong); padding-left: 8px; margin-top: 8px; }
-/* findings list + detail split */
+.alert-card .row { display: flex; justify-content: space-between; gap: 8px; }
+.alert-card .k { color: var(--text-dim); }
+.alert-card .v { font-weight: 600; text-align: right; }
+.metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 8px; }
+.metric {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.metric .top { display: flex; align-items: center; gap: 6px; }
+.metric .mic { font-size: 12px; }
+.metric .mic.err { color: var(--error); }
+.metric .mic.warn { color: var(--warn); }
+.metric .mic.ok { color: var(--ok); }
+.metric .mic.info { color: var(--info); }
+.metric .label { font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-dim); }
+.metric .value { font-size: 18px; font-weight: 700; line-height: 22px; }
+.metric .value.err { color: var(--error); }
+.metric .value.warn { color: var(--warn); }
+.metric .value.ok { color: var(--ok); }
+.btn-row { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
+.btn {
+  display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 12px;
+  border-radius: 4px; font-size: 11px; font-weight: 500; cursor: pointer; white-space: nowrap;
+}
+.btn:disabled { opacity: 0.5; cursor: default; }
+.btn-primary { background: var(--primary-container); color: var(--on-primary-container); border: 1px solid transparent; }
+.btn-primary:hover:not(:disabled) { background: color-mix(in srgb, var(--primary-container) 85%, var(--text)); }
+.btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border-strong); }
+.btn-ghost:hover:not(:disabled) { background: var(--surface-high); }
+.notice { font-size: 11px; color: var(--text-dim); border-left: 2px solid var(--border-strong); padding-left: 8px; margin-top: 10px; }
+/* findings */
+.findings-toolbar { display: flex; gap: 4px; margin: 8px 0 4px; }
+.findings-toolbar input {
+  flex: 1; min-width: 0; height: 24px; background: var(--surface-high); border: 1px solid var(--border);
+  border-radius: 4px; color: var(--text); font-size: 11px; padding: 0 8px; outline: none;
+}
+.findings-toolbar input:focus { border-color: var(--primary); }
+.findings-toolbar .clear-btn { background: transparent; border: none; color: var(--text-dim); cursor: pointer; padding: 0 6px; border-radius: 4px; }
+.findings-toolbar .clear-btn:hover { color: var(--primary); background: var(--surface-high); }
 .findings-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr); align-items: start; gap: 0 12px; }
-.findings-layout .detail { border-left: 1px solid var(--border); padding-left: 10px; position: sticky; top: 0; max-height: calc(100vh - 120px); overflow-y: auto; }
+.findings-layout .detail { border-left: 1px solid var(--border); padding-left: 10px; position: sticky; top: 0; max-height: calc(100vh - 190px); overflow-y: auto; }
 .findings-layout.narrow { display: block; }
 .findings-layout.narrow .detail { border-left: none; padding-left: 0; position: static; max-height: none; }
 .group-head {
@@ -207,9 +251,9 @@ main { padding: 4px 10px 12px; overflow-y: auto; }
 .group-head .info { color: var(--info); }
 .finding-row {
   display: flex; align-items: flex-start; gap: 7px; padding: 5px 6px; cursor: pointer;
-  border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
-  border-radius: 2px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent); border-radius: 2px;
 }
+.finding-row:nth-child(even) { background: color-mix(in srgb, var(--surface-high) 45%, transparent); }
 .finding-row:hover { background: var(--surface-high); }
 .finding-row.selected { background: color-mix(in srgb, var(--primary-container) 22%, transparent); border-left: 2px solid var(--primary); }
 .finding-row .ficon { font-size: 12px; line-height: 16px; padding-top: 1px; }
@@ -228,7 +272,7 @@ main { padding: 4px 10px 12px; overflow-y: auto; }
 .badge.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 50%, transparent); background: color-mix(in srgb, var(--warn) 12%, transparent); }
 .badge.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 50%, transparent); background: color-mix(in srgb, var(--ok) 12%, transparent); }
 .empty-note { padding: 14px 6px; color: var(--text-dim); font-size: 12px; text-align: center; }
-/* detail pane */
+/* detail */
 .detail { padding: 8px 2px 2px; }
 .detail .back { display: none; }
 .narrow .detail .back { display: inline-flex; }
@@ -254,26 +298,43 @@ main { padding: 4px 10px 12px; overflow-y: auto; }
 .snippet-line .ln { flex: 0 0 40px; text-align: right; padding-right: 8px; color: var(--border-strong); user-select: none; }
 .snippet-line .code { white-space: pre-wrap; word-break: break-all; color: var(--text); padding: 1px 4px; }
 .snippet-line.hit { background: color-mix(in srgb, var(--error) 12%, transparent); border-left: 2px solid var(--error); }
-.snippet-line.hit .code { font-weight: 700; }
 .snippet-note { padding: 3px 8px; font-size: 10px; color: var(--text-dim); border-top: 1px solid var(--border); }
+.tok-kw { color: var(--tok-kw); }
+.tok-str { color: var(--tok-str); }
+.tok-com { color: var(--tok-com); font-style: italic; }
+.tok-op { color: var(--tok-op); font-weight: 700; }
 .remediation { background: var(--surface-low); border-left: 2px solid var(--primary); border-radius: 0 4px 4px 0; padding: 8px 10px; display: flex; flex-direction: column; gap: 5px; }
 .remediation .head { color: var(--primary); font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
 .remediation p { margin: 0; font-size: 11px; line-height: 15px; }
 .detail-actions { display: flex; gap: 6px; padding-top: 10px; flex-wrap: wrap; }
 /* execution graph */
 .edge-row { display: flex; align-items: center; gap: 6px; padding: 5px 6px; border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent); }
+.edge-row:nth-child(even) { background: color-mix(in srgb, var(--surface-high) 45%, transparent); }
 .edge-row .via { font-size: 10px; color: var(--text-dim); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .edge-row .arrow { color: var(--border-strong); }
 /* policy */
 .policy-row { display: flex; justify-content: space-between; gap: 8px; padding: 6px 4px; border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent); font-size: 11px; }
 .policy-row .k { color: var(--text-dim); }
 .policy-row .v { text-align: right; font-weight: 500; }
-.spin { animation: wgspin 1s linear infinite; display: inline-block; }
-@keyframes wgspin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.legend { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+/* footer */
+.app-footer {
+  flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between;
+  padding: 3px 10px; border-top: 1px solid var(--border); background: var(--surface-lowest);
+  font-size: 10px; color: var(--text-dim);
+}
+.app-footer .chip {
+  display: inline-flex; align-items: center; gap: 4px; margin-left: 8px; padding: 1px 8px;
+  border-radius: 999px; font-weight: 700;
+}
+.app-footer .chip.err { color: var(--error); background: color-mix(in srgb, var(--error) 15%, transparent); }
+.footer-links { display: flex; gap: 12px; }
+.flink { cursor: pointer; }
+.flink:hover { color: var(--primary); }
 </style>
 </head>
 <body>
-  <header class="app-header">
+  <header class="app-bar">
     <div class="brand">
       <span class="logo">🛡</span>
       <div>
@@ -281,35 +342,54 @@ main { padding: 4px 10px 12px; overflow-y: auto; }
         <div class="brand-ver mono">v0.2.0</div>
       </div>
     </div>
-    <div class="header-actions">
-      <button class="btn btn-ghost" id="exportBtn" title="Export the scan report as JSON">⤓ Export</button>
-      <button class="btn btn-primary" id="rescanBtn">⟳ Rescan</button>
+    <div class="app-actions">
+      <button class="icon-btn" id="exportBtn" title="Export report (JSON)">⤓</button>
+      <button class="icon-btn" id="settingsBtn" title="Show policy">⚙</button>
+      <button class="icon-btn" id="rescanBtn" title="Rescan project">⟳</button>
     </div>
   </header>
 
   <nav class="tabs" id="tabs">
-    <button class="tab active" data-tab="overview">Overview</button>
-    <button class="tab" data-tab="findings">Findings</button>
-    <button class="tab" data-tab="graph">Execution Graph</button>
-    <button class="tab" data-tab="policy">Policy</button>
+    <button class="tab active" data-tab="overview"><span class="ticon">◧</span>Overview</button>
+    <button class="tab" data-tab="findings"><span class="ticon">⚠</span>Findings <span class="tcount" id="tabFindingsCount">0</span></button>
+    <button class="tab" data-tab="graph"><span class="ticon">⎇</span>Graph</button>
+    <button class="tab" data-tab="policy"><span class="ticon">⚙</span>Policy</button>
   </nav>
 
-  <div class="status-strip">
+  <section class="status-card">
     <span class="pill" id="verdictPill">Not scanned</span>
-    <span class="counts" id="counts"></span>
-  </div>
+    <div class="srow"><span class="sic err">✖</span><span>Blockers</span><span class="val" id="sumBlockers">0</span></div>
+    <div class="srow"><span class="sic err">✖</span><span>Errors</span><span class="val" id="sumErrors">0</span></div>
+    <div class="srow"><span class="sic warn">▲</span><span>Warnings</span><span class="val" id="sumWarnings">0</span></div>
+  </section>
 
   <main>
     <section class="tab-panel active" id="panel-overview"></section>
-    <section class="tab-panel" id="panel-findings"><div class="findings-layout" id="findingsLayout"></div></section>
+    <section class="tab-panel" id="panel-findings">
+      <div class="findings-toolbar">
+        <input id="filterInput" type="text" placeholder="Search rules, files…" spellcheck="false"/>
+        <button class="clear-btn" id="btnClearFilter" title="Clear filter">✕</button>
+      </div>
+      <div class="findings-layout" id="findingsLayout"></div>
+    </section>
     <section class="tab-panel" id="panel-graph"></section>
     <section class="tab-panel" id="panel-policy"></section>
   </main>
+
+  <footer class="app-footer">
+    <span id="footerLeft">WrapperGuard: Not scanned</span>
+    <span class="footer-links">
+      <span class="flink" title="Documentation — coming in v0.3">Docs</span>
+      <span class="flink" title="Logs — coming in v0.3">Logs</span>
+      <span class="flink" title="Support — coming in v0.3">Support</span>
+    </span>
+  </footer>
 
 <script nonce="${nonce}">
 const vscode = acquireVsCodeApi();
 let state = { kind: 'not-scanned' };
 let selectedFp = null;
+let filterText = '';
 let wide = window.matchMedia('(min-width: 540px)').matches;
 
 const VERDICT = {
@@ -322,12 +402,22 @@ const VERDICT = {
   FAILED: ['err', 'Scan Failed']
 };
 const SEV_ICON = { ERROR: ['✖', 'err'], WARN: ['▲', 'warn'], INFO: ['ℹ', 'info'] };
+const KEYWORDS = /\b(curl|wget|fetch|bash|sh|zsh|powershell|pwsh|echo|printf|set|unset|exec|eval|java|export|cd|rm|cp|mv|chmod|sudo|cat|install|build|git|node|npm|pip|python|if|then|fi|else|elif|for|do|done|while|case|esac|function|return|start|call|bitsadmin|certutil)\b/g;
 
 function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 function byId(id) { return document.getElementById(id); }
 function post(type, finding) { vscode.postMessage({ type: type, finding: finding }); }
+
+function hlLine(raw) {
+  let s = esc(raw);
+  s = s.replace(/(&quot;[^&]*?&quot;|'[^']*')/g, '<span class="tok-str">$1</span>');
+  s = s.replace(/(^|\s)#[^<]*$/g, function (m) { return '<span class="tok-com">' + m + '</span>'; });
+  s = s.replace(/(\|\||&&|&gt;{1,2}|&lt;)/g, '<span class="tok-op">$1</span>');
+  s = s.replace(KEYWORDS, '<span class="tok-kw">$1</span>');
+  return s;
+}
 
 window.addEventListener('message', function (e) {
   const m = e.data;
@@ -345,7 +435,7 @@ window.matchMedia('(min-width: 540px)').addEventListener('change', function (e) 
 function report() { return state.kind === 'scanned' ? state.report : null; }
 
 function render() {
-  renderPill();
+  renderStatusCard();
   renderOverview();
   renderFindings();
   renderGraph();
@@ -360,28 +450,34 @@ function verdictMeta() {
   return ['dim', 'Not scanned'];
 }
 
-function renderPill() {
+function renderStatusCard() {
   const vm = verdictMeta();
   const pill = byId('verdictPill');
   pill.className = 'pill ' + vm[0];
-  pill.textContent = '◉ Verdict: ' + vm[1];
+  pill.textContent = '◉ ' + vm[1];
   const r = report();
-  const counts = byId('counts');
-  if (!r) { counts.innerHTML = ''; return; }
-  const blockers = r.findings.filter(function (f) { return f.policyAction === 'BLOCK'; }).length;
-  const errors = r.findings.filter(function (f) { return f.severity === 'ERROR'; }).length;
-  const warnings = r.findings.filter(function (f) { return f.severity === 'WARN'; }).length;
-  counts.innerHTML = '<span class="err">✖ ' + blockers + ' blockers</span><span class="err">✖ ' + errors + ' errors</span><span class="warn">▲ ' + warnings + ' warnings</span>';
+  const blockers = r ? r.findings.filter(function (f) { return f.policyAction === 'BLOCK'; }).length : 0;
+  const errors = r ? r.findings.filter(function (f) { return f.severity === 'ERROR'; }).length : 0;
+  const warnings = r ? r.findings.filter(function (f) { return f.severity === 'WARN'; }).length : 0;
+  byId('sumBlockers').textContent = String(blockers);
+  byId('sumErrors').textContent = String(errors);
+  byId('sumWarnings').textContent = String(warnings);
+  byId('tabFindingsCount').textContent = String(r ? r.findings.length : 0);
+  const footer = byId('footerLeft');
+  footer.innerHTML = '<span class="mono">WrapperGuard: ' + esc(vm[1]) + '</span>';
+  if (state.kind === 'scanned' && blockers > 0) {
+    footer.innerHTML += '<span class="chip err">✖ ' + blockers + ' blocker' + (blockers === 1 ? '' : 's') + '</span>';
+  }
 }
 
 function renderBusy() {
   const btn = byId('rescanBtn');
   if (state.kind === 'scanning') {
     btn.disabled = true;
-    btn.innerHTML = '<span class="spin">⟳</span> Scanning…';
+    btn.innerHTML = '<span class="spin">⟳</span>';
   } else {
     btn.disabled = false;
-    btn.innerHTML = '⟳ Rescan';
+    btn.innerHTML = '⟳';
   }
 }
 
@@ -403,34 +499,42 @@ function renderOverview() {
   }
   const r = state.report;
   const blockers = r.findings.filter(function (f) { return f.policyAction === 'BLOCK'; }).length;
-  const errors = r.findings.filter(function (f) { return f.severity === 'ERROR'; }).length;
   const warnings = r.findings.filter(function (f) { return f.severity === 'WARN'; }).length;
+  const edges = (r.edges || []).length;
   const vm = verdictMeta();
-  const bannerCls = blockers > 0 ? 'err' : (!r.complete || r.stale ? 'warn' : r.verdict === 'CLEAN' ? 'ok' : 'warn');
-  const bannerIcon = bannerCls === 'err' ? '⛔' : bannerCls === 'warn' ? '▲' : '✓';
-  let html = '<div class="banner ' + bannerCls + '">' + bannerIcon + ' ' + esc(vm[1]) + (blockers > 0 ? ' — ' + blockers + ' blocker' + (blockers === 1 ? '' : 's') : '') + '</div>';
-  html += '<div class="tiles">';
-  html += '<div class="tile"><span class="label">Blockers</span><span class="value err">' + blockers + '</span></div>';
-  html += '<div class="tile"><span class="label">Errors</span><span class="value err">' + errors + '</span></div>';
-  html += '<div class="tile"><span class="label">Warnings</span><span class="value warn">' + warnings + '</span></div>';
-  html += '<div class="tile"><span class="label">Files scanned</span><span class="value">' + r.scannedFiles + '</span></div>';
+  const cls = blockers > 0 ? 'err' : (!r.complete || r.stale) ? 'warn' : r.verdict === 'CLEAN' ? 'ok' : 'warn';
+  const icon = cls === 'err' ? '⛔' : cls === 'warn' ? '▲' : '✓';
+  let html = '<div class="banner ' + cls + '">' + icon + ' ' + esc(vm[1]);
+  if (blockers > 0) html += ' — ' + blockers + ' blocker' + (blockers === 1 ? '' : 's');
   html += '</div>';
-  html += '<div class="meta">';
-  html += '<span>Policy: ' + esc(r.policyName) + ' · ' + r.durationMs + ' ms</span>';
-  const ts = r.generatedAtEpochMs ? new Date(r.generatedAtEpochMs).toLocaleTimeString() : '';
-  html += '<span>Last scan: ' + esc(ts) + '</span>';
-  html += '<span class="mono">' + esc(r.projectPath) + '</span>';
+
+  const ts = r.generatedAtEpochMs ? new Date(r.generatedAtEpochMs).toLocaleString() : '—';
+  html += '<div class="alert-card">';
+  html += '<div class="row"><span class="k">Last scan</span><span class="v mono">' + esc(ts) + '</span></div>';
+  html += '<div class="row"><span class="k">Active policy</span><span class="v">' + esc(r.policyName) + '</span></div>';
+  html += '<div class="row"><span class="k">Scan duration</span><span class="v mono">' + r.durationMs + ' ms</span></div>';
   html += '</div>';
+
+  html += '<div class="metrics">';
+  html += '<div class="metric"><div class="top"><span class="mic err">⛔</span><span class="label">Blocking findings</span></div><span class="value err">' + blockers + '</span></div>';
+  html += '<div class="metric"><div class="top"><span class="mic warn">▲</span><span class="label">Warnings</span></div><span class="value warn">' + warnings + '</span></div>';
+  html += '<div class="metric"><div class="top"><span class="mic info">▤</span><span class="label">Files scanned</span></div><span class="value">' + r.scannedFiles + '</span></div>';
+  html += '<div class="metric"><div class="top"><span class="mic ok">⎇</span><span class="label">Call-chain edges</span></div><span class="value">' + edges + '</span></div>';
+  html += '</div>';
+
+  html += '<div class="btn-row">';
+  html += '<button class="btn btn-primary" id="ovRescan">⟳ Rescan Project</button>';
+  html += '<button class="btn btn-ghost" id="ovExport">⤓ Export JSON</button>';
+  html += '</div>';
+
   if (!r.complete) {
     html += '<div class="notice">⚠ Scan incomplete: ' + esc((r.notices || []).map(function (n) { return n.message; }).join('; ') || 'some files were skipped.') + '</div>';
   }
   if (r.stale) {
     html += '<div class="notice">⚠ Report is stale — a watched file changed after the scan. Rescan to refresh.</div>';
   }
-  html += '<div style="margin-top:12px;display:flex;gap:6px">';
-  html += '<button class="btn btn-primary" id="ovRescan">⟳ Rescan Project</button>';
-  html += '<button class="btn btn-ghost" id="ovExport">⤓ Export JSON</button>';
-  html += '</div>';
+  html += '<div class="notice">Scope: this report covers the scanned workspace. Run-time enforcement lives in the IntelliJ/Android Studio plugin; terminal and CI protection comes from the CLI.</div>';
+
   panel.innerHTML = html;
   byId('ovRescan').addEventListener('click', function () { post('scan'); });
   byId('ovExport').addEventListener('click', function () { post('export'); });
@@ -447,6 +551,12 @@ function groupFindings() {
     else groups.info.push(f);
   });
   return groups;
+}
+
+function matchesFilter(f) {
+  if (!filterText) return true;
+  const q = filterText.toLowerCase();
+  return (f.ruleId + ' ' + f.title + ' ' + f.location.path + ' ' + f.category + ' ' + f.message).toLowerCase().indexOf(q) >= 0;
 }
 
 function rowHtml(f) {
@@ -473,6 +583,7 @@ function renderFindings() {
   }
   const r = report();
   const total = r.findings.length;
+  const visible = r.findings.filter(matchesFilter).length;
   const showingDetail = selectedFp && !wide;
   layout.className = 'findings-layout' + (showingDetail ? ' narrow' : '');
 
@@ -481,6 +592,8 @@ function renderFindings() {
   let list = '';
   if (total === 0 && r.complete && !r.stale) {
     list = '<div class="empty-note">✓ Clean — no findings in ' + r.scannedFiles + ' scanned files.</div>';
+  } else if (visible === 0) {
+    list = '<div class="empty-note">No findings match "' + esc(filterText) + '".</div>';
   } else {
     const defs = [
       ['blockers', '⛔ Execution Blockers', 'err'],
@@ -489,13 +602,13 @@ function renderFindings() {
       ['info', 'ℹ Info', 'info']
     ];
     defs.forEach(function (d) {
-      const items = groups[d[0]];
+      const items = groups[d[0]].filter(matchesFilter);
       if (items.length === 0) return;
       list += '<div class="group-head"><span class="' + d[2] + '">' + d[1] + '</span><span>(' + items.length + ')</span></div>';
       items.forEach(function (f) { list += rowHtml(f); });
     });
   }
-  const detailHtml = sel ? detailHtmlFor(sel, true) : '<div class="empty-note">Select a finding to see its details.</div>';
+  const detailHtml = sel ? detailHtmlFor(sel, true) : '<div class="empty-note">Select a finding to inspect evidence, execution path, and remediation.</div>';
   layout.innerHTML = '<div class="list" id="findingsList">' + list + '</div><div class="detail" id="findingDetail">' + detailHtml + '</div>';
 
   if (showingDetail && sel) {
@@ -505,20 +618,20 @@ function renderFindings() {
     row.addEventListener('click', function () {
       selectedFp = row.getAttribute('data-fp');
       renderFindings();
-      if (wide) { byId('findingDetail').scrollIntoView({ block: 'nearest' }); }
     });
   });
   const back = byId('detailBack');
   if (back) back.addEventListener('click', function () { selectedFp = null; renderFindings(); });
   const openBtn = byId('detailOpen');
   if (openBtn) openBtn.addEventListener('click', function () { if (sel) post('open', sel); });
-  const copyBtns = document.querySelectorAll('.js-copy');
-  copyBtns.forEach(function (b) { b.addEventListener('click', function () { if (sel) post('copy', sel); }); });
+  document.querySelectorAll('.js-copy').forEach(function (b) {
+    b.addEventListener('click', function () { if (sel) post('copy', sel); });
+  });
 }
 
 function detailHtmlFor(f, withBack) {
   const sev = SEV_ICON[f.severity] || SEV_ICON.INFO;
-  const policy = f.policyAction === 'BLOCK' ? ['err', 'Blocks execution'] : f.policyAction === 'REVIEW' ? ['warn', 'Review required'] : ['info', 'Informational'];
+  const policy = f.policyAction === 'BLOCK' ? ['err', '⛔ Blocks execution'] : f.policyAction === 'REVIEW' ? ['warn', '▲ Review required'] : ['info', 'ℹ Informational'];
   const location = f.location.path + ':' + (f.location.line != null ? f.location.line : '');
   const chain = (f.callChain || []).map(function (l) { return l.source.path + ':' + (l.source.line != null ? l.source.line : ''); });
   if (chain[chain.length - 1] !== location) chain.push(location);
@@ -534,8 +647,12 @@ function detailHtmlFor(f, withBack) {
   const evidence = f.evidence ? f.evidence.text : '';
   let snippet = '';
   if (evidence) {
-    const ln = f.location.line != null ? String(f.location.line).padStart(4, ' ') : '   ·';
-    snippet = '<div class="snippet-line hit"><span class="ln">' + ln + '</span><span class="code">' + esc(evidence) + '</span></div>';
+    const lines = evidence.split('\n');
+    const hitIndex = lines.length - 1;
+    lines.forEach(function (line, i) {
+      const ln = i === hitIndex && f.location.line != null ? String(f.location.line).padStart(4, ' ') : '   ·';
+      snippet += '<div class="snippet-line' + (i === hitIndex ? ' hit' : '') + '"><span class="ln">' + ln + '</span><span class="code">' + hlLine(line) + '</span></div>';
+    });
   } else {
     snippet = '<div class="snippet-line"><span class="ln">   ·</span><span class="code" style="color:var(--text-dim)">(no snippet available)</span></div>';
   }
@@ -550,7 +667,7 @@ function detailHtmlFor(f, withBack) {
   html += '<div class="grid3">';
   html += '<div class="cell"><span class="label">Severity</span><span class="value ' + sev[1] + '">' + sev[0] + ' ' + esc(f.severity) + '</span></div>';
   html += '<div class="cell"><span class="label">Confidence</span><span class="value info">✓ ' + esc(f.confidence) + '</span></div>';
-  html += '<div class="cell"><span class="label">Policy Impact</span><span class="value ' + policy[0] + '">' + policy[1] + '</span></div>';
+  html += '<div class="cell"><span class="label">Policy impact</span><span class="value ' + policy[0] + '">' + policy[1] + '</span></div>';
   html += '</div>';
   html += '<div class="section-label">Execution Path</div><div class="path">' + pathHtml + '</div>';
   html += '<div class="section-label">Snippet</div>';
@@ -584,6 +701,7 @@ function renderGraph() {
     html += '<span class="via">via ' + esc(e.viaCommand) + '</span>';
     html += '</div>';
   });
+  html += '<div class="notice" style="margin-top:10px">Call chains are discovered statically — scripts are never executed during analysis.</div>';
   panel.innerHTML = html;
 }
 
@@ -594,18 +712,24 @@ function renderPolicy() {
   if (r) {
     rows += '<div class="policy-row"><span class="k">Policy</span><span class="v">' + esc(r.policyName) + '</span></div>';
     rows += '<div class="policy-row"><span class="k">Mode</span><span class="v">ENFORCE</span></div>';
-    rows += '<div class="policy-row"><span class="k">Block when</span><span class="v">actionable finding, severity ≥ ERROR</span></div>';
+    rows += '<div class="policy-row"><span class="k">Block when</span><span class="v">actionable · severity ≥ ERROR</span></div>';
     rows += '<div class="policy-row"><span class="k">Requires reachable</span><span class="v">yes</span></div>';
-    rows += '<div class="policy-row"><span class="k">Audit/INFO evidence</span><span class="v">never blocks</span></div>';
+    rows += '<div class="policy-row"><span class="k">INFO / audit evidence</span><span class="v">never blocks</span></div>';
+    rows += '<div class="policy-row"><span class="k">Credential evidence</span><span class="v">redacted by default</span></div>';
+    rows += '<div class="legend">' +
+      '<span class="badge err">ERROR → BLOCK</span>' +
+      '<span class="badge warn">WARN → REVIEW</span>' +
+      '<span class="badge">INFO → ALLOW</span>' +
+      '</div>';
   } else {
     rows = '<div class="empty-note">Run a scan to load the active policy.</div>';
   }
   panel.innerHTML = rows +
-    '<div class="notice" style="margin-top:10px">Scope: this view reports on the scanned workspace. Enforcement at run time is provided by the IntelliJ/Android Studio plugin (before-run guard); terminal and CI protection comes from the CLI. A never-scanned project is never treated as protected.</div>';
+    '<div class="notice" style="margin-top:10px">Repository content (inline ignores, baselines, project policies) may tighten but never silently weaken your local policy. A never-scanned project is never treated as protected.</div>';
 }
 
 /* tabs */
-document.getElementById('tabs').addEventListener('click', function (e) {
+byId('tabs').addEventListener('click', function (e) {
   const tab = e.target.closest('.tab');
   if (!tab) return;
   document.querySelectorAll('.tab').forEach(function (t) { t.classList.toggle('active', t === tab); });
@@ -615,6 +739,20 @@ document.getElementById('tabs').addEventListener('click', function (e) {
 
 byId('rescanBtn').addEventListener('click', function () { post('scan'); });
 byId('exportBtn').addEventListener('click', function () { post('export'); });
+byId('settingsBtn').addEventListener('click', function () {
+  document.querySelectorAll('.tab').forEach(function (t) { t.classList.toggle('active', t.getAttribute('data-tab') === 'policy'); });
+  document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.remove('active'); });
+  byId('panel-policy').classList.add('active');
+});
+byId('filterInput').addEventListener('input', function (e) {
+  filterText = e.target.value;
+  renderFindings();
+});
+byId('btnClearFilter').addEventListener('click', function () {
+  filterText = '';
+  byId('filterInput').value = '';
+  renderFindings();
+});
 
 render();
 </script>
