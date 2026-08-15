@@ -49,11 +49,17 @@ export class WrapperGuardWebviewProvider implements vscode.WebviewViewProvider {
   };
 
   private view?: vscode.WebviewView;
+  private lastState: ScanState = { kind: 'not-scanned' };
+
+  /** Optional hook so the extension host can log webview script errors. */
+  onWebviewError?: (message: string) => void;
 
   resolveWebviewView(webviewView: vscode.WebviewView): void {
     this.view = webviewView;
     webviewView.webview.options = { enableScripts: true };
     webviewView.webview.html = this.buildHtml();
+    // Re-sync: the webview starts from its own default state, so push the latest one.
+    this.setState(this.lastState);
     webviewView.webview.onDidReceiveMessage((msg: { type: string; finding?: Finding }) => {
       switch (msg.type) {
         case 'scan':
@@ -72,12 +78,16 @@ export class WrapperGuardWebviewProvider implements vscode.WebviewViewProvider {
             this.handlers.copyEvidence(msg.finding);
           }
           break;
+        case 'webview-error':
+          this.onWebviewError?.((msg as { message?: string }).message ?? 'unknown error');
+          break;
       }
     });
   }
 
   /** Pushes the latest scan state; the webview re-renders all panes from it. */
   setState(s: ScanState): void {
+    this.lastState = s;
     const payload = s.kind === 'scanned' ? { kind: s.kind, report: s.report } : { kind: s.kind, error: s.kind === 'failed' ? s.error : undefined };
     this.view?.webview.postMessage({ type: 'state', state: payload });
   }
@@ -402,7 +412,8 @@ const VERDICT = {
   FAILED: ['err', 'Scan Failed']
 };
 const SEV_ICON = { ERROR: ['✖', 'err'], WARN: ['▲', 'warn'], INFO: ['ℹ', 'info'] };
-const KEYWORDS = /\b(curl|wget|fetch|bash|sh|zsh|powershell|pwsh|echo|printf|set|unset|exec|eval|java|export|cd|rm|cp|mv|chmod|sudo|cat|install|build|git|node|npm|pip|python|if|then|fi|else|elif|for|do|done|while|case|esac|function|return|start|call|bitsadmin|certutil)\b/g;
+const KW_LIST = 'curl|wget|fetch|bash|sh|zsh|powershell|pwsh|echo|printf|set|unset|exec|eval|java|export|cd|rm|cp|mv|chmod|sudo|cat|install|build|git|node|npm|pip|python|if|then|fi|else|elif|for|do|done|while|case|esac|function|return|start|call|bitsadmin|certutil';
+const KEYWORDS = new RegExp('(^|[^A-Za-z0-9_])(' + KW_LIST + ')(?=[^A-Za-z0-9_]|$)', 'g');
 
 function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -413,9 +424,13 @@ function post(type, finding) { vscode.postMessage({ type: type, finding: finding
 function hlLine(raw) {
   let s = esc(raw);
   s = s.replace(/(&quot;[^&]*?&quot;|'[^']*')/g, '<span class="tok-str">$1</span>');
-  s = s.replace(/(^|\s)#[^<]*$/g, function (m) { return '<span class="tok-com">' + m + '</span>'; });
-  s = s.replace(/(\|\||&&|&gt;{1,2}|&lt;)/g, '<span class="tok-op">$1</span>');
-  s = s.replace(KEYWORDS, '<span class="tok-kw">$1</span>');
+  if (/^#/.test(s)) {
+    s = '<span class="tok-com">' + s + '</span>';
+  } else {
+    s = s.replace(/ #.*$/, function (m) { return '<span class="tok-com">' + m + '</span>'; });
+  }
+  s = s.replace(/(&gt;{1,2}|&lt;|[|]{1,2}|&&)/g, '<span class="tok-op">$1</span>');
+  s = s.replace(KEYWORDS, '$1<span class="tok-kw">$2</span>');
   return s;
 }
 
@@ -426,6 +441,10 @@ window.addEventListener('message', function (e) {
     render();
   }
 });
+
+window.onerror = function (msg, src, line) {
+  vscode.postMessage({ type: 'webview-error', message: String(msg) + ' (line ' + line + ')' });
+};
 
 window.matchMedia('(min-width: 540px)').addEventListener('change', function (e) {
   wide = e.matches;
@@ -647,7 +666,7 @@ function detailHtmlFor(f, withBack) {
   const evidence = f.evidence ? f.evidence.text : '';
   let snippet = '';
   if (evidence) {
-    const lines = evidence.split('\n');
+    const lines = evidence.split(String.fromCharCode(10));
     const hitIndex = lines.length - 1;
     lines.forEach(function (line, i) {
       const ln = i === hitIndex && f.location.line != null ? String(f.location.line).padStart(4, ' ') : '   ·';

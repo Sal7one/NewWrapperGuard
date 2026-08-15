@@ -35,6 +35,11 @@
           "type": "string",
           "default": "wrapperguard",
           "description": "Path to the WrapperGuard CLI executable (wrapperguard-cli)."
+        },
+        "wrapperGuard.scanOnOpen": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run a scan automatically when a workspace folder is opened."
         }
       }
     }

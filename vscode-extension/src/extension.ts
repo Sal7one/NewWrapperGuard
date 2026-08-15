@@ -69,8 +69,22 @@ export function activate(context: vscode.ExtensionContext): void {
     copyEvidence: (finding: Finding) => void copyEvidence(finding)
   };
 
+  const log = vscode.window.createOutputChannel('WrapperGuard');
+
+  // Surface webview script errors in the Output channel (WrapperGuard) for debugging.
+  provider.onWebviewError = (message: string) => {
+    log.appendLine('Webview error: ' + message);
+  };
+
+  // Scan on open so a freshly opened workspace is never silently unprotected.
+  const scanOnOpen = vscode.workspace.getConfiguration('wrapperGuard').get<boolean>('scanOnOpen', true);
+  if (scanOnOpen && vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
+    void scan();
+  }
+
   context.subscriptions.push(
     status,
+    log,
     state.onDidChange(renderAll),
     vscode.window.registerWebviewViewProvider(WrapperGuardWebviewProvider.viewType, provider, {
       webviewOptions: { retainContextWhenHidden: true }
@@ -81,6 +95,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   status.show();
   renderAll(state.get());
+  log.appendLine('WrapperGuard extension activated.');
 }
 
 function renderStatus(status: vscode.StatusBarItem, s: ScanState): void {
