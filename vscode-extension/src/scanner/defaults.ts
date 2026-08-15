@@ -34,7 +34,11 @@ export const DEFAULT_SETTINGS: ScanSettings = {
   maxFileBytes: 1_000_000,
   requireDistributionSha256: false,
   enableRecursiveScanning: true,
-  knownSafeRepositoryHosts: DEFAULT_KNOWN_SAFE_REPOSITORIES
+  knownSafeRepositoryHosts: DEFAULT_KNOWN_SAFE_REPOSITORIES,
+  trustedWrapperChecksums: {},
+  maxLineLength: 10_000,
+  maxFilesPerScan: 50_000,
+  maxDirectoryDepth: 64
 };
 
 export const DEFAULT_ENFORCE_POLICY: ScanPolicy = {

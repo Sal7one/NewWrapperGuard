@@ -38,7 +38,11 @@ function struct(
 }
 
 /** Faithful port of ProjectStructureAnalyzer. */
-export function analyzeProjectStructure(projectRoot: string, relativeRoot: string): Finding[] {
+export function analyzeProjectStructure(
+  projectRoot: string,
+  relativeRoot: string,
+  trustedWrapperChecksums: Record<string, string>
+): Finding[] {
   const wrapperDir = path.join(projectRoot, 'gradle', 'wrapper');
   const hasWrapperProperties = fs.existsSync(path.join(wrapperDir, 'gradle-wrapper.properties'));
   const wrapperJar = path.join(wrapperDir, 'gradle-wrapper.jar');
@@ -52,23 +56,45 @@ export function analyzeProjectStructure(projectRoot: string, relativeRoot: strin
 
   if (hasWrapperJar) {
     const sha = sha256(wrapperJar);
-    findings.push({
-      fingerprint: findingFingerprint(RuleIds.WRAPPER_JAR_SHA256, relativeRoot, sha),
-      ruleId: RuleIds.WRAPPER_JAR_SHA256,
-      title: 'Gradle wrapper JAR SHA-256',
-      message: 'Gradle wrapper JAR SHA-256: ' + sha,
-      severity: 'INFO',
-      confidence: 'HIGH',
-      category: 'WRAPPER',
-      kind: 'AUDIT_EVIDENCE',
-      location: { path: relativeRoot + '/gradle/wrapper/gradle-wrapper.jar' },
-      evidence: { text: sha, redacted: false },
-      remediation: undefined,
-      reachable: true,
-      callChain: [],
-      policyAction: 'REVIEW',
-      status: 'ACTIVE'
-    });
+    const expected = trustedWrapperChecksums['gradle-wrapper.jar'];
+    if (Object.keys(trustedWrapperChecksums).length > 0 && expected !== sha) {
+      findings.push({
+        fingerprint: findingFingerprint(RuleIds.WRAPPER_JAR_UNKNOWN, relativeRoot, sha),
+        ruleId: RuleIds.WRAPPER_JAR_UNKNOWN,
+        title: 'Gradle wrapper JAR checksum is not in the approved list',
+        message: 'Gradle wrapper JAR checksum is not in the approved list: ' + sha,
+        severity: 'ERROR',
+        confidence: 'HIGH',
+        category: 'WRAPPER',
+        kind: 'ACTIONABLE',
+        location: { path: relativeRoot + '/gradle/wrapper/gradle-wrapper.jar' },
+        evidence: { text: sha, redacted: false },
+        remediation:
+          'Review the wrapper JAR, then either restore the approved version or add its checksum to your trusted list.',
+        reachable: true,
+        callChain: [],
+        policyAction: 'REVIEW',
+        status: 'ACTIVE'
+      });
+    } else {
+      findings.push({
+        fingerprint: findingFingerprint(RuleIds.WRAPPER_JAR_SHA256, relativeRoot, sha),
+        ruleId: RuleIds.WRAPPER_JAR_SHA256,
+        title: 'Gradle wrapper JAR SHA-256',
+        message: 'Gradle wrapper JAR SHA-256: ' + sha,
+        severity: 'INFO',
+        confidence: 'HIGH',
+        category: 'WRAPPER',
+        kind: 'AUDIT_EVIDENCE',
+        location: { path: relativeRoot + '/gradle/wrapper/gradle-wrapper.jar' },
+        evidence: { text: sha, redacted: false },
+        remediation: undefined,
+        reachable: true,
+        callChain: [],
+        policyAction: 'REVIEW',
+        status: 'ACTIVE'
+      });
+    }
   }
 
   if (hasWrapperProperties && !hasWrapperJar) {

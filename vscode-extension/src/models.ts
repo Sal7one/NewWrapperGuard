@@ -90,6 +90,11 @@ export interface ScanSettings {
   requireDistributionSha256: boolean;
   enableRecursiveScanning: boolean;
   knownSafeRepositoryHosts: string[];
+  /** Non-empty = escalate unknown wrapper JAR digests to ERROR (WG-WRAPPER-007). */
+  trustedWrapperChecksums: Record<string, string>;
+  maxLineLength: number;
+  maxFilesPerScan: number;
+  maxDirectoryDepth: number;
 }
 
 export interface ScanNotice {

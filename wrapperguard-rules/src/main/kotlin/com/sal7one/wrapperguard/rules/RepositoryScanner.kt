@@ -55,7 +55,7 @@ class RepositoryScanner(
         val relativeRoot = normalizedRoot.fileName?.toString() ?: normalizedRoot.toString()
 
         // Scanner-level structure findings.
-        findings += ProjectStructureAnalyzer.analyze(normalizedRoot, relativeRoot)
+        findings += ProjectStructureAnalyzer.analyze(normalizedRoot, relativeRoot, settings.trustedWrapperChecksums)
 
         // DFS state.
         val completed = mutableSetOf<Path>()

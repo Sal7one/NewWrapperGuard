@@ -15,7 +15,18 @@ data class ScanSettings(
     val maxFileBytes: Long = 1_000_000,
     val requireDistributionSha256: Boolean = false,
     val enableRecursiveScanning: Boolean = true,
-    val knownSafeRepositoryHosts: Set<String> = DEFAULT_KNOWN_SAFE_REPOSITORIES
+    val knownSafeRepositoryHosts: Set<String> = DEFAULT_KNOWN_SAFE_REPOSITORIES,
+    /**
+     * Known-good wrapper JAR SHA-256 checksums (file name -> hex digest). When this map is
+     * NON-EMPTY, any wrapper JAR whose digest is not listed is escalated to an ERROR finding
+     * (WRAPPER_JAR_UNKNOWN) instead of a harmless INFO observation — an unknown wrapper about
+     * to execute must not be silent. Empty = unconfigured: observation only, no escalation.
+     */
+    val trustedWrapperChecksums: Map<String, String> = emptyMap(),
+    /** Hardening limits (see #9 hostile-input hardening). */
+    val maxLineLength: Int = 10_000,
+    val maxFilesPerScan: Int = 50_000,
+    val maxDirectoryDepth: Int = 64
 ) {
     companion object {
         val DEFAULT_ALLOWED_HOSTS: Set<String> = setOf(

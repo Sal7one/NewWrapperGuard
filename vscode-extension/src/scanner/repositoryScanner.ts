@@ -70,7 +70,7 @@ export function scanProject(
   const normalizedRoot = path.resolve(projectRoot);
   const relativeRoot = path.basename(normalizedRoot) || normalizedRoot;
 
-  findings.push(...analyzeProjectStructure(normalizedRoot, relativeRoot));
+  findings.push(...analyzeProjectStructure(normalizedRoot, relativeRoot, settings.trustedWrapperChecksums));
 
   const completed = new Set<string>();
   const active = new Set<string>();

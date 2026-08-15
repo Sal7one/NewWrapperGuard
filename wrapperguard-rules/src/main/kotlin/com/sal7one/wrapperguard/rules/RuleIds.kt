@@ -31,6 +31,7 @@ object RuleIds {
     const val WRAPPER_PRE_RELEASE = "WG-WRAPPER-004"
     const val WRAPPER_CHECKSUM_MISSING = "WG-WRAPPER-005"
     const val WRAPPER_JAR_SHA256 = "WG-WRAPPER-006"
+    const val WRAPPER_JAR_UNKNOWN = "WG-WRAPPER-007"
 
     // Build script rules
     const val REPO_NOT_HTTPS = "WG-BUILD-001"

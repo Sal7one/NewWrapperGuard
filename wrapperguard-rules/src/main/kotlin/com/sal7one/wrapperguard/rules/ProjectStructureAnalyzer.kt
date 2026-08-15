@@ -17,7 +17,11 @@ import kotlin.io.path.*
  */
 object ProjectStructureAnalyzer {
 
-    fun analyze(projectRoot: Path, relativeRoot: String): List<Finding> {
+    fun analyze(
+        projectRoot: Path,
+        relativeRoot: String,
+        trustedWrapperChecksums: Map<String, String> = emptyMap()
+    ): List<Finding> {
         val wrapperDir = projectRoot.resolve("gradle/wrapper")
         val hasWrapperProperties = Files.exists(wrapperDir.resolve("gradle-wrapper.properties"))
         val wrapperJar = wrapperDir.resolve("gradle-wrapper.jar")
@@ -29,19 +33,35 @@ object ProjectStructureAnalyzer {
 
         val findings = mutableListOf<Finding>()
 
-        // Observational: record the wrapper JAR SHA-256 if present (INFO, audit evidence).
         if (hasWrapperJar) {
             val sha = sha256(wrapperJar)
-            findings += Finding(
-                fingerprint = Fingerprints.finding(RuleIds.WRAPPER_JAR_SHA256, relativeRoot, sha),
-                ruleId = RuleIds.WRAPPER_JAR_SHA256,
-                title = "Gradle wrapper JAR SHA-256",
-                message = "Gradle wrapper JAR SHA-256: $sha",
-                severity = Severity.INFO, confidence = Confidence.HIGH,
-                category = FindingCategory.WRAPPER, kind = FindingKind.AUDIT_EVIDENCE,
-                location = SourceLocation("$relativeRoot/gradle/wrapper/gradle-wrapper.jar"),
-                evidence = Evidence(sha)
-            )
+            val expected = trustedWrapperChecksums["gradle-wrapper.jar"]
+            if (trustedWrapperChecksums.isNotEmpty() && expected != sha) {
+                // Escalation: a known-good list is configured and this JAR is not on it.
+                findings += Finding(
+                    fingerprint = Fingerprints.finding(RuleIds.WRAPPER_JAR_UNKNOWN, relativeRoot, sha),
+                    ruleId = RuleIds.WRAPPER_JAR_UNKNOWN,
+                    title = "Gradle wrapper JAR checksum is not in the approved list",
+                    message = "Gradle wrapper JAR checksum is not in the approved list: $sha",
+                    severity = Severity.ERROR, confidence = Confidence.HIGH,
+                    category = FindingCategory.WRAPPER, kind = FindingKind.ACTIONABLE,
+                    location = SourceLocation("$relativeRoot/gradle/wrapper/gradle-wrapper.jar"),
+                    evidence = Evidence(sha),
+                    remediation = "Review the wrapper JAR, then either restore the approved version or add its checksum to your trusted list."
+                )
+            } else {
+                // Observational: record the wrapper JAR SHA-256 if present (INFO, audit evidence).
+                findings += Finding(
+                    fingerprint = Fingerprints.finding(RuleIds.WRAPPER_JAR_SHA256, relativeRoot, sha),
+                    ruleId = RuleIds.WRAPPER_JAR_SHA256,
+                    title = "Gradle wrapper JAR SHA-256",
+                    message = "Gradle wrapper JAR SHA-256: $sha",
+                    severity = Severity.INFO, confidence = Confidence.HIGH,
+                    category = FindingCategory.WRAPPER, kind = FindingKind.AUDIT_EVIDENCE,
+                    location = SourceLocation("$relativeRoot/gradle/wrapper/gradle-wrapper.jar"),
+                    evidence = Evidence(sha)
+                )
+            }
         }
 
         if (hasWrapperProperties && !hasWrapperJar) {
