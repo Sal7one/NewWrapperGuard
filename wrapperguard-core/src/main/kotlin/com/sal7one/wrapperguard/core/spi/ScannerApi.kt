@@ -50,7 +50,17 @@ data class ScriptReference(
  * A recursive script scanner. The default implementation lives in `wrapperguard-rules`.
  */
 interface ScannerEngine {
-    fun scan(projectRoot: Path, policy: ScanPolicy, settings: ScanSettings): ScanReport
+    /**
+     * Scans [projectRoot]. [baseline] entries (fingerprints) are trusted only when supplied
+     * by the caller from OUTSIDE the repository (user/org config) — matching findings become
+     * SUPPRESSED and stop blocking. Repo-shipped baselines are never auto-applied.
+     */
+    fun scan(
+        projectRoot: Path,
+        policy: ScanPolicy,
+        settings: ScanSettings,
+        baseline: List<BaselineEntry> = emptyList()
+    ): ScanReport
 }
 
 /**

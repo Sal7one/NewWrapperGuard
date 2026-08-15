@@ -31,7 +31,12 @@ class RepositoryScanner(
 
     private val excludedDirectories = setOf(".git", ".gradle", ".idea", "build", "out", ".intellijPlatform", ".kotlin", "node_modules")
 
-    override fun scan(projectRoot: Path, policy: ScanPolicy, settings: ScanSettings): ScanReport {
+    override fun scan(
+        projectRoot: Path,
+        policy: ScanPolicy,
+        settings: ScanSettings,
+        baseline: List<BaselineEntry>
+    ): ScanReport {
         val started = System.currentTimeMillis()
         val findings = mutableListOf<Finding>()
         val edges = mutableListOf<ScriptReference>()
@@ -64,22 +69,29 @@ class RepositoryScanner(
 
         roots.forEach { root -> scanFile(normalizedRoot, root, settings, policy, depth = 0, callChain = emptyList(), findings, edges, notices, scannedFiles, completed, active) }
 
-        // Apply policy action to every finding (also attaches ML signal for ps1 if present).
+        // Apply policy action to every finding (also attaches ML signal for ps1 if present),
+        // then apply the trusted baseline: matching fingerprints become SUPPRESSED and stop
+        // blocking. Only baselines supplied by the caller (outside the repo) are honored.
         val withPolicy = findings.map { finding ->
             val withMl = finding
             withMl.copy(policyAction = policy.actionFor(withMl))
+        }
+        val baselineFingerprints = baseline.map { it.fingerprint }.toSet()
+        val finalFindings = if (baselineFingerprints.isEmpty()) withPolicy else withPolicy.map { finding ->
+            if (finding.fingerprint in baselineFingerprints) finding.copy(status = FindingStatus.SUPPRESSED)
+            else finding
         }
 
         val durationMs = System.currentTimeMillis() - started
         val complete = notices.none { it.code == RuleIds.SCAN_FILE_SKIPPED || it.code == RuleIds.SCAN_FILE_READ }
         val verdict = when {
             !complete -> ScanVerdict.INCOMPLETE
-            withPolicy.any { it.policyAction == PolicyAction.BLOCK } -> ScanVerdict.EXECUTION_BLOCKED
-            withPolicy.any { it.policyAction == PolicyAction.REVIEW } -> ScanVerdict.REVIEW_REQUIRED
+            finalFindings.any { it.policyAction == PolicyAction.BLOCK && it.status == FindingStatus.ACTIVE } -> ScanVerdict.EXECUTION_BLOCKED
+            finalFindings.any { it.policyAction == PolicyAction.REVIEW && it.status == FindingStatus.ACTIVE } -> ScanVerdict.REVIEW_REQUIRED
             else -> ScanVerdict.CLEAN
         }
 
-        return report(projectRoot, verdict, policy, withPolicy, edges, scannedFiles.size, durationMs, complete, notices)
+        return report(projectRoot, verdict, policy, finalFindings, edges, scannedFiles.size, durationMs, complete, notices)
     }
 
     private fun scanFile(

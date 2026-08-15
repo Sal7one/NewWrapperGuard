@@ -116,3 +116,15 @@ data class MlSignal(
     val modelId: String,
     val labels: List<String> = emptyList()
 )
+
+/**
+ * One user/org-approved baseline entry. Baselines are trusted ONLY when they come from
+ * outside the scanned repository (e.g. a user-level file or an org config); a file shipped
+ * inside a repository is untrusted until the user approves it explicitly.
+ */
+@Serializable
+data class BaselineEntry(
+    val fingerprint: String,
+    val ruleId: String? = null,
+    val reason: String? = null
+)

@@ -10,10 +10,14 @@ const execFileAsync = promisify(execFile);
  * (BLOCK verdicts for actionable ERROR findings). Returns the parsed report
  * and the raw JSON (kept for export).
  */
-export async function scanWorkspace(root: vscode.Uri): Promise<{ report: ScanReport; rawJson: string }> {
+export async function scanWorkspace(root: vscode.Uri, baselinePath?: string): Promise<{ report: ScanReport; rawJson: string }> {
   const cliPath = vscode.workspace.getConfiguration('wrapperGuard').get<string>('cliPath', 'wrapperguard');
+  const args = [root.fsPath, '--json', '--enforce'];
+  if (baselinePath) {
+    args.push('--baseline', baselinePath);
+  }
   try {
-    const { stdout } = await execFileAsync(cliPath, [root.fsPath, '--json', '--enforce'], {
+    const { stdout } = await execFileAsync(cliPath, args, {
       cwd: root.fsPath,
       maxBuffer: 10 * 1024 * 1024
     });

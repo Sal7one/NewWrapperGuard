@@ -7,6 +7,8 @@ export interface UiHandlers {
   exportReport(): void;
   openFinding(finding: Finding): void;
   copyEvidence(finding: Finding): void;
+  suppress(finding: Finding): void;
+  baseline(finding: Finding): void;
 }
 
 export async function openFindingInEditor(finding: Finding): Promise<void> {
@@ -45,7 +47,9 @@ export class WrapperGuardWebviewProvider implements vscode.WebviewViewProvider {
     scan: () => undefined,
     exportReport: () => undefined,
     openFinding: () => undefined,
-    copyEvidence: () => undefined
+    copyEvidence: () => undefined,
+    suppress: () => undefined,
+    baseline: () => undefined
   };
 
   private view?: vscode.WebviewView;
@@ -76,6 +80,16 @@ export class WrapperGuardWebviewProvider implements vscode.WebviewViewProvider {
         case 'copy':
           if (msg.finding) {
             this.handlers.copyEvidence(msg.finding);
+          }
+          break;
+        case 'suppress':
+          if (msg.finding) {
+            this.handlers.suppress(msg.finding);
+          }
+          break;
+        case 'baseline':
+          if (msg.finding) {
+            this.handlers.baseline(msg.finding);
           }
           break;
         case 'webview-error':
@@ -371,6 +385,7 @@ main { flex: 1 1 auto; padding: 4px 10px 12px; overflow-y: auto; }
     <div class="srow"><span class="sic err">✖</span><span>Blockers</span><span class="val" id="sumBlockers">0</span></div>
     <div class="srow"><span class="sic err">✖</span><span>Errors</span><span class="val" id="sumErrors">0</span></div>
     <div class="srow"><span class="sic warn">▲</span><span>Warnings</span><span class="val" id="sumWarnings">0</span></div>
+    <div class="srow"><span class="sic info">◌</span><span>Suppressed</span><span class="val" id="sumSuppressed">0</span></div>
   </section>
 
   <main>
@@ -475,12 +490,14 @@ function renderStatusCard() {
   pill.className = 'pill ' + vm[0];
   pill.textContent = '◉ ' + vm[1];
   const r = report();
-  const blockers = r ? r.findings.filter(function (f) { return f.policyAction === 'BLOCK'; }).length : 0;
-  const errors = r ? r.findings.filter(function (f) { return f.severity === 'ERROR'; }).length : 0;
-  const warnings = r ? r.findings.filter(function (f) { return f.severity === 'WARN'; }).length : 0;
+  const blockers = r ? r.findings.filter(function (f) { return f.policyAction === 'BLOCK' && f.status === 'ACTIVE'; }).length : 0;
+  const errors = r ? r.findings.filter(function (f) { return f.severity === 'ERROR' && f.status === 'ACTIVE'; }).length : 0;
+  const warnings = r ? r.findings.filter(function (f) { return f.severity === 'WARN' && f.status === 'ACTIVE'; }).length : 0;
+  const suppressed = r ? r.findings.filter(function (f) { return f.status === 'SUPPRESSED'; }).length : 0;
   byId('sumBlockers').textContent = String(blockers);
   byId('sumErrors').textContent = String(errors);
   byId('sumWarnings').textContent = String(warnings);
+  byId('sumSuppressed').textContent = String(suppressed);
   byId('tabFindingsCount').textContent = String(r ? r.findings.length : 0);
   const footer = byId('footerLeft');
   footer.innerHTML = '<span class="mono">WrapperGuard: ' + esc(vm[1]) + '</span>';
@@ -564,6 +581,7 @@ function groupFindings() {
   if (!r) return null;
   const groups = { blockers: [], errors: [], warnings: [], info: [] };
   r.findings.forEach(function (f) {
+    if (f.status !== 'ACTIVE') return; // suppressed/fixed findings are not actionable
     if (f.policyAction === 'BLOCK') groups.blockers.push(f);
     else if (f.severity === 'ERROR') groups.errors.push(f);
     else if (f.severity === 'WARN') groups.warnings.push(f);
@@ -643,6 +661,10 @@ function renderFindings() {
   if (back) back.addEventListener('click', function () { selectedFp = null; renderFindings(); });
   const openBtn = byId('detailOpen');
   if (openBtn) openBtn.addEventListener('click', function () { if (sel) post('open', sel); });
+  const suppressBtn = byId('detailSuppress');
+  if (suppressBtn) suppressBtn.addEventListener('click', function () { if (sel) post('suppress', sel); });
+  const baselineBtn = byId('detailBaseline');
+  if (baselineBtn) baselineBtn.addEventListener('click', function () { if (sel) post('baseline', sel); });
   document.querySelectorAll('.js-copy').forEach(function (b) {
     b.addEventListener('click', function () { if (sel) post('copy', sel); });
   });
@@ -696,8 +718,8 @@ function detailHtmlFor(f, withBack) {
   html += '<div class="detail-actions">';
   html += '<button class="btn btn-primary" id="detailOpen" style="height:26px;font-size:11px">⌨ Open in Editor</button>';
   html += '<button class="btn btn-ghost js-copy" style="height:26px;font-size:11px">⧉ Copy Evidence</button>';
-  html += '<button class="btn btn-ghost" disabled style="height:26px;font-size:11px;opacity:.45" title="Available in v0.3 (trusted-baseline model)">◌ Suppress</button>';
-  html += '<button class="btn btn-ghost" disabled style="height:26px;font-size:11px;opacity:.45" title="Available in v0.3 (trusted-baseline model)">◈ Baseline</button>';
+  html += '<button class="btn btn-ghost" id="detailSuppress" style="height:26px;font-size:11px" title="Add a wrapperguard:ignore marker at this line">◌ Suppress finding</button>';
+  html += '<button class="btn btn-ghost" id="detailBaseline" style="height:26px;font-size:11px" title="Add to your trusted baseline (stored outside the repository)">◈ Add to Baseline</button>';
   html += '</div>';
   return html;
 }

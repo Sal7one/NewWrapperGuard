@@ -3,12 +3,15 @@ import { scanWorkspace } from './cliRunner';
 import { WrapperGuardWebviewProvider, openFindingInEditor } from './webviewUi';
 import { Finding, ScanState } from './models';
 import { WrapperGuardState } from './state';
-import { writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 
 export function activate(context: vscode.ExtensionContext): void {
   const state = new WrapperGuardState();
   const provider = new WrapperGuardWebviewProvider();
   const status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 80);
+
+  // The trusted baseline lives in the extension's global storage — OUTSIDE any repository.
+  const baselineUri = vscode.Uri.joinPath(context.globalStorageUri, 'baseline.json');
 
   const renderAll = (s: ScanState): void => {
     provider.setState(s);
@@ -26,7 +29,7 @@ export function activate(context: vscode.ExtensionContext): void {
     try {
       const { report, rawJson } = await vscode.window.withProgress(
         { location: vscode.ProgressLocation.Notification, title: 'WrapperGuard: Scanning workspace' },
-        () => scanWorkspace(root)
+        () => scanWorkspace(root, baselineUri.fsPath)
       );
       state.set({ kind: 'scanned', report, rawJson });
     } catch (error) {
@@ -62,11 +65,71 @@ export function activate(context: vscode.ExtensionContext): void {
     void vscode.window.showInformationMessage('WrapperGuard: evidence copied to the clipboard.');
   };
 
+  /** Inline suppression: appends a wrapperguard:ignore marker at the finding's line, then rescans. */
+  const suppress = async (finding: Finding): Promise<void> => {
+    const root = vscode.workspace.workspaceFolders?.[0]?.uri;
+    if (!root) {
+      void vscode.window.showWarningMessage('Open a workspace folder first.');
+      return;
+    }
+    const reason = await vscode.window.showInputBox({
+      title: 'WrapperGuard: Suppress finding',
+      prompt: 'Reason (written next to the suppression marker)',
+      placeHolder: 'e.g. reviewed and approved'
+    });
+    if (reason === undefined) {
+      return; // cancelled
+    }
+    const fileUri = vscode.Uri.joinPath(root, finding.location.path);
+    const doc = await vscode.workspace.openTextDocument(fileUri);
+    const line = Math.max(0, (finding.location.line ?? 1) - 1);
+    const text = doc.lineAt(line).text;
+    const name = finding.location.path.toLowerCase();
+    const marker = name.endsWith('.gradle') || name.endsWith('.kts') || name.endsWith('.groovy')
+      ? ' // wrapperguard:ignore ' + reason
+      : name.endsWith('.bat') || name.endsWith('.cmd')
+        ? ' & rem wrapperguard:ignore ' + reason
+        : ' # wrapperguard:ignore ' + reason;
+    const edit = new vscode.WorkspaceEdit();
+    edit.insert(fileUri, new vscode.Position(line, text.length), marker);
+    await vscode.workspace.applyEdit(edit);
+    await doc.save();
+    void vscode.window.showInformationMessage('WrapperGuard: suppressed ' + finding.ruleId + ' — rescanning.');
+    await scan();
+  };
+
+  /** Baseline: fingerprints stored outside the repo are trusted; matching findings stop blocking. */
+  const addBaseline = async (finding: Finding): Promise<void> => {
+    const reason = await vscode.window.showInputBox({
+      title: 'WrapperGuard: Add to baseline',
+      prompt: 'Reason (optional)',
+      placeHolder: 'e.g. approved by security review'
+    });
+    if (reason === undefined) {
+      return;
+    }
+    await mkdir(context.globalStorageUri.fsPath, { recursive: true });
+    let entries: Array<{ fingerprint: string; ruleId?: string; reason?: string }> = [];
+    try {
+      entries = JSON.parse(await readFile(baselineUri.fsPath, 'utf8')) as Array<{ fingerprint: string; ruleId?: string; reason?: string }>;
+    } catch {
+      entries = [];
+    }
+    if (!entries.some((e) => e.fingerprint === finding.fingerprint)) {
+      entries.push({ fingerprint: finding.fingerprint, ruleId: finding.ruleId, reason: reason || undefined });
+      await writeFile(baselineUri.fsPath, JSON.stringify(entries, null, 2), 'utf8');
+    }
+    void vscode.window.showInformationMessage('WrapperGuard: added ' + finding.ruleId + ' to the baseline — rescanning.');
+    await scan();
+  };
+
   provider.handlers = {
     scan: () => void scan(),
     exportReport: () => void exportReport(),
     openFinding: (finding: Finding) => void openFindingInEditor(finding),
-    copyEvidence: (finding: Finding) => void copyEvidence(finding)
+    copyEvidence: (finding: Finding) => void copyEvidence(finding),
+    suppress: (finding: Finding) => void suppress(finding),
+    baseline: (finding: Finding) => void addBaseline(finding)
   };
 
   const log = vscode.window.createOutputChannel('WrapperGuard');
