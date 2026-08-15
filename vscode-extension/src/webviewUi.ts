@@ -355,8 +355,26 @@ main { flex: 1 1 auto; padding: 4px 10px 12px; overflow-y: auto; }
 .remediation p { margin: 0; font-size: 11px; line-height: 15px; }
 .detail-actions { display: flex; gap: 6px; padding-top: 10px; flex-wrap: wrap; }
 /* execution graph */
-.graph { position: relative; min-height: 170px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); padding: 6px; margin-top: 4px; }
-.gnode { position: absolute; transform: translateX(-50%); max-width: 31%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: var(--surface-highest); border: 1px solid var(--border-strong); border-radius: 999px; padding: 3px 8px; font-size: 10px; font-family: var(--vscode-editor-font-family); color: var(--text); }
+.graph-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 4px; background: #1a1924; padding: 6px; }
+body.vscode-light .graph-wrap { background: var(--surface); }
+.graph { position: relative; }
+.g-svg { display: block; }
+.gnode-card { position: absolute; width: 180px; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; display: flex; flex-direction: column; gap: 3px; box-shadow: 0 2px 8px rgba(0,0,0,0.35); }
+.gnode-card .g-cat { font-size: 8px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-dim); display: flex; align-items: center; gap: 4px; }
+.gnode-card.g-entry { background: var(--surface-highest); }
+.gnode-card.g-entry .g-cat { color: var(--primary); }
+.gnode-card .g-name { font-family: var(--vscode-editor-font-family); font-size: 10px; color: var(--text); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gnode-card .g-badge { align-self: flex-start; font-size: 8px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; padding: 1px 6px; border-radius: 2px; background: color-mix(in srgb, var(--error) 22%, transparent); border: 1px solid color-mix(in srgb, var(--error) 55%, transparent); color: var(--error); }
+.gnode-card.g-sus { border: 2px solid var(--error); background: color-mix(in srgb, var(--error) 12%, var(--surface)); box-shadow: 0 0 14px color-mix(in srgb, var(--error) 18%, transparent); animation: wgpulse 3s ease-in-out infinite; }
+.gnode-card.g-sus .g-name { color: var(--error); font-weight: 700; }
+.gnode-card .g-desc { font-size: 9px; color: var(--text-dim); border-top: 1px solid color-mix(in srgb, var(--error) 35%, transparent); padding-top: 3px; text-align: center; }
+@keyframes wgpulse { 0%, 100% { box-shadow: 0 0 6px color-mix(in srgb, var(--error) 12%, transparent); } 50% { box-shadow: 0 0 16px color-mix(in srgb, var(--error) 30%, transparent); } }
+.path-block { background: var(--surface-high); border: 1px solid var(--border); border-left: 2px solid var(--error); border-radius: 4px; padding: 6px 8px; margin-bottom: 6px; }
+.path-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
+.path-title { font-family: var(--vscode-editor-font-family); font-size: 10px; font-weight: 700; color: var(--error); }
+.path-step { font-family: var(--vscode-editor-font-family); font-size: 9px; color: var(--text-dim); padding-left: 10px; border-left: 1px solid var(--border); margin-left: 4px; }
+.path-step.path-last { color: var(--error); font-weight: 700; border-left-color: var(--error); }
+.path-rule { font-family: var(--vscode-editor-font-family); font-size: 9px; color: var(--text-dim); padding-left: 14px; margin-top: 3px; }
 .edge-row { display: flex; align-items: center; gap: 6px; padding: 5px 6px; border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent); }
 .edge-row:nth-child(even) { background: color-mix(in srgb, var(--surface-high) 45%, transparent); }
 .edge-row .via { font-size: 10px; color: var(--text-dim); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -772,7 +790,19 @@ function renderGraph() {
     panel.innerHTML = '<div class="empty-note">No script call chains detected in this project.</div>';
     return;
   }
-  // Canvas: nodes laid out in columns by depth (roots at depth 0).
+
+  // Blockers per file (for suspicious styling) and their paths (for the explorer).
+  const blockerByPath = {};
+  r.findings.forEach(function (f) {
+    if (f.policyAction !== 'BLOCK') return;
+    if (!blockerByPath[f.location.path]) blockerByPath[f.location.path] = f;
+  });
+  const suspLines = {};
+  r.findings.forEach(function (f) {
+    if (f.policyAction === 'BLOCK') suspLines[f.location.path + ':' + (f.location.line != null ? f.location.line : '')] = f;
+  });
+
+  // Depth layout (roots at layer 0), deterministic column order per layer.
   const children = {};
   const parents = {};
   const nodes = new Set();
@@ -784,7 +814,7 @@ function renderGraph() {
   });
   const depth = {};
   const queue = [];
-  nodes.forEach(function (n) {
+  Array.from(nodes).sort().forEach(function (n) {
     if (!parents[n]) {
       depth[n] = 0;
       queue.push(n);
@@ -799,26 +829,112 @@ function renderGraph() {
       }
     });
   }
-  const ordered = Array.from(nodes).sort();
-  let canvas = '<div class="graph">';
-  ordered.forEach(function (n, i) {
+  const layers = {};
+  Array.from(nodes).sort().forEach(function (n) {
     const d = depth[n] === undefined ? 0 : depth[n];
-    const top = 8 + (i % 6) * 26;
-    canvas += '<div class="gnode" style="left:' + (6 + d * 33) + '%;top:' + top + 'px" title="' + esc(n) + '">' + esc(n.split('/').pop() || n) + '</div>';
+    (layers[d] = layers[d] || []).push(n);
   });
-  canvas += '</div>';
-  let html = '<div class="section-label">Call-chain graph (' + edges.length + ' edges)</div>' + canvas;
-  html += '<div class="section-label" style="margin-top:10px">Edges</div>';
+  const maxCol = Object.keys(layers).reduce(function (m, k) { return Math.max(m, layers[k].length); }, 1);
+  const maxDepth = Object.keys(layers).length;
+  const colW = 210;
+  const rowH = 150;
+  const W = Math.max(420, maxCol * colW + 60);
+  const H = maxDepth * rowH + 120;
+
+  // Node positions.
+  const pos = {};
+  Object.keys(layers).forEach(function (dk) {
+    const d = parseInt(dk, 10);
+    layers[dk].forEach(function (n, i) {
+      const x = 30 + i * colW;
+      const y = 30 + d * rowH;
+      pos[n] = { x: x, y: y };
+    });
+  });
+
+  // SVG edges with arrow markers + labels.
+  let svg = '<svg class="g-svg" viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '">';
+  svg += '<defs>';
+  svg += '<marker id="wgArrow" markerHeight="7" markerWidth="7" orient="auto-start-reverse" refX="9" refY="5" viewBox="0 0 10 10"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--wg-border-strong)"></path></marker>';
+  svg += '<marker id="wgArrowErr" markerHeight="7" markerWidth="7" orient="auto-start-reverse" refX="9" refY="5" viewBox="0 0 10 10"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--wg-error)"></path></marker>';
+  svg += '</defs>';
   edges.forEach(function (e) {
-    html += '<div class="edge-row mono">';
-    html += '<span class="path-chip">' + esc(e.from.path) + ':' + (e.from.line != null ? e.from.line : '') + '</span>';
-    html += '<span class="arrow">→</span>';
-    html += '<span class="path-chip path-final">' + esc(e.to.path) + ':' + (e.to.line != null ? e.to.line : '') + '</span>';
-    html += '<span class="via">via ' + esc(e.viaCommand) + '</span>';
-    html += '</div>';
+    const a = pos[e.from.path];
+    const b = pos[e.to.path];
+    if (!a || !b) return;
+    const x1 = a.x + 90;
+    const y1 = a.y + 64;
+    const x2 = b.x + 90;
+    const y2 = b.y;
+    const key = e.to.path + ':' + (e.to.line != null ? e.to.line : '');
+    const err = suspLines[key];
+    const stroke = err ? 'var(--wg-error)' : 'var(--wg-border-strong)';
+    const dash = err ? ' stroke-dasharray="4"' : '';
+    const marker = err ? 'url(#wgArrowErr)' : 'url(#wgArrow)';
+    svg += '<path d="M ' + x1 + ' ' + y1 + ' C ' + x1 + ' ' + (y1 + 36) + ', ' + x2 + ' ' + (y2 - 36) + ', ' + x2 + ' ' + y2 + '" fill="none" marker-end="' + marker + '" stroke="' + stroke + '" stroke-width="1.5"' + dash + '></path>';
+    const label = (e.from.line != null ? 'line:' + e.from.line : '') || (e.viaCommand || '').slice(0, 24);
+    if (label) {
+      svg += '<text x="' + ((x1 + x2) / 2 + 8) + '" y="' + ((y1 + y2) / 2) + '" fill="' + (err ? 'var(--wg-error)' : 'var(--wg-text-dim)') + '" font-family="var(--vscode-editor-font-family)" font-size="9">' + esc(label) + '</text>';
+    }
   });
-  html += '<div class="notice" style="margin-top:10px">Call chains are discovered statically — scripts are never executed during analysis.</div>';
-  panel.innerHTML = html;
+  svg += '</svg>';
+
+  // Node cards.
+  let cards = '';
+  Array.from(nodes).sort().forEach(function (n) {
+    const p = pos[n];
+    if (!p) return;
+    const base = n.split('/').pop() || n;
+    const ext = base.indexOf('.') >= 0 ? base.slice(base.lastIndexOf('.') + 1).toUpperCase() : 'SCRIPT';
+    const blocker = blockerByPath[n];
+    const isEntry = !parents[n];
+    let card = '<div class="gnode-card' + (blocker ? ' g-sus' : '') + (isEntry ? ' g-entry' : '') + '" style="left:' + p.x + 'px;top:' + p.y + 'px">';
+    if (isEntry) {
+      card += '<div class="g-cat">▶ Entry point</div>';
+    } else {
+      card += '<div class="g-cat">' + esc(ext) + '</div>';
+    }
+    if (blocker) {
+      card += '<div class="g-badge">⛔ Suspicious execution</div>';
+    }
+    card += '<div class="g-name mono">' + esc(n) + '</div>';
+    if (blocker) {
+      card += '<div class="g-desc mono">' + esc(blocker.title) + '</div>';
+    }
+    card += '</div>';
+    cards += card;
+  });
+
+  // Risky path explorer: chains of blocker findings.
+  let explorer = '';
+  const blockerFindings = r.findings.filter(function (f) { return f.policyAction === 'BLOCK'; });
+  if (blockerFindings.length > 0) {
+    explorer = '<div class="section-label" style="margin-top:12px">Paths to blockers (' + blockerFindings.length + ')</div>';
+    blockerFindings.forEach(function (f, i) {
+      const chain = (f.callChain || []).map(function (l) { return l.source.path + ':' + (l.source.line != null ? l.source.line : ''); });
+      chain.push(f.location.path + ':' + (f.location.line != null ? f.location.line : ''));
+      explorer += '<div class="path-block">';
+      explorer += '<div class="path-head"><span class="path-title mono">Path #' + (i + 1) + '</span><span class="badge err">Critical</span></div>';
+      chain.forEach(function (step, si) {
+        const last = si === chain.length - 1;
+        explorer += '<div class="path-step mono' + (last ? ' path-last' : '') + '">' + (last ? '↳ ' : '· ') + esc(step) + '</div>';
+      });
+      explorer += '<div class="path-rule mono">' + esc(f.ruleId) + ' — ' + esc(f.title) + '</div>';
+      explorer += '</div>';
+    });
+  }
+
+  const legend = '<div class="legend" style="margin-top:8px">' +
+    '<span class="badge">▶ entry</span>' +
+    '<span class="badge warn">script hop</span>' +
+    '<span class="badge err">blocker</span>' +
+    '</div>';
+
+  panel.innerHTML =
+    '<div class="section-label">Call-chain graph (' + edges.length + ' edges)</div>' +
+    '<div class="graph-wrap"><div class="graph">' + svg + cards + '</div></div>' +
+    explorer + legend +
+    '<div class="notice" style="margin-top:10px">Call chains are discovered statically — scripts are never executed during analysis.</div>';
 }
 
 function renderPolicy() {
