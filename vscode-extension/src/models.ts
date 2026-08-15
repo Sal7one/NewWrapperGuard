@@ -64,3 +64,36 @@ export type ScanState =
   | { kind: 'scanning' }
   | { kind: 'scanned'; report: ScanReport; rawJson: string }
   | { kind: 'failed'; error: string };
+
+export interface BaselineEntry {
+  fingerprint: string;
+  ruleId?: string;
+  reason?: string;
+}
+
+export type EnforcementMode = 'AUDIT' | 'WARN' | 'ENFORCE';
+
+export interface ScanPolicy {
+  name: string;
+  mode: EnforcementMode;
+  minimumBlockingSeverity: Severity;
+  requireReachableToBlock: boolean;
+  blockedRuleIds: string[];
+}
+
+export interface ScanSettings {
+  allowedHosts: string[];
+  allowedUrlPatterns: string[];
+  blockedCommands: string[];
+  maxScriptDepth: number;
+  maxFileBytes: number;
+  requireDistributionSha256: boolean;
+  enableRecursiveScanning: boolean;
+  knownSafeRepositoryHosts: string[];
+}
+
+export interface ScanNotice {
+  code: string;
+  message: string;
+  location?: SourceLocation;
+}

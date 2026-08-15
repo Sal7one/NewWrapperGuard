@@ -9,7 +9,7 @@ project code**.
   **hard-blocks** Gradle/shell run configurations when the policy says BLOCK.
 - CLI — the same scanner for terminals, CI, and pre-commit hooks; emits a canonical,
   schema-validated JSON report.
-- VS Code extension — a full web-app sidebar (Overview / Findings / Execution Graph / Policy, verdict pill, finding-detail pane) driven by the CLI.
+- VS Code extension — a full web-app sidebar (Overview / Findings / Execution Graph / Policy, verdict pill, finding-detail pane) with the **entire scanner ported to TypeScript** and running in-process. No CLI, no JVM, no configuration — scan on open. Parity with the Kotlin scanner is locked by `npm run parity` (verdicts, counts, blockers, and every fingerprint).
 
 > **Privacy & safety:** all analysis is local static text analysis. The scanner reads files
 > only — it never spawns the project's scripts, resolves remote resources at scan time, or

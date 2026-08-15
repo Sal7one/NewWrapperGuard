@@ -203,6 +203,7 @@ class RepositoryScanner(
             stream.filter { Files.isRegularFile(it) && !isExcluded(root, it) }
                 .filter { path -> FileTypeRouter.rulesFor(path).isNotEmpty() }
                 .filter { path -> path !in seeds }
+                .sorted() // deterministic order — must match the TypeScript port
                 .forEach { seeds.add(it) }
         }
         return seeds.distinct()

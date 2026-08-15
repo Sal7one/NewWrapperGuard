@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { scanWorkspace } from './cliRunner';
+import { scanWorkspaceNative } from './scanner/entry';
 import { WrapperGuardWebviewProvider, openFindingInEditor } from './webviewUi';
 import { Finding, ScanState } from './models';
 import { WrapperGuardState } from './state';
@@ -29,7 +29,7 @@ export function activate(context: vscode.ExtensionContext): void {
     try {
       const { report, rawJson } = await vscode.window.withProgress(
         { location: vscode.ProgressLocation.Notification, title: 'WrapperGuard: Scanning workspace' },
-        () => scanWorkspace(root, baselineUri.fsPath)
+        () => scanWorkspaceNative(root, baselineUri.fsPath)
       );
       state.set({ kind: 'scanned', report, rawJson });
     } catch (error) {

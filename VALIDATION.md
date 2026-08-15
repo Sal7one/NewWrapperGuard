@@ -7,6 +7,10 @@ Checks actually run against this revision (all commands on a clean checkout, JDK
 - [x] \`:wrapperguard-intellij:buildPlugin\` — produces
       \`wrapperguard-intellij/build/distributions/wrapperguard-intellij-0.2.0-SNAPSHOT.zip\` (~2.7 MB).
 - [x] VS Code extension: \`npm ci && npm run compile\` — **green** (tsc, 0 errors).
+- [x] **Scanner parity** (TS in-process port vs Kotlin CLI) on \`/tmp/wg-demo\`,
+      \`old_project/test-samples\`, and the repo root: identical verdicts, finding counts,
+      blockers, edges, per-rule counts, and **zero fingerprint differences** both ways
+      (\`npm run parity\`).
 
 ## Tests
 - [x] \`:wrapperguard-core:test\` — \`CredentialRedactionTest\` (9 tests) green.
