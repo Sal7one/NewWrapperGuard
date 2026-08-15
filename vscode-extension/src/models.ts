@@ -15,6 +15,11 @@ export interface SourceLocation {
   column?: number;
 }
 
+export interface CallChainLink {
+  source: SourceLocation;
+  viaCommand: string;
+}
+
 export interface Finding {
   fingerprint: string;
   ruleId: string;
@@ -28,6 +33,7 @@ export interface Finding {
   evidence?: { text: string; redacted: boolean };
   remediation?: string;
   reachable: boolean;
+  callChain?: CallChainLink[];
   policyAction: PolicyAction;
   status: string;
 }
@@ -43,4 +49,11 @@ export interface ScanReport {
   complete: boolean;
   stale: boolean;
   notices: Array<{ code: string; message: string; location?: SourceLocation }>;
+  generatedAtEpochMs?: number;
 }
+
+export type ScanState =
+  | { kind: 'not-scanned' }
+  | { kind: 'scanning' }
+  | { kind: 'scanned'; report: ScanReport; rawJson: string }
+  | { kind: 'failed'; error: string };

@@ -1,16 +1,19 @@
 {
   "name": "wrapperguard",
   "displayName": "WrapperGuard",
-  "description": "Static wrapper and bootstrap security analysis.",
+  "description": "Static wrapper and bootstrap security analysis for Gradle projects. Never executes project code.",
   "version": "0.2.0",
   "engines": { "vscode": "^1.95.0" },
   "categories": ["Linters", "Programming Languages"],
-  "activationEvents": ["onView:wrapperGuard.findings", "onCommand:wrapperGuard.scanWorkspace"],
+  "activationEvents": ["onStartupFinished", "onView:wrapperGuard.findings", "onCommand:wrapperGuard.scanWorkspace"],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
-      { "command": "wrapperGuard.scanWorkspace", "title": "WrapperGuard: Scan Workspace" },
-      { "command": "wrapperGuard.openFinding", "title": "WrapperGuard: Open Finding" }
+      { "command": "wrapperGuard.scanWorkspace", "title": "WrapperGuard: Scan Workspace", "icon": "$(refresh)" },
+      { "command": "wrapperGuard.exportReport", "title": "WrapperGuard: Export Report (JSON)", "icon": "$(export)" },
+      { "command": "wrapperGuard.openFinding", "title": "WrapperGuard: Open in Editor", "icon": "$(go-to-file)" },
+      { "command": "wrapperGuard.showFindingDetails", "title": "WrapperGuard: Show Finding Details" },
+      { "command": "wrapperGuard.copyEvidence", "title": "WrapperGuard: Copy Evidence", "icon": "$(copy)" }
     ],
     "viewsContainers": {
       "activitybar": [
@@ -19,7 +22,26 @@
     },
     "views": {
       "wrapperGuard": [
+        { "id": "wrapperGuard.summary", "name": "Summary" },
         { "id": "wrapperGuard.findings", "name": "Findings" }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "wrapperGuard.findings",
+        "contents": "No scan yet — wrappers, build files, and bootstrap scripts are unprotected until scanned.\n[Scan Workspace](command:wrapperGuard.scanWorkspace)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        { "command": "wrapperGuard.scanWorkspace", "when": "view == wrapperGuard.summary", "group": "navigation@1" },
+        { "command": "wrapperGuard.exportReport", "when": "view == wrapperGuard.summary", "group": "navigation@2" },
+        { "command": "wrapperGuard.scanWorkspace", "when": "view == wrapperGuard.findings", "group": "navigation@1" }
+      ],
+      "view/item/context": [
+        { "command": "wrapperGuard.showFindingDetails", "when": "viewItem == wrapperGuardFinding", "group": "inline" },
+        { "command": "wrapperGuard.openFinding", "when": "viewItem == wrapperGuardFinding", "group": "inline" },
+        { "command": "wrapperGuard.copyEvidence", "when": "viewItem == wrapperGuardFinding", "group": "wrapperGuard@1" }
       ]
     },
     "configuration": {
@@ -28,7 +50,7 @@
         "wrapperGuard.cliPath": {
           "type": "string",
           "default": "wrapperguard",
-          "description": "Path to the WrapperGuard CLI executable."
+          "description": "Path to the WrapperGuard CLI executable (wrapperguard-cli)."
         }
       }
     }
