@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Rebuild the IntelliJ tool window: compact toolbar, actual scan summaries, responsive findings browser with persistent filters and selection, and selectable evidence.
+- Execution graph: retain cyclic/disconnected call chains, bound scrolling, provide a file-list fallback and link file findings to their inspector.
+- Fix scan progress/failure/cancellation display, stale-status handling, saved Policy settings, summary navigation, and reversed theme fallback colors.
+- Keep secondary text readable in custom dark themes and increase graph-arrow contrast in light themes; verified in a live Android Studio smoke pass.
+- Remove the arbitrary risk score and fabricated coverage percentage. Add seven UI presentation/lifecycle regression tests.
+
 ## 0.3.0
 
 ### Guard (IntelliJ / Android Studio)

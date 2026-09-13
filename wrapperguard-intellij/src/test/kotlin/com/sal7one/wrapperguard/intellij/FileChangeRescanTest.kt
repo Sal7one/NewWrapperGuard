@@ -50,6 +50,30 @@ class FileChangeRescanTest : HeavyPlatformTestCase() {
         assertFalse(service.stale)
     }
 
+    fun testAsyncScanPublishesBusyAndCompletionState() {
+        val root = Path.of(project.basePath!!)
+        writeFixture(root, "gradlew", "#!/bin/sh\necho fixture\n")
+        val service = project.getService(WrapperGuardProjectService::class.java)
+        val states = CopyOnWriteArrayList<Boolean>()
+        val listener: (com.sal7one.wrapperguard.core.model.ScanReport?) -> Unit = { states += service.isScanning }
+        service.addListener(listener)
+        try {
+            service.scanAsync()
+            assertTrue("scan start must be observable", states.contains(true))
+            val deadline = System.currentTimeMillis() + 20_000
+            while (service.isScanning && System.currentTimeMillis() < deadline) {
+                com.intellij.util.ui.UIUtil.dispatchAllInvocationEvents()
+                Thread.sleep(20)
+            }
+            assertFalse("scan completion must clear busy state", service.isScanning)
+            assertEquals(false, states.last())
+            assertNotNull(service.report)
+            assertNull(service.scanError)
+        } finally {
+            service.removeListener(listener)
+        }
+    }
+
     fun testWrapperJarWatchedAndToctouReportBlocks() {
         assertTrue(WrapperGuardProjectService.isWatchedFileName("gradle-wrapper.jar"))
         val report = toctouBlockedReport(project)

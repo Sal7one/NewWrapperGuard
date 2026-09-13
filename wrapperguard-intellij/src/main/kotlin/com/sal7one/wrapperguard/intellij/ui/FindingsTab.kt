@@ -1,298 +1,89 @@
 package com.sal7one.wrapperguard.intellij.ui
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.sal7one.wrapperguard.core.model.Finding
-import com.sal7one.wrapperguard.core.model.FindingCategory
-import com.sal7one.wrapperguard.core.model.PolicyAction
-import com.sal7one.wrapperguard.intellij.ui.components.EmptyHint
-import com.sal7one.wrapperguard.intellij.ui.components.LabeledValue
-import com.sal7one.wrapperguard.intellij.ui.components.StatusBadge
+import com.sal7one.wrapperguard.core.model.*
+import com.sal7one.wrapperguard.intellij.ui.components.*
+import org.jetbrains.jewel.ui.component.OutlinedButton
 import org.jetbrains.jewel.ui.component.Text
 import org.jetbrains.jewel.ui.component.TextField
 
-private enum class SeverityFilter(val label: String) {
-    ALL("All Severities"), ERROR("Errors Only"), WARN("Warnings Only"), INFO("Info Only")
-}
-
-private enum class PolicyFilter(val label: String) {
-    ALL("All Actions"), BLOCK("Blocking Only"), REVIEW("Review Only"), ALLOW("Allowed")
-}
-
-/**
- * Findings tab: search + severity/policy/category filters, a compact findings table with
- * severity dot + badges + column headers, and a rich detail inspector (rule id, severity/
- * confidence/policy, location, evidence snippet with line numbers, execution path,
- * remediation). Empty states for no-filter-matches and clean.
- */
+/** A list/inspector on wide windows, a list/detail route on narrow ones. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun FindingsTab(
+internal fun FindingsTab(
     findings: List<Finding>,
+    state: FindingsViewState,
+    onStateChange: (FindingsViewState) -> Unit,
     onOpenFinding: (Finding) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var severityFilter by remember { mutableStateOf(SeverityFilter.ALL) }
-    var policyFilter by remember { mutableStateOf(PolicyFilter.ALL) }
-    var categoryFilter by remember { mutableStateOf<FindingCategory?>(null) }
-    var query by remember { mutableStateOf(TextFieldValue("")) }
-    var selectedIndex by remember(findings) { mutableStateOf<Int?>(null) }
-
-    val categoriesPresent = remember(findings) {
-        findings.map { it.category }.distinct().sortedBy { it.name }
+    var controlsExpanded by remember { mutableStateOf(false) }
+    var searchField by remember { mutableStateOf(TextFieldValue(state.query)) }
+    LaunchedEffect(state.query) { if (searchField.text != state.query) searchField = TextFieldValue(state.query) }
+    val visible = remember(findings, state.query, state.scope, state.order, state.descending) {
+        visibleFindings(findings, state)
     }
-
-    val filtered = remember(findings, severityFilter, policyFilter, categoryFilter, query) {
-        val q = query.text.trim().lowercase()
-        findings.filter { f ->
-            (severityFilter == SeverityFilter.ALL || f.severity.name == severityFilter.name) &&
-                (policyFilter == PolicyFilter.ALL || f.policyAction.name == policyFilter.name) &&
-                (categoryFilter == null || f.category == categoryFilter) &&
-                (q.isEmpty() || f.title.lowercase().contains(q) ||
-                    f.ruleId.lowercase().contains(q) ||
-                    f.location.path.lowercase().contains(q) ||
-                    (f.evidence?.text?.lowercase()?.contains(q) ?: false))
-        }
-    }
-
-    val selected = selectedIndex?.let { idx -> filtered.getOrNull(idx) }
-
-    Column(modifier = modifier.fillMaxWidth()) {
-        FilterBar(
-            total = findings.size,
-            shown = filtered.size,
-            query = query,
-            onQueryChange = { query = it; selectedIndex = null },
-            severityFilter = severityFilter,
-            policyFilter = policyFilter,
-            onSeverityChange = { severityFilter = it; selectedIndex = null },
-            onPolicyChange = { policyFilter = it; selectedIndex = null }
-        )
-
-        // Category chips — visible, horizontally scrollable, better than a dropdown for the
-        // small set of categories actually present in the report.
-        if (categoriesPresent.size > 1) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                CategoryChip(
-                    label = "All Categories",
-                    selected = categoryFilter == null,
-                    onClick = { categoryFilter = null; selectedIndex = null }
-                )
-                categoriesPresent.forEach { category ->
-                    CategoryChip(
-                        label = categoryLabel(category),
-                        selected = categoryFilter == category,
-                        onClick = { categoryFilter = category; selectedIndex = null }
-                    )
-                }
-            }
-        }
-
-        if (findings.isEmpty()) {
-            EmptyHint("No findings — this project is clean.")
+    val selected = state.selected?.let { previous -> visible.firstOrNull { it == previous }
+        ?: visible.firstOrNull { it.fingerprint == previous.fingerprint && it.location == previous.location } }
+    BoxWithConstraints(modifier.fillMaxSize()) {
+        val wide = maxWidth >= 760.dp
+        if (!wide && selected != null) {
+            FindingInspector(selected, onOpenFinding, onBack = { onStateChange(state.copy(selected = null)) })
         } else {
-            Row(modifier = Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                FindingsList(
-                    findings = filtered,
-                    selectedIndex = selectedIndex,
-                    onSelect = { index ->
-                        selectedIndex = if (selectedIndex == index) null else index
-                    },
-                    onOpen = onOpenFinding,
-                    modifier = Modifier.weight(1f).fillMaxHeight()
-                )
-                FindingDetail(
-                    finding = selected,
-                    onOpen = onOpenFinding,
-                    modifier = Modifier.weight(1.1f).fillMaxHeight()
-                )
-            }
-        }
-    }
-}
-
-private fun categoryLabel(category: FindingCategory): String = category.name
-    .lowercase().replace('_', ' ')
-    .replaceFirstChar { it.uppercase() }
-
-@Composable
-private fun CategoryChip(label: String, selected: Boolean, onClick: () -> Unit) {
-    val accent = verdictAccentColor()
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(50))
-            .background(if (selected) accent.asBadgeBackgroundSafe(0.18f) else Color.Unspecified)
-            .border(1.dp, if (selected) accent.copy(alpha = 0.55f) else outlineColor(), RoundedCornerShape(50))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 2.dp)
-    ) {
-        Text(
-            text = label,
-            fontSize = 11.sp,
-            color = if (selected) accent else mutedTextColor(),
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-            maxLines = 1
-        )
-    }
-}
-
-// Local alias so chips don't import from the app file.
-@Composable
-private fun verdictAccentColor(): Color =
-    if (org.jetbrains.jewel.foundation.theme.JewelTheme.isDark) Color(0xFFC3C0FF) else Color(0xFF4F46E5)
-
-@Composable
-private fun Color.asBadgeBackgroundSafe(alpha: Float): Color = copy(alpha = alpha)
-
-@Composable
-private fun FilterBar(
-    total: Int,
-    shown: Int,
-    query: TextFieldValue,
-    onQueryChange: (TextFieldValue) -> Unit,
-    severityFilter: SeverityFilter,
-    policyFilter: PolicyFilter,
-    onSeverityChange: (SeverityFilter) -> Unit,
-    onPolicyChange: (PolicyFilter) -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(PaddingValues(horizontal = 16.dp, vertical = 10.dp)),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text("$shown / $total findings", fontSize = 12.sp, color = mutedTextColor())
-        Spacer(Modifier.weight(1f))
-        TextField(
-            value = query,
-            onValueChange = onQueryChange,
-            modifier = Modifier.width(180.dp),
-            placeholder = { Text("Search findings…", fontSize = 11.sp, color = mutedTextColor()) }
-        )
-        SegmentedControl(
-            options = SeverityFilter.values().toList(),
-            selected = severityFilter,
-            onChange = onSeverityChange,
-            labelOf = { it.label }
-        )
-        SegmentedControl(
-            options = PolicyFilter.values().toList(),
-            selected = policyFilter,
-            onChange = onPolicyChange,
-            labelOf = { it.label }
-        )
-    }
-}
-
-@Composable
-private fun <T> SegmentedControl(
-    options: List<T>,
-    selected: T,
-    onChange: (T) -> Unit,
-    labelOf: (T) -> String
-) {
-    Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(4.dp))
-            .border(1.dp, outlineColor(), RoundedCornerShape(4.dp))
-    ) {
-        options.forEach { option ->
-            val isSelected = option == selected
-            val accent = verdictAccentColor()
-            Box(
-                modifier = Modifier
-                    .background(if (isSelected) accent.copy(alpha = 0.18f) else Color.Unspecified)
-                    .clickable { onChange(option) }
-                    .padding(PaddingValues(horizontal = 8.dp, vertical = 3.dp))
-            ) {
-                Text(
-                    text = labelOf(option),
-                    fontSize = 11.sp,
-                    color = if (isSelected) accent else mutedTextColor(),
-                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                    maxLines = 1
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun FindingsList(
-    findings: List<Finding>,
-    selectedIndex: Int?,
-    onSelect: (Int) -> Unit,
-    onOpen: (Finding) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    if (findings.isEmpty()) {
-        Box(
-            modifier = modifier.border(1.dp, outlineColor(), RoundedCornerShape(6.dp)),
-            contentAlignment = Alignment.Center
-        ) { EmptyHint("No findings match the current filters.") }
-    } else {
-        Column(modifier = modifier.border(1.dp, outlineColor(), RoundedCornerShape(6.dp))) {
-            // Column headers, per the design's table.
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(cardSurfaceColor())
-                    .border(1.dp, outlineColor())
-                    .padding(horizontal = 12.dp, vertical = 5.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                HeaderCell("SEV", Modifier.size(20.dp))
-                HeaderCell("ISSUE", Modifier.weight(1f))
-                HeaderCell("CATEGORY", Modifier.width(110.dp))
-                HeaderCell("ACTION", Modifier.width(110.dp), alignEnd = true)
-            }
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-                items(findings.size) { index ->
-                    val finding = findings[index]
-                    FindingsRow(
-                        finding = finding,
-                        selected = index == selectedIndex,
-                        onClick = { onSelect(index) },
-                        onDoubleClick = { onOpen(finding) }
-                    )
+            Column(Modifier.fillMaxSize()) {
+                // Wrap controls at their natural width; never squeeze a table and two filter bars into one row.
+                Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        TextField(value = searchField,
+                            onValueChange = { searchField = it; onStateChange(state.copy(query = it.text, selected = null)) },
+                            modifier = Modifier.weight(1f), placeholder = { Text("Search findings") })
+                        OutlinedButton(onClick = { controlsExpanded = !controlsExpanded }) {
+                            Text(if (controlsExpanded) "Hide filters" else "Filter / sort")
+                        }
+                    }
+                    Text("${visible.size} of ${findings.size} · ${state.scope.label} · ${state.order.label}${if (state.descending) " ↓" else " ↑"}",
+                        color = mutedTextColor(), fontSize = 11.sp)
+                    if (controlsExpanded) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        FindingScope.entries.forEach { scope ->
+                            ChoiceChip(scope.label, state.scope == scope) { onStateChange(state.copy(scope = scope, selected = null)) }
+                        }
+                    }
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        FindingOrder.entries.forEach { order ->
+                            val active = state.order == order
+                            ChoiceChip(order.label + if (active) { if (state.descending) " ↓" else " ↑" } else "", active) {
+                                onStateChange(state.copy(order = order, descending = if (active) !state.descending else false))
+                            }
+                        }
+                    }
+                    }
+                }
+                WorkspaceDivider()
+                Row(Modifier.fillMaxWidth().weight(1f)) {
+                    FindingList(visible, selected, { onStateChange(state.copy(selected = it)) },
+                        Modifier.weight(1f).fillMaxHeight())
+                    if (wide) {
+                        Box(Modifier.width(1.dp).fillMaxHeight().background(outlineColor()))
+                        Box(Modifier.weight(1f).fillMaxHeight()) {
+                            if (selected == null) EmptyHint("Select a finding to inspect its evidence and remediation.")
+                            else FindingInspector(selected, onOpenFinding)
+                        }
+                    }
                 }
             }
         }
@@ -300,210 +91,73 @@ private fun FindingsList(
 }
 
 @Composable
-private fun HeaderCell(text: String, modifier: Modifier = Modifier, alignEnd: Boolean = false) {
-    Box(modifier = modifier, contentAlignment = if (alignEnd) Alignment.CenterEnd else Alignment.CenterStart) {
-        Text(
-            text = text,
-            fontSize = 9.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.Monospace,
-            color = mutedTextColor()
-        )
-    }
-}
-
-@Composable
-private fun FindingsRow(
-    finding: Finding,
-    selected: Boolean,
-    onClick: () -> Unit,
-    onDoubleClick: () -> Unit
-) {
-    val tone = severityColor(finding.severity)
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(if (selected) tone.copy(alpha = 0.12f) else Color.Unspecified)
-            .clickable(onClick = onClick)
-            .padding(PaddingValues(horizontal = 12.dp, vertical = 7.dp)),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Severity dot column.
-        Box(
-            modifier = Modifier
-                .size(20.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .clip(RoundedCornerShape(50))
-                    .background(tone)
-            )
-        }
-        // Issue + location.
-        Column(modifier = Modifier.weight(1f)) {
-            Text(finding.title, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1)
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(
-                    finding.ruleId,
-                    fontSize = 10.sp,
-                    fontFamily = FontFamily.Monospace,
-                    color = mutedTextColor()
-                )
-                Text(
-                    finding.location.display,
-                    fontSize = 10.sp,
-                    fontFamily = FontFamily.Monospace,
-                    color = mutedTextColor(),
-                    maxLines = 1
-                )
-                if (!finding.reachable) {
-                    StatusBadge("Unreachable", mutedTextColor())
+private fun FindingList(findings: List<Finding>, selected: Finding?, onSelect: (Finding) -> Unit, modifier: Modifier) {
+    val list = rememberLazyListState()
+    // A changed filter/sort must not leave the user looking at an arbitrary old scroll position.
+    LaunchedEffect(findings) { list.scrollToItem(0) }
+    Box(modifier) {
+        if (findings.isEmpty()) EmptyHint("No findings match this view. Change the filter or search to see more.")
+        LazyColumn(state = list, modifier = Modifier.fillMaxSize().padding(end = 12.dp)) {
+            items(findings) { finding ->
+                val tone = severityColor(finding.severity)
+                Column(Modifier.fillMaxWidth()
+                    .background(if (finding == selected) tone.copy(alpha = 0.10f) else androidx.compose.ui.graphics.Color.Transparent)
+                    .clickable { onSelect(finding) }
+                    .padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.width(3.dp).height(16.dp).background(tone))
+                        Text(finding.title, modifier = Modifier.weight(1f), fontWeight = FontWeight.Medium,
+                            fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
+                    Text(finding.location.display, fontSize = 11.sp, fontFamily = FontFamily.Monospace,
+                        maxLines = 2, overflow = TextOverflow.Ellipsis, color = mutedTextColor())
+                    Text("${finding.ruleId} · ${finding.severity.name.lowercase()} · ${finding.status.name.lowercase()} · ${finding.policyAction.name.lowercase()}",
+                        fontSize = 10.sp, color = mutedTextColor())
                 }
+                WorkspaceDivider()
             }
         }
-        // Category column.
-        Box(modifier = Modifier.width(110.dp)) {
-            Text(
-                categoryLabel(finding.category),
-                fontSize = 10.sp,
-                color = mutedTextColor(),
-                maxLines = 1
-            )
-        }
-        // Action badge column.
-        Box(modifier = Modifier.width(110.dp), contentAlignment = Alignment.CenterEnd) {
-            StatusBadge(
-                text = policyShortLabel(finding.policyAction),
-                tone = policyActionColor(finding.policyAction)
-            )
-        }
+        VerticalScrollbar(rememberScrollbarAdapter(list), Modifier.align(Alignment.CenterEnd).fillMaxHeight())
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun FindingDetail(finding: Finding?, onOpen: (Finding) -> Unit, modifier: Modifier = Modifier) {
-    val border = outlineColor()
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(6.dp))
-            .background(cardSurfaceColor())
-            .border(1.dp, border, RoundedCornerShape(6.dp))
-    ) {
-        if (finding == null) {
-            EmptyHint("Select a finding to inspect evidence and remediation.")
-        } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(PaddingValues(16.dp)),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+internal fun FindingInspector(finding: Finding, onOpen: (Finding) -> Unit, onBack: (() -> Unit)? = null) {
+    WorkspacePage {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (onBack != null) OutlinedButton(onClick = onBack) { Text("← Findings") }
+            OutlinedButton(onClick = { onOpen(finding) }) { Text("Open in editor") }
+        }
+        SelectionContainer {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text(finding.title, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                Text(finding.ruleId, fontSize = 12.sp, fontFamily = FontFamily.Monospace, color = mutedTextColor())
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     StatusBadge(finding.severity.name, severityColor(finding.severity))
-                    StatusBadge(policyLabel(finding.policyAction), policyActionColor(finding.policyAction))
-                    if (!finding.reachable) StatusBadge("Unreachable", mutedTextColor())
-                }
-                Text(finding.title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-
-                Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                    LabeledValue("Rule ID", finding.ruleId, mono = true)
-                    LabeledValue("Confidence", finding.confidence.name)
-                    LabeledValue("Category", categoryLabel(finding.category))
+                    StatusBadge(finding.policyAction.name, policyActionColor(finding.policyAction))
+                    StatusBadge(finding.status.name, mutedTextColor())
                 }
                 LabeledValue("Location", finding.location.display, mono = true)
-
-                if (finding.message.isNotBlank()) {
-                    SectionLabel("Message")
-                    Text(finding.message, fontSize = 12.sp)
-                }
-
-                // Evidence snippet with a line-number chip and the offending line highlighted,
-                // mirroring the design's code-snippet block.
+                LabeledValue("Confidence", finding.confidence.name.lowercase())
+                LabeledValue("Reachability", if (finding.reachable) "Reachable from an entry point" else "Not linked to an entry point")
+                if (finding.message.isNotBlank()) WorkspaceSection("What was found") { Text(finding.message, fontSize = 12.sp) }
                 finding.evidence?.let { evidence ->
-                    SectionLabel("Evidence")
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(severityColor(finding.severity).copy(alpha = 0.10f))
-                            .border(1.dp, border, RoundedCornerShape(4.dp))
-                            .padding(8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        val lineNo = finding.location.line?.toString() ?: "—"
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(3.dp))
-                                .background(severityColor(finding.severity).copy(alpha = 0.22f))
-                                .padding(horizontal = 6.dp, vertical = 1.dp)
-                        ) {
-                            Text(
-                                text = lineNo,
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.Monospace,
-                                color = severityColor(finding.severity),
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        Text(
-                            evidence.text,
-                            fontSize = 11.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
-                }
-
-                if (finding.callChain.isNotEmpty()) {
-                    SectionLabel("Execution Path")
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        finding.callChain.forEach { link ->
-                            Text(
-                                "${link.source.display}  →  ${link.viaCommand}",
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.Monospace,
-                                color = mutedTextColor()
-                            )
+                    WorkspaceSection(if (evidence.redacted) "Evidence · secrets redacted" else "Evidence") {
+                        Box(Modifier.fillMaxWidth().background(cardSurfaceColor()).border(1.dp, outlineColor()).padding(12.dp)) {
+                            Text(evidence.text, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
                         }
                     }
                 }
-
-                finding.remediation?.let {
-                    SectionLabel("Remediation")
-                    Text(it, fontSize = 12.sp)
+                finding.remediation?.let { remediation ->
+                    WorkspaceSection("Recommended action") { Text(remediation, fontSize = 12.sp) }
                 }
-
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    org.jetbrains.jewel.ui.component.DefaultButton(onClick = { onOpen(finding) }) {
-                        Text("Open in Editor")
+                if (finding.callChain.isNotEmpty()) WorkspaceSection("Execution path") {
+                    finding.callChain.forEachIndexed { index, link ->
+                        Text("${index + 1}. ${link.source.display}\n${link.viaCommand}", fontSize = 11.sp, fontFamily = FontFamily.Monospace)
                     }
                 }
             }
         }
     }
-}
-
-@Composable
-private fun SectionLabel(text: String) {
-    Text(
-        text = text.uppercase(),
-        fontSize = 10.sp,
-        fontWeight = FontWeight.Bold,
-        fontFamily = FontFamily.Monospace,
-        color = mutedTextColor()
-    )
-}
-
-private fun policyLabel(action: PolicyAction): String = when (action) {
-    PolicyAction.BLOCK -> "Blocks Execution"
-    PolicyAction.REVIEW -> "Review"
-    PolicyAction.ALLOW -> "Allowed"
-}
-
-private fun policyShortLabel(action: PolicyAction): String = when (action) {
-    PolicyAction.BLOCK -> "BLOCK"
-    PolicyAction.REVIEW -> "REVIEW"
-    PolicyAction.ALLOW -> "ALLOW"
 }

@@ -27,6 +27,12 @@ class WrapperGuardProjectService(private val project: Project) {
     /** Single-flight guard: only one authoritative scan generation may publish a report. */
     private val scanInFlight = AtomicBoolean(false)
 
+    val isScanning: Boolean get() = scanInFlight.get()
+
+    @Volatile
+    var scanError: String? = null
+        private set
+
     /** A relevant file changed while a scan was running; another pass is needed. */
     private val rescanRequested = AtomicBoolean(false)
 
@@ -54,6 +60,7 @@ class WrapperGuardProjectService(private val project: Project) {
         val result = RepositoryScanner().scan(root, ScanPolicy(mode = EnforcementMode.WARN), buildScanSettings())
         refreshHashes(root)
         stale = false
+        scanError = null
         report = result
         notifyListeners(result)
         return result
@@ -66,18 +73,32 @@ class WrapperGuardProjectService(private val project: Project) {
      * a follow-up pass is requested instead of dropping the change.
      */
     fun scanAsync() {
+        if (project.isDisposed) return
         if (!scanInFlight.compareAndSet(false, true)) {
             rescanRequested.set(true)
             return
         }
+        scanError = null
+        notifyListeners(report)
         object : Task.Backgroundable(project, "WrapperGuard: Scanning project", true) {
             override fun run(indicator: ProgressIndicator) {
-                try {
-                    scan()
-                } finally {
-                    scanInFlight.set(false)
-                    if (rescanRequested.getAndSet(false)) scanAsync()
-                }
+                indicator.checkCanceled()
+                if (scan() == null) scanError = "This project has no local directory to scan."
+            }
+
+            override fun onThrowable(error: Throwable) {
+                // Do not put arbitrary exception text (which may include source data) into the UI.
+                scanError = "The scan could not finish. Retry the scan."
+            }
+
+            override fun onCancel() {
+                scanError = "Scan cancelled. Run a new scan to refresh the results."
+            }
+
+            override fun onFinished() {
+                scanInFlight.set(false)
+                notifyListeners(report)
+                if (rescanRequested.getAndSet(false) && !project.isDisposed) scanAsync()
             }
         }.queue()
     }
@@ -148,6 +169,7 @@ class WrapperGuardProjectService(private val project: Project) {
     fun publishExternalReport(newReport: ScanReport) {
         project.basePath?.let(Path::of)?.let { refreshHashes(it) }
         stale = false
+        scanError = null
         report = newReport
         notifyListeners(newReport)
     }

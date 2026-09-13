@@ -1,44 +1,34 @@
-# Reusable UI Components
+# WrapperGuard UI components
 
-Keep components dumb. They render data and emit callbacks; project services own scanning and state.
+The IntelliJ tool window uses native Jewel/Compose. Swing is limited to the platform host
+and existing IDE dialogs. Scanner and enforcement logic remain outside presentation code.
 
-## Shared concepts
+## IntelliJ workspace
 
-- `ScanVerdict`: the main product state.
-- `Finding`: canonical finding shown by every integration.
-- `ScanReport`: one immutable result.
-- `ScanPolicy`: determines warn/block behavior.
+- `WrapperGuardApp`: shared toolbar, navigation, scan state, saved settings and persistent
+  findings view state. Report notifications enter Compose on the EDT.
+- `OverviewTab`: real result counts that open matching findings, scan metadata, notices and
+  protection scope. No inferred risk score or coverage percentage.
+- `FindingsTab`: virtualized list, expandable filters and sort choices. At 760 dp the
+  inspector sits beside the list; below that it becomes a detail route with a Back button.
+- `FindingInspector`: selectable evidence, location, status, remediation and editor action.
+- `FindingsPresentation`: pure filtering/order/status helpers and immutable view state.
+- `ExecutionGraphTab`: scrollable graph and virtualized file browser. Selecting a file
+  exposes incoming/outgoing calls and links to findings. Above 200 linked files, the file
+  list avoids rendering a crowded canvas.
+- `ExecutionPresentation`: deterministic, cycle-safe graph layering.
+- `PolicyTab`: current saved settings, an actual settings action, and the distinction
+  between background Warn scanning and the pre-run Enforce guard.
+- `WorkspacePage`, `WorkspaceSection`, `WorkspaceDivider`, `ChoiceChip`: shared responsive
+  layout, scrollbars and selectable controls.
+- `StatusBadge`, `LabeledValue`, `EmptyHint`: small presentation components.
 
-## IntelliJ components
+Colors follow the platform theme through `WgTheme`. Technical evidence uses a monospace
+font. Empty, pending, stale, failed, cancelled and incomplete scans must never imply a
+successful clean scan. Presentation ordering does not change reports or fingerprints.
 
-- `VerdictPanel(report, onReview)` — verdict, last scan, policy, short explanation.
-- `MetricTile(title, value, tone, onClick)` — blockers, warnings, suppressed, files.
-- `StatusBadge(text, tone)` — compact semantic pill.
-- `FindingTableModel` — stable columns: severity, issue, location, reachability, action.
-- `FindingDetailsPanel` — evidence, execution path, remediation, actions.
-- `CallChainTreePanel` — first version of Execution Graph using `JBTree`.
-- `EmptyStatePanel(title, body, action)` — not scanned, clean filter, unsupported project.
-- `ScanStateBanner` — scanning, stale, incomplete, failed.
+## VS Code
 
-Use `JBColor`, `JBUI`, `JBLabel`, `JBTable`, `JBScrollPane`, `JBTextField`, `JBTabbedPane`, and IDE icons. Do not hardcode the HTML colors directly into every component.
-
-## VS Code components
-
-- `ReportStore` — current immutable report.
-- `FindingsTreeProvider` — groups findings without scanner logic.
-- `WrapperGuardStatusBar` — verdict and blocker count.
-- `CliRunner` — the only process boundary.
-- `FindingDecoration` — maps severity/policy action to ThemeIcon.
-
-## Component states
-
-Every main view supports:
-
-- not scanned
-- scanning
-- clean
-- findings available
-- incomplete
-- stale
-- failed
-- no filter matches
+The extension runs the complete TypeScript scanner in process; Kotlin/TypeScript parity
+is mandatory. `webviewUi.ts` renders its separate interface and `extension.ts` owns its
+state and actions. The IntelliJ redesign does not change that surface.

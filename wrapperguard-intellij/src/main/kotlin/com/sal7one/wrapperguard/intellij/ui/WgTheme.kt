@@ -29,7 +29,7 @@ fun verdictColor(verdict: ScanVerdict): Color = when (verdict) {
         JewelTheme.globalColors.text.warning ?: semantic(0xFF8A5300, 0xFFFFB695)
     ScanVerdict.CLEAN ->
         JewelTheme.globalColors.text.info ?: semantic(0xFF1F6B3C, 0xFFA0D9B5)
-    ScanVerdict.NOT_SCANNED -> JewelTheme.globalColors.text.disabled
+    ScanVerdict.NOT_SCANNED -> mutedTextColor()
 }
 
 @Composable
@@ -50,12 +50,12 @@ fun outlineColor(): Color = JewelTheme.globalColors.borders.normal
 /** Surface color for raised cards/tiles. */
 @Composable
 fun cardSurfaceColor(): Color =
-    if (JewelTheme.isDark) Color(0xFF1F1F28) else Color(0xFFFAFAFB)
+    JewelTheme.globalColors.panelBackground
 
-/** Muted body text color. */
+/** Secondary content remains readable even when a custom theme has near-invisible disabled text. */
 @Composable
-fun mutedTextColor(): Color = JewelTheme.globalColors.text.disabled
+fun mutedTextColor(): Color = JewelTheme.globalColors.text.normal.copy(alpha = 0.78f)
 
 @Composable
-private inline fun semantic(darkFallback: Long, lightFallback: Long): Color =
+private fun semantic(lightFallback: Long, darkFallback: Long): Color =
     Color(if (JewelTheme.isDark) darkFallback else lightFallback)

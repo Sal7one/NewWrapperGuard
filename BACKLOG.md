@@ -95,10 +95,12 @@ These rules govern every item below and must not be violated by any feature.
 - [x] Never log complete environment variables, tokens, or authorization headers.
 
 ## Next — UI polish
-- [ ] Fix any remaining overflow/clipping in the four tabs (now wrapped in scroll containers).
-- [ ] Verify metric tiles, verdict banner, findings detail, and tab bar wrap correctly at narrow tool-window widths.
-- [ ] "Protected / Not protected" scope indicator in the UI.
-- [ ] Stale/incomplete/failed verdict banners and retry actions.
+- [x] Rebuild IntelliJ tool window: responsive findings list/detail, priority/file/rule/title ordering, real summary navigation, scan lifecycle state, saved policy settings, cycle-safe execution graph and file inspector.
+- [x] Agent visual smoke pass at narrow/wide sizes and in light/dark themes; owner aesthetic acceptance remains subjective.
+- [x] Check the four rebuilt tabs for overflow/clipping at tested sizes; graph overflow uses its own scrollbars.
+- [x] Verify responsive toolbar, tab bar and findings list/detail in a narrow tool window. Legacy metric tiles were removed.
+- [x] Show actual protection scope in Summary and Policy.
+- [x] Show stale/incomplete/failed scan status and provide rescan/retry through the shared toolbar.
 
 ## Later
 - [x] SARIF/CI adapter — CLI `--sarif` + VS Code Export SARIF (feeds the "Not protected" coverage gap).

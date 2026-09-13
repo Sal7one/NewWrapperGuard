@@ -7,6 +7,36 @@ CHANGELOG.md, docs/COMPONENTS.md, design_reference/ (visual targets per screen).
 
 ---
 
+## Unreleased UI rebuild — 2026-09-08
+
+The owner explicitly authorized replacing the UI from scratch. The IntelliJ tool window
+has now been rebuilt in native Jewel/Compose; old visual-reference layouts and the previous
+column-header sorting design are superseded for this surface. The VS Code UI is unchanged.
+
+- Compact shared toolbar with scan/export/settings; service-driven scanning, cancellation,
+  failure and stale status. UI observations are marshalled to the EDT.
+- Summary contains actual counts, notices and scope. The arbitrary risk score and invented
+  coverage percentage are removed. Count rows navigate to the matching findings scope.
+- Findings uses a virtualized list and selectable evidence inspector. At 760 dp it switches
+  from a side-by-side inspector to a list/detail route. Query, scope, order and selection
+  survive tab navigation. Filter/sort controls expand on demand.
+- Execution uses a bounded, scrollable graph, file-list fallback, and file inspector linking
+  to findings. Cycles and disconnected components remain visible. Graphs above 200 linked
+  files use the virtualized file list.
+- Policy reads saved scanner settings and opens the real settings dialog. It distinguishes
+  background Warn scans from the pre-run Enforce guard.
+- Presentation logic: `FindingsPresentation.kt`, `ExecutionPresentation.kt`; shared layout:
+  `components/WorkspaceComponents.kt`. Old MetricTile/Card/ScanStateBanner/WgLayout removed.
+- IntelliJ tests now 13: guard 3, rescan/lifecycle 4, presentation 6.
+- Live Android Studio visual smoke pass completed in wide/narrow layouts and Light/custom
+  dark themes. Fixed secondary-text and graph-arrow contrast during that pass. Search,
+  sort/selection, Summary/graph navigation, source-line navigation, Policy and real settings
+  opening were exercised. The final zip is installed; original IDE theme/size restored.
+  See VALIDATION.md for evidence, fixture, backup location and limits of the smoke pass.
+
+The v0.3.0 sections below are the release handover; this section supersedes their UI map,
+UI test count, and UI remaining-work descriptions.
+
 ## 0. State snapshot (verified as of this handover)
 
 - Version 0.3.0 everywhere (Gradle modules, plugin, VS Code package, SARIF driver).
@@ -330,7 +360,7 @@ are in scan scope (BACKLOG §8).
 
 - Parser-aware PowerShell/Bash AST adapters (replace regex where practical).
 - IntelliJ baseline-approval UI (VS Code already has one).
-- Column sorting in the IntelliJ FindingsTab.
+- Visual acceptance of the rebuilt IntelliJ UI (see unreleased section).
 - Rule packs / community rule SDK.
 - Marketplace publish + repo push (owner's call).
 - ML/PowerShell detector: BLOCKED until the researcher delivers the follow-up paper +

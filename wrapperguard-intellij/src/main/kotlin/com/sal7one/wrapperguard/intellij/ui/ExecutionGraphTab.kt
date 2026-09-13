@@ -1,503 +1,175 @@
 package com.sal7one.wrapperguard.intellij.ui
 
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.layout.boundsInRoot
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.sal7one.wrapperguard.core.model.Confidence
-import com.sal7one.wrapperguard.core.model.Finding
-import com.sal7one.wrapperguard.core.model.FindingCategory
-import com.sal7one.wrapperguard.core.model.FindingKind
-import com.sal7one.wrapperguard.core.model.FindingStatus
-import com.sal7one.wrapperguard.core.model.PolicyAction
-import com.sal7one.wrapperguard.core.model.ScriptEdge
-import com.sal7one.wrapperguard.core.model.Severity
-import com.sal7one.wrapperguard.core.model.SourceLocation
-import com.sal7one.wrapperguard.intellij.ui.components.Card
-import com.sal7one.wrapperguard.intellij.ui.components.EmptyHint
-import com.sal7one.wrapperguard.intellij.ui.components.ScrollableColumn
-import com.sal7one.wrapperguard.intellij.ui.components.StatusBadge
-import org.jetbrains.jewel.foundation.theme.JewelTheme
+import com.sal7one.wrapperguard.core.model.*
+import com.sal7one.wrapperguard.intellij.ui.components.*
+import org.jetbrains.jewel.ui.component.OutlinedButton
 import org.jetbrains.jewel.ui.component.Text
 
-/**
- * Execution Graph tab: a real layered call-graph canvas.
- *
- * Layout: roots on the left, called scripts to the right, one column per depth. Layer order
- * is computed with a barycenter pass (top-down, then bottom-up) to reduce edge crossings.
- * Edges are cubic beziers with arrowheads; hops that land on a BLOCK finding are red and
- * dashed. Node cards carry the design's category chip / suspicious badge / rule footer and
- * open the finding (or the file) on click. Below the canvas: detached files with findings
- * and the risky-path explorer.
- */
+@OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
-fun ExecutionGraphTab(
-    edges: List<ScriptEdge>,
-    findings: List<Finding>,
-    onOpenFinding: (Finding) -> Unit,
+internal fun ExecutionGraphTab(
+    edges: List<ScriptEdge>, findings: List<Finding>,
+    onOpenFinding: (Finding) -> Unit, onOpenFile: (Finding) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    ScrollableColumn(modifier = modifier) {
-        val nodesByPath = remember(findings) { findings.groupBy { it.location.path } }
-        val blockerByPath = remember(findings) {
-            findings.filter { it.policyAction == PolicyAction.BLOCK }
-                .groupBy { it.location.path }
-                .mapValues { (_, list) -> list.maxBy { it.severity.ordinal } }
-        }
-        val suspLines = remember(findings) {
-            findings.filter { it.policyAction == PolicyAction.BLOCK }
-                .map { it.location.path + ":" + (it.location.line ?: "") }
-                .toSet()
-        }
-
-        if (edges.isEmpty() && findings.isEmpty()) {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                EmptyHint("No script call chains discovered. Recursion is enabled by default.")
+    val byFile = remember(findings) { findings.groupBy { it.location.path } }
+    val layout = remember(edges) { ExecutionLayout.build(edges) }
+    val graphAvailable = layout.layers.sumOf { it.size } <= 200
+    val inspector = remember { BringIntoViewRequester() }
+    var graph by remember { mutableStateOf(true) }
+    var selectedPath by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(selectedPath) { if (selectedPath != null) inspector.bringIntoView() }
+    val paths = remember(edges, findings) {
+        (edges.flatMap { listOf(it.from.path, it.to.path) } + findings.map { it.location.path }).distinct().sorted()
+    }
+    WorkspacePage(modifier) {
+        WorkspaceSection("Execution paths") {
+            Text("${paths.size} files · ${edges.size} discovered calls", color = mutedTextColor(), fontSize = 12.sp)
+            Text("Select a file to inspect its calls and findings. Arrows show statically discovered calls, not a recording of executed code.", fontSize = 12.sp)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                ChoiceChip("Graph", graph) { graph = true }
+                ChoiceChip("File list", !graph) { graph = false }
             }
-            return@ScrollableColumn
         }
-
-        if (edges.isNotEmpty()) {
-            val layout = remember(edges, suspLines) { GraphLayout.build(edges, suspLines) }
-            Section("Call-chain graph (${layout.nodes.size} nodes · ${edges.size} edges)")
-            CallGraphCanvas(layout, blockerByPath, nodesByPath, onOpenFinding)
+        if (paths.isEmpty()) Text("No execution paths or finding locations were discovered.", color = mutedTextColor())
+        if (graph && graphAvailable && edges.isNotEmpty()) {
+            ExecutionCanvas(layout, edges, byFile, selectedPath, { selectedPath = it })
+            Text("Scroll inside the graph to explore. Files with active blockers have a red border.", fontSize = 11.sp, color = mutedTextColor())
         }
-
-        // Detached files: findings whose files are not part of any call chain.
-        val detached = findings.map { it.location.path }.distinct()
-            .filter { p -> edges.none { it.from.path == p || it.to.path == p } }
-        if (detached.isNotEmpty()) {
-            Section("Detached files (${detached.size})")
-            Row(
-                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                detached.sorted().forEach { path ->
-                    val finding = blockerByPath[path] ?: nodesByPath[path]?.maxBy { it.severity.ordinal }
-                    DetachedChip(path, isBlocker = blockerByPath.containsKey(path), onClick = {
-                        onOpenFinding(finding ?: syntheticFinding(path))
-                    })
+        if (graph && !graphAvailable) Text("This graph has more than 200 files. Use the file list to inspect all paths without rendering a crowded canvas.", fontSize = 12.sp)
+        if (!graph || !graphAvailable || edges.isEmpty()) WorkspaceSection("Files") {
+            ExecutionFileList(paths, byFile, selectedPath) { selectedPath = it }
+        } else {
+            val linked = edges.flatMap { listOf(it.from.path, it.to.path) }.toSet()
+            val detached = paths.filter { it !in linked }
+            if (detached.isNotEmpty()) WorkspaceSection("Files outside discovered call chains") {
+                ExecutionFileList(detached, byFile, selectedPath) { selectedPath = it }
+            }
+        }
+        selectedPath?.takeIf { it in paths }?.let { path ->
+            WorkspaceDivider()
+            Box(Modifier.fillMaxWidth().bringIntoViewRequester(inspector)) {
+            WorkspaceSection(path) {
+                OutlinedButton(onClick = { onOpenFile(fileLocation(path)) }) { Text("Open file in editor") }
+                val calls = edges.filter { it.from.path == path || it.to.path == path }
+                calls.forEach { edge ->
+                    Text("${edge.from.display} → ${edge.to.display}", fontFamily = FontFamily.Monospace, fontSize = 11.sp)
+                    Text(edge.viaCommand, fontSize = 12.sp, color = mutedTextColor())
+                }
+                val fileFindings = byFile[path].orEmpty()
+                if (fileFindings.isEmpty()) Text("No findings in this file. This does not establish that a called external file is safe.", fontSize = 12.sp)
+                fileFindings.forEach { finding ->
+                    Column(Modifier.fillMaxWidth().clickable { onOpenFinding(finding) }.padding(vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(finding.title, fontWeight = FontWeight.Medium, fontSize = 13.sp)
+                        Text("${finding.ruleId} · ${finding.location.display} · ${finding.policyAction.name.lowercase()}",
+                            color = severityColor(finding.severity), fontSize = 11.sp)
+                        Text("Inspect finding →", fontSize = 11.sp, color = mutedTextColor())
+                    }
                 }
             }
-        }
-
-        val riskyPaths = findings.filter { it.callChain.isNotEmpty() }
-        if (riskyPaths.isNotEmpty()) {
-            Section("Paths to blockers (${riskyPaths.size})")
-            riskyPaths.forEach { finding -> CallChainCard(finding, onOpenFinding) }
-        }
-
-        Spacer(Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            StatusBadge("▶ entry", graphAccent())
-            StatusBadge("script hop", outlineColor())
-            StatusBadge("blocker", severityColor(Severity.ERROR))
+            }
         }
     }
 }
 
-/* ── Canvas ─────────────────────────────────────────────────────────────────── */
+@Composable
+private fun ExecutionFileList(paths: List<String>, byFile: Map<String, List<Finding>>, selected: String?, onSelect: (String) -> Unit) {
+    val scroll = rememberLazyListState()
+    Box(Modifier.fillMaxWidth().heightIn(max = 300.dp).height((paths.size.coerceAtMost(6) * 52).dp)) {
+        LazyColumn(state = scroll, modifier = Modifier.fillMaxSize().padding(end = 12.dp)) {
+            items(paths, key = { it }) { path -> FileEntry(path, byFile[path].orEmpty().size, path == selected) { onSelect(path) } }
+        }
+        VerticalScrollbar(rememberScrollbarAdapter(scroll), Modifier.align(Alignment.CenterEnd).fillMaxHeight())
+    }
+}
 
 @Composable
-private fun CallGraphCanvas(
-    layout: GraphLayout,
-    blockerByPath: Map<String, Finding>,
-    nodesByPath: Map<String, List<Finding>>,
-    onOpenFinding: (Finding) -> Unit
-) {
-    val nodeRects = remember { mutableStateMapOf<String, Rect>() }
-    val canvasOrigin = remember { mutableStateOf(Offset.Zero) }
-    val textMeasurer = rememberTextMeasurer()
+private fun FileEntry(path: String, count: Int, selected: Boolean, onClick: () -> Unit) {
+    Row(Modifier.fillMaxWidth().background(cardSurfaceColor()).clickable(onClick = onClick).padding(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(if (selected) "›" else "·")
+        Text(path, fontFamily = FontFamily.Monospace, fontSize = 12.sp, modifier = Modifier.weight(1f))
+        Text(count.toString(), color = mutedTextColor(), fontSize = 12.sp)
+    }
+}
 
-    // Resolve colors outside the draw scope (theme colors are @Composable).
-    val normalEdge = outlineColor()
-    val errorEdge = severityColor(Severity.ERROR)
-    val labelColor = mutedTextColor()
-    val errorLabel = severityColor(Severity.ERROR)
-    val gridColor = outlineColor().copy(alpha = 0.18f)
-
-    Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
-        Box(modifier = Modifier.padding(vertical = 12.dp)) {
-            Canvas(
-                modifier = Modifier
-                    .matchParentSize()
-                    .onGloballyPositioned { canvasOrigin.value = it.boundsInRoot().topLeft }
-            ) {
-                // Dot grid background.
-                val step = 22.dp.toPx()
-                var gx = 0f
-                while (gx < size.width) {
-                    var gy = 0f
-                    while (gy < size.height) {
-                        drawCircle(gridColor, radius = 1.4f, center = Offset(gx, gy))
-                        gy += step
-                    }
-                    gx += step
-                }
-
-                layout.edgeList.forEach { edge ->
-                    val a = nodeRects[edge.from] ?: return@forEach
-                    val b = nodeRects[edge.to] ?: return@forEach
-                    val origin = canvasOrigin.value
-                    val start = Offset(a.right, a.center.y) - origin
-                    val end = Offset(b.left, b.center.y) - origin
-                    val c1 = start + Offset(30.dp.toPx(), 0f)
-                    val c2 = end - Offset(30.dp.toPx(), 0f)
-                    val color = if (edge.isError) errorEdge else normalEdge
-
-                    val path = Path().apply {
-                        moveTo(start.x, start.y)
-                        cubicTo(c1.x, c1.y, c2.x, c2.y, end.x, end.y)
-                    }
-                    drawPath(
-                        path = path,
-                        color = color,
-                        style = if (edge.isError)
-                            Stroke(width = 2f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(9f, 7f)))
-                        else
-                            Stroke(width = 1.5f)
-                    )
-
-                    // Arrowhead oriented along the final tangent.
-                    val rawDir = end - c2
-                    val len = rawDir.getDistance()
-                    val dir = if (len == 0f) Offset(1f, 0f) else rawDir / len
-                    val perp = Offset(-dir.y, dir.x)
-                    val tip = Path().apply {
-                        moveTo(end.x, end.y)
-                        lineTo(end.x - dir.x * 9f + perp.x * 4.5f, end.y - dir.y * 9f + perp.y * 4.5f)
-                        lineTo(end.x - dir.x * 9f - perp.x * 4.5f, end.y - dir.y * 9f - perp.y * 4.5f)
-                        close()
-                    }
-                    drawPath(tip, color)
-
-                    // Edge label at the midpoint.
-                    val label = edge.line?.let { "line:$it" } ?: edge.via.take(22)
-                    val mid = Offset((start.x + end.x) / 2f, (start.y + end.y) / 2f - 8.dp.toPx())
-                    drawText(
-                        textMeasurer = textMeasurer,
-                        text = label,
-                        topLeft = mid,
-                        style = TextStyle(
-                            color = if (edge.isError) errorLabel else labelColor,
-                            fontSize = 9.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    )
-                }
-            }
-
-            Row(horizontalArrangement = Arrangement.spacedBy(64.dp)) {
-                layout.layers.forEach { layer ->
-                    Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                        layer.forEach { name ->
-                            val blocker = blockerByPath[name]
-                            val finding = blocker ?: nodesByPath[name]?.maxBy { it.severity.ordinal }
-                            GraphNodeCard(
-                                name = name,
-                                isEntry = name in layout.roots,
-                                blocker = blocker,
-                                onClick = { onOpenFinding(finding ?: syntheticFinding(name)) },
-                                modifier = Modifier.onGloballyPositioned { nodeRects[name] = it.boundsInRoot() }
-                            )
+@Composable
+private fun ExecutionCanvas(layout: ExecutionLayout, edges: List<ScriptEdge>, byFile: Map<String, List<Finding>>,
+    selected: String?, onSelect: (String) -> Unit) {
+    val horizontal = rememberScrollState()
+    val vertical = rememberScrollState()
+    val border = outlineColor()
+    val connection = mutedTextColor().copy(alpha = 0.60f)
+    val error = severityColor(Severity.ERROR)
+    val surface = cardSurfaceColor()
+    val nodeWidth = 208.dp
+    val nodeHeight = 92.dp
+    val columnStep = 272.dp
+    val rowStep = 124.dp
+    val points = remember(layout) { buildMap { layout.layers.forEachIndexed { x, layer -> layer.forEachIndexed { y, path -> put(path, x to y) } } } }
+    val blockers = remember(byFile) { byFile.filterValues { list -> list.any { it.status == FindingStatus.ACTIVE && it.policyAction == PolicyAction.BLOCK } }.keys }
+    Box(Modifier.fillMaxWidth().height(350.dp).border(1.dp, border).background(surface)) {
+        Box(Modifier.fillMaxSize().padding(end = 12.dp, bottom = 12.dp).horizontalScroll(horizontal).verticalScroll(vertical)) {
+            Box(Modifier.size(columnStep * layout.layers.size + 32.dp,
+                rowStep * (layout.layers.maxOfOrNull { it.size } ?: 1) + 32.dp)) {
+                Canvas(Modifier.matchParentSize()) {
+                    edges.forEach { edge ->
+                        val from = points[edge.from.path] ?: return@forEach
+                        val to = points[edge.to.path] ?: return@forEach
+                        val a = Offset(16.dp.toPx() + from.first * columnStep.toPx() + nodeWidth.toPx(),
+                            16.dp.toPx() + from.second * rowStep.toPx() + nodeHeight.toPx() / 2)
+                        val b = Offset(16.dp.toPx() + to.first * columnStep.toPx(),
+                            16.dp.toPx() + to.second * rowStep.toPx() + nodeHeight.toPx() / 2)
+                        val color = if (edge.to.path in blockers) error else connection
+                        val curve = Path().apply {
+                            moveTo(a.x, a.y)
+                            if (to.first > from.first) cubicTo(a.x + 32.dp.toPx(), a.y, b.x - 32.dp.toPx(), b.y, b.x, b.y)
+                            else {
+                                val above = minOf(a.y, b.y) - nodeHeight.toPx() / 2 - 10.dp.toPx()
+                                cubicTo(a.x + 20.dp.toPx(), above, b.x - 20.dp.toPx(), above, b.x, b.y)
+                            }
                         }
+                        drawPath(curve, color, style = Stroke(1.5.dp.toPx()))
+                        drawLine(color, b - Offset(6.dp.toPx(), 4.dp.toPx()), b, 1.5.dp.toPx())
+                        drawLine(color, b - Offset(6.dp.toPx(), -4.dp.toPx()), b, 1.5.dp.toPx())
+                    }
+                }
+                points.forEach { (path, position) ->
+                    Column(Modifier.offset(16.dp + columnStep * position.first, 16.dp + rowStep * position.second)
+                        .size(nodeWidth, nodeHeight).background(surface, RoundedCornerShape(4.dp))
+                        .border(if (path == selected) 2.dp else 1.dp, if (path in blockers) error else if (path == selected) connection else border, RoundedCornerShape(4.dp))
+                        .clickable { onSelect(path) }.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(if (path in layout.roots) "ENTRY" else "FILE", fontSize = 9.sp, color = mutedTextColor())
+                        Text(path, fontFamily = FontFamily.Monospace, fontSize = 11.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Text("${byFile[path].orEmpty().size} findings", fontSize = 10.sp, color = if (path in blockers) error else mutedTextColor())
                     }
                 }
             }
         }
+        HorizontalScrollbar(rememberScrollbarAdapter(horizontal), Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(end = 12.dp))
+        VerticalScrollbar(rememberScrollbarAdapter(vertical), Modifier.align(Alignment.CenterEnd).fillMaxHeight().padding(bottom = 12.dp))
     }
 }
 
-@Composable
-private fun GraphNodeCard(
-    name: String,
-    isEntry: Boolean,
-    blocker: Finding?,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val error = severityColor(Severity.ERROR)
-    val ext = name.substringAfterLast('.', "").ifEmpty { "script" }
-    Column(
-        modifier = modifier
-            .width(180.dp)
-            .clip(RoundedCornerShape(6.dp))
-            .background(if (blocker != null) error.copy(alpha = 0.10f) else cardSurfaceColor())
-            .border(
-                width = if (blocker != null) 2.dp else 1.dp,
-                color = if (blocker != null) error else outlineColor(),
-                shape = RoundedCornerShape(6.dp)
-            )
-            .clickable(onClick = onClick)
-            .padding(10.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        Text(
-            text = if (isEntry) "▶ ENTRY POINT" else ext.uppercase(),
-            fontSize = 9.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.Monospace,
-            color = if (isEntry) graphAccent() else mutedTextColor()
-        )
-        if (blocker != null) {
-            StatusBadge("⛔ Suspicious execution", error)
-        }
-        Text(
-            text = name,
-            fontSize = 11.sp,
-            fontFamily = FontFamily.Monospace,
-            color = if (blocker != null) error else JewelTheme.globalColors.text.normal,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
-        blocker?.let {
-            Text(
-                text = it.title,
-                fontSize = 9.sp,
-                fontFamily = FontFamily.Monospace,
-                color = mutedTextColor(),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
-}
-
-@Composable
-private fun DetachedChip(path: String, isBlocker: Boolean, onClick: () -> Unit) {
-    val error = severityColor(Severity.ERROR)
-    Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
-            .background(cardSurfaceColor())
-            .border(
-                width = if (isBlocker) 2.dp else 1.dp,
-                color = if (isBlocker) error else outlineColor(),
-                shape = RoundedCornerShape(6.dp)
-            )
-            .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = path,
-            fontSize = 10.sp,
-            fontFamily = FontFamily.Monospace,
-            color = if (isBlocker) error else JewelTheme.globalColors.text.normal
-        )
-    }
-}
-
-/* ── Graph layout ───────────────────────────────────────────────────────────── */
-
-private data class EdgeLine(
-    val from: String,
-    val to: String,
-    val via: String,
-    val line: Int?,
-    val isError: Boolean
-)
-
-private class GraphLayout(
-    val nodes: List<String>,
-    val roots: Set<String>,
-    val layers: List<List<String>>,
-    val edgeList: List<EdgeLine>
-) {
-    companion object {
-        fun build(edges: List<ScriptEdge>, suspLines: Set<String>): GraphLayout {
-            val children = HashMap<String, MutableList<String>>()
-            val parents = HashMap<String, MutableList<String>>()
-            val nodeSet = LinkedHashSet<String>()
-            edges.forEach { e ->
-                children.getOrPut(e.from.path) { mutableListOf() }.add(e.to.path)
-                parents.getOrPut(e.to.path) { mutableListOf() }.add(e.from.path)
-                nodeSet.add(e.from.path)
-                nodeSet.add(e.to.path)
-            }
-
-            // Depth via BFS from roots.
-            val depth = HashMap<String, Int>()
-            val queue = ArrayDeque<String>()
-            nodeSet.sorted().forEach { n ->
-                if (parents[n].isNullOrEmpty()) {
-                    depth[n] = 0
-                    queue.add(n)
-                }
-            }
-            while (queue.isNotEmpty()) {
-                val n = queue.removeFirst()
-                children[n]?.forEach { c ->
-                    if (!depth.containsKey(c)) {
-                        depth[c] = depth.getValue(n) + 1
-                        queue.add(c)
-                    }
-                }
-            }
-
-            val order = depth.entries.groupBy({ it.value }, { it.key })
-                .mapValues { (_, list) -> list.sorted().toMutableList() }
-
-            fun avgParentPos(n: String): Double {
-                val ps = parents[n].orEmpty()
-                if (ps.isEmpty()) return 0.0
-                var sum = 0.0
-                var count = 0
-                ps.forEach { p ->
-                    val idx = order[depth[p]]?.indexOf(p) ?: -1
-                    if (idx >= 0) {
-                        sum += idx
-                        count++
-                    }
-                }
-                return if (count > 0) sum / count else 0.0
-            }
-
-            fun avgChildPos(n: String): Double {
-                val cs = children[n].orEmpty()
-                if (cs.isEmpty()) return 0.0
-                var sum = 0.0
-                var count = 0
-                cs.forEach { c ->
-                    val idx = order[depth[c]]?.indexOf(c) ?: -1
-                    if (idx >= 0) {
-                        sum += idx
-                        count++
-                    }
-                }
-                return if (count > 0) sum / count else 0.0
-            }
-
-            val layerCount = order.size
-            for (i in 1 until layerCount) order[i]?.sortBy { avgParentPos(it) }
-            for (i in layerCount - 2 downTo 0) order[i]?.sortBy { avgChildPos(it) }
-
-            val layers = (0 until layerCount).mapNotNull { order[it] }
-            val edgeLines = edges.map { e ->
-                val key = e.to.path + ":" + (e.to.line ?: "")
-                EdgeLine(
-                    from = e.from.path,
-                    to = e.to.path,
-                    via = e.viaCommand,
-                    line = e.from.line,
-                    isError = key in suspLines
-                )
-            }
-            return GraphLayout(
-                nodes = nodeSet.toList(),
-                roots = nodeSet.filter { parents[it].isNullOrEmpty() }.toSet(),
-                layers = layers,
-                edgeList = edgeLines
-            )
-        }
-    }
-}
-
-/* ── Shared bits ────────────────────────────────────────────────────────────── */
-
-/** Primary indigo accent (matches the tab bar). */
-@Composable
-private fun graphAccent(): Color =
-    if (JewelTheme.isDark) Color(0xFFC3C0FF) else Color(0xFF4F46E5)
-
-/** Synthetic finding used to open a file that has no findings. */
-private fun syntheticFinding(path: String): Finding = Finding(
-    fingerprint = "node-$path",
-    ruleId = "WG-NODE",
-    title = path,
-    message = path,
-    severity = Severity.INFO,
-    confidence = Confidence.LOW,
-    category = FindingCategory.AUDIT,
-    kind = FindingKind.AUDIT_EVIDENCE,
-    location = SourceLocation(path),
-    policyAction = PolicyAction.ALLOW,
-    status = FindingStatus.ACTIVE
-)
-
-@Composable
-private fun Section(title: String) {
-    Column {
-        Text(title, fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, color = mutedTextColor())
-        Spacer(Modifier.height(6.dp))
-    }
-}
-
-@Composable
-private fun CallChainCard(finding: Finding, onOpenFinding: (Finding) -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        borderColor = severityColor(finding.severity).copy(alpha = 0.4f)
-    ) {
-        Column(modifier = Modifier.padding(PaddingValues(14.dp)), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                StatusBadge(finding.severity.name, severityColor(finding.severity))
-                Spacer(Modifier.width(8.dp))
-                Text(finding.title, fontSize = 12.5.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
-                org.jetbrains.jewel.ui.component.OutlinedButton(onClick = { onOpenFinding(finding) }) {
-                    Text("Open Trace", fontSize = 11.sp)
-                }
-            }
-            finding.callChain.forEachIndexed { i, link ->
-                Row {
-                    Spacer(Modifier.width((i * 12).dp))
-                    Text(
-                        if (i == 0) "• " else "└ • ",
-                        fontSize = 11.sp,
-                        fontFamily = FontFamily.Monospace,
-                        color = mutedTextColor()
-                    )
-                    Text(
-                        "${link.source.display}",
-                        fontSize = 11.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                    Text(
-                        "  via  ${link.viaCommand}",
-                        fontSize = 11.sp,
-                        fontFamily = FontFamily.Monospace,
-                        color = mutedTextColor()
-                    )
-                }
-            }
-        }
-    }
-}
+private fun fileLocation(path: String) = Finding("node-$path", "WG-NODE", path, "", Severity.INFO,
+    Confidence.LOW, FindingCategory.AUDIT, FindingKind.AUDIT_EVIDENCE, SourceLocation(path), policyAction = PolicyAction.ALLOW)
