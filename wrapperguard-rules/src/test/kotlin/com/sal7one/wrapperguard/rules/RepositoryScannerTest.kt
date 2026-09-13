@@ -17,7 +17,7 @@ import kotlin.test.assertTrue
 
 /**
  * Regression tests for the deterministic scanner. Driven by the shared `old_project/test-samples`
- * fixtures (read-only reference, per AI_START_HERE.md) plus focused inline fixtures for the
+ * fixtures (read-only reference, per HANDOVER.md) plus focused inline fixtures for the
  * recursion engine.
  */
 class RepositoryScannerTest {

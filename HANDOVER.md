@@ -1,381 +1,262 @@
-# HANDOVER — WrapperGuard Next (v0.3.0)
+# WrapperGuard handover
 
-Complete context for any agent/developer picking up this project. Read this top to bottom
-before changing anything. Companion docs: AI_START_HERE.md (product brief & hard rules),
-BACKLOG.md (remaining work), VALIDATION.md (what was verified and how), README.md,
-CHANGELOG.md, docs/COMPONENTS.md, design_reference/ (visual targets per screen).
+Updated 2026-09-13. Start here for engineering work. This is the single source for
+architecture, project constraints, validation evidence, and remaining work.
+[README.md](README.md) covers usage; [CHANGELOG.md](CHANGELOG.md) records release history;
+[vscode-extension/README.md](vscode-extension/README.md) is the extension's packaged description.
 
----
+## Current state
 
-## Unreleased UI rebuild — 2026-09-08
+- Implementation baseline: `24695d0` (`phase 1`), which commits the IntelliJ UI rebuild.
+  The working tree was clean before this documentation cleanup.
+- Package version remains **0.3.0**. Tags `v0.2.0` and `v0.3.0` exist; the rebuilt UI is
+  subsequent unreleased work, not a newly tagged release.
+- The owner authorized replacing the UI from scratch. IntelliJ/Android Studio now has
+  the rebuilt native Jewel/Compose workspace. VS Code's separate webview is unchanged.
+- There are **46 stable rule IDs** in Kotlin `RuleIds.kt`, mirrored by the TypeScript port.
+- Last implementation validation: **2026-09-08**, recorded below. This cleanup changes
+  documentation and source comments only; it does not constitute a new build or UI pass.
+- Local artifacts exist at `wrapperguard-intellij/build/distributions/wrapperguard-intellij-0.3.0.zip`
+  and `vscode-extension/wrapperguard-0.3.0.vsix` (checked 2026-09-13).
+- Apache-2.0. Keep the repository local/private until the owner requests publication.
+  Do not push, create releases, or submit to a Marketplace without that request.
+- `old_project/` is git-ignored, outside the build, and **read-only**. Keep its regression
+  fixtures. Do not clean up that reference directory or commit generated zip/VSIX artifacts.
 
-The owner explicitly authorized replacing the UI from scratch. The IntelliJ tool window
-has now been rebuilt in native Jewel/Compose; old visual-reference layouts and the previous
-column-header sorting design are superseded for this surface. The VS Code UI is unchanged.
+## Product and architecture
 
-- Compact shared toolbar with scan/export/settings; service-driven scanning, cancellation,
-  failure and stale status. UI observations are marshalled to the EDT.
-- Summary contains actual counts, notices and scope. The arbitrary risk score and invented
-  coverage percentage are removed. Count rows navigate to the matching findings scope.
-- Findings uses a virtualized list and selectable evidence inspector. At 760 dp it switches
-  from a side-by-side inspector to a list/detail route. Query, scope, order and selection
-  survive tab navigation. Filter/sort controls expand on demand.
-- Execution uses a bounded, scrollable graph, file-list fallback, and file inspector linking
-  to findings. Cycles and disconnected components remain visible. Graphs above 200 linked
-  files use the virtualized file list.
-- Policy reads saved scanner settings and opens the real settings dialog. It distinguishes
-  background Warn scans from the pre-run Enforce guard.
-- Presentation logic: `FindingsPresentation.kt`, `ExecutionPresentation.kt`; shared layout:
-  `components/WorkspaceComponents.kt`. Old MetricTile/Card/ScanStateBanner/WgLayout removed.
-- IntelliJ tests now 13: guard 3, rescan/lifecycle 4, presentation 6.
-- Live Android Studio visual smoke pass completed in wide/narrow layouts and Light/custom
-  dark themes. Fixed secondary-text and graph-arrow contrast during that pass. Search,
-  sort/selection, Summary/graph navigation, source-line navigation, Policy and real settings
-  opening were exercised. The final zip is installed; original IDE theme/size restored.
-  See VALIDATION.md for evidence, fixture, backup location and limits of the smoke pass.
+WrapperGuard statically reads Gradle wrappers, build scripts, shell/BAT/PowerShell scripts,
+version catalogs, and discovered script calls. It never executes analyzed code or uploads
+source. IntelliJ and the CLI share the Kotlin scanner. VS Code runs a complete TypeScript
+port in process, with no CLI or JVM dependency. That port is an explicit owner decision;
+**do not replace it with a CLI adapter or re-ask the architecture decision**.
 
-The v0.3.0 sections below are the release handover; this section supersedes their UI map,
-UI test count, and UI remaining-work descriptions.
+| Location | Responsibility |
+|---|---|
+| `wrapperguard-core/` | Pure Kotlin report models, policy/settings, fingerprints, redaction, URL allowlists, SARIF, scanner SPI and inactive ML seam |
+| `wrapperguard-rules/` | Deterministic rules, recursive call resolution, safe paths, project structure, trusted baseline application and hostile-input limits |
+| `wrapperguard-cli/` | Canonical JSON/SARIF and explicit baseline input |
+| `wrapperguard-intellij/` | Project scan service, VFS rescan, run/sync integration, execution seal, settings and native UI |
+| `vscode-extension/src/scanner/` | TypeScript scanner port; keep equivalent to Kotlin |
+| `vscode-extension/src/extension.ts` | Scan lifecycle, status bar, settings, suppression/baselines and exports |
+| `vscode-extension/src/webviewUi.ts` | VS Code interface and embedded client script |
+| `schema/` | Report schema and sample; preserve compatibility for consumers |
 
-## 0. State snapshot (verified as of this handover)
+The rules module contains `ScriptRules`, `BuildScriptRules`, `WrapperPropertiesRules`,
+`VersionCatalogRules`, `ProjectStructureAnalyzer`, `CalledScriptsResolver`, `SafePathResolver`,
+and `RepositoryScanner`. The scanner uses deterministic traversal with cycle detection,
+trusted baseline application, UTF-16/BOM handling, and file/line/depth limits. Its current
+excluded directory names are `.git`, `.gradle`, `.idea`, `build`, `out`, `.intellijPlatform`,
+`.kotlin`, and `node_modules`; do not describe proposed exclusions as implemented.
 
-- Version 0.3.0 everywhere (Gradle modules, plugin, VS Code package, SARIF driver).
-- Git repo initialized: 28 commits, tags v0.2.0 and v0.3.0. NOT pushed anywhere yet
-  (owner decision: local-only, private until publish).
-- License: Apache-2.0. old_project/ is git-ignored (kept locally, read-only reference).
-- Test totals: core 9 · rules 25 · intellij 6 · VS Code (node:test) 19 — all green.
-- Verification gates that MUST stay green (see §3): gradle build, npm test, npm run parity,
-  npm run hardening, verifyPlugin.
-- Artifacts: wrapperguard-intellij/build/distributions/wrapperguard-intellij-0.3.0.zip and
-  vscode-extension/wrapperguard-0.3.0.vsix. The zip is installed into Android Studio at
-  ~/Library/Application Support/Google/AndroidStudio2026.1.1/plugins/wrapperguard.
-- Demo project used for UI/manual checks: /tmp/wg-demo.
+## IntelliJ service, enforcement and UI
 
----
+`WrapperGuardProjectService` scans `project.basePath`, coordinates single-flight background
+work and pending rescans, publishes report/freshness/busy/error state, and hashes watched
+files. `WrapperGuardVfsListener` marks reports stale immediately; rescans are debounced
+about three seconds and gated by content changes. Watched inputs include wrapper scripts,
+wrapper properties/JAR, version catalogs, Gradle files, and shell/BAT/CMD/PowerShell scripts.
 
-## 1. What this project is
+`WrapperGuardStartupActivity` scans without waiting for indexing, registers VFS/trust-state
+listeners, back-fills before-run tasks, and revalidates after Gradle import. The before-run
+provider covers supported run configurations including external-system configurations;
+post-import revalidation alone cannot prevent code that already ran. External terminals
+and unsupported launch paths are outside the IDE guard's interception scope.
 
-WrapperGuard is a static security scanner for Gradle wrappers, build scripts, shell/batch/
-PowerShell scripts, and recursively-called scripts. It NEVER executes analyzed code.
-Surfaces: IntelliJ/Android Studio plugin (primary, Jewel/Compose UI), CLI (canonical JSON +
-SARIF), VS Code extension (full web-app UI).
+`WrapperGuardBeforeRunTaskProvider` saves documents, compares watched-file hashes before
+and after an Enforce scan, retries once on changes, and emits `WG-SCAN-TOCTOU` if inputs keep
+changing. This is a **file-hash seal**, not a complete policy/baseline/version seal. Active
+BLOCK findings trigger `ExecutionBlockedDialog` with Cancel, Run Once, and Review Blockers.
+Scanner exceptions currently fail open; this is an existing deliberate behavior.
 
-Architecture (current):
+Settings → Tools → WrapperGuard persists allowed hosts, distribution checksum requirement,
+and scan toggles. `buildScanSettings()` merges saved settings with defaults. IntelliJ
+background scans use Warn; the pre-run guard uses Enforce. VS Code scans use Enforce.
 
-    shared Kotlin scanner + canonical JSON     (wrapperguard-core, wrapperguard-rules)
-            |                                 46 stable rule IDs, fingerprints, baselines
-            +------------------+-------------------------------+
-            |                  |                               |
-    IntelliJ/AS plugin        CLI (JVM)              TypeScript port (VS Code)
-    before-run guard      --json --sarif             runs IN-PROCESS, no CLI/JVM/config
-    sync gate             --baseline <file>          parity-verified: identical verdicts,
-    VFS rescan, seal      exit 0/2                   blockers, and every fingerprint
-            |                  |                               |
-            +------------------+-------------------------------+
-                      canonical JSON report
-                      schema/wrapperguard-report.schema.json
+The rebuilt tool window has Summary, Findings, Execution, and Policy tabs:
 
-IMPORTANT — the VS Code extension does NOT shell out to the CLI. The owner explicitly asked
-for the whole scanner to be migrated into the extension ("migrate the whole thing"). The TS
-port lives in vscode-extension/src/scanner/ and is kept byte-for-byte equivalent to Kotlin
-via the parity gate (npm run parity). If you change scanner behavior, you MUST change BOTH
-implementations and keep parity green. The old AI_START_HERE rule "VS Code must consume CLI
-JSON, not reimplement detection" is SUPERSEDED by this owner decision.
+- `WrapperGuardApp.kt`: compact scan/export/settings toolbar, navigation, service-driven
+  scan status, saved settings and persistent findings state. Report observations enter
+  Compose on the EDT.
+- `OverviewTab.kt`: actual counts linking to the matching findings scope, metadata,
+  notices and protection scope. No arbitrary risk score or fabricated coverage percentage.
+- `FindingsTab.kt`: virtualized list, expandable search/filter/order controls, selectable
+  evidence and editor navigation. At **760 dp** or wider, the inspector sits beside the
+  list; below that it is a detail route with Back. Query, scope, order and selection survive
+  tab navigation. `FindingsPresentation.kt` holds pure presentation logic.
+- `ExecutionGraphTab.kt`: bounded graph with scrollbars, file-list alternative, incoming/
+  outgoing call inspector and finding links. `ExecutionPresentation.kt` preserves cycles
+  and disconnected components. More than **200 linked files** uses the virtualized list.
+- `PolicyTab.kt`: actual saved settings and real settings action; explains Warn vs Enforce.
+- `components/WorkspaceComponents.kt`: page/section/divider/chip primitives and scrollbars.
+  `SharedComponents.kt` retains StatusBadge, LabeledValue and EmptyHint. Old MetricTile,
+  Card, ScanStateBanner and WgLayout were removed.
+- `WgTheme.kt`: theme-derived semantic colors; secondary text uses normal text with reduced
+  opacity because some custom themes make disabled text unreadable. Graph arrows have
+  stronger contrast. `EditorNavigation.kt` and `ReportExport.kt` own platform actions.
 
-old_project/ is the previous working IntelliJ plugin kept as read-only reference. Never
-modify it. Tests read its old_project/test-samples fixtures.
+## Contracts and resolved decisions
 
----
+1. Never execute analyzed scripts, fetch their remote resources, or upload source during
+   scanning. Unscanned/out-of-root targets must not silently become trusted inputs.
+2. Scanner changes belong in **both Kotlin and TypeScript**, with parity preserved for
+   verdicts, findings, active blockers and fingerprints. Keep rule behavior aligned too.
+3. Rule IDs are immutable keys: add new ones, never renumber. Fingerprints use the first
+   24 hex characters of SHA-256 over `ruleId + NUL + slash-normalized path + NUL + trimmed
+   evidence`. Changing normalization invalidates baselines. Preserve ignore-marker stripping.
+4. Repository-shipped `wrapperguard:ignore` markers and baselines are untrusted and must
+   not automatically suppress findings. Approved fingerprints live outside the repository
+   (VS Code global storage or an explicitly supplied CLI baseline). VS Code Suppress adds
+   the inert marker and trusted fingerprint; Restore removes the trusted baseline entry.
+5. CLI exit **2 means a successful scan with blockers**, not a scanner failure. Consumers
+   must parse stdout on exit 2. Default CLI mode is Warn; `--enforce` enables blocking.
+6. Enforcement is based on ACTIVE findings with policy action BLOCK. Preserve the intended
+   INFO/audit-never-blocks invariant and never allow ML to influence enforcement.
+7. Credential evidence is redacted in both scanners and sanitized again on export. Do not
+   log raw credentials, tokens, or complete environment variables.
+8. Core, rules and CLI must remain free of `com.intellij` imports. UI ordering/filtering
+   must not change report contents or fingerprints.
+9. Wrapper-JAR escalation uses a configured non-empty trusted checksum list. Without one,
+   the hash observation remains informational. IntelliJ baseline approval UI is future work.
+10. Preserve local-only publication, the in-process TypeScript port, and `old_project/` as
+    read-only. These decisions do not need another approval round.
 
-## 2. Module map (current)
+## Build and verification
 
-### wrapperguard-core (pure Kotlin, NO IntelliJ imports — enforced)
-- model/Models.kt — Finding, ScanReport (verdict/findings/edges/notices + blockers/
-  warnings/auditEvidence helpers), BaselineEntry, enums incl. all 7 verdicts.
-- policy/ScanPolicy.kt — actionFor(): AUDIT→REVIEW; ENFORCE→reachable ERRORs +
-  blockedRuleIds→BLOCK; INFO never blocks.
-- policy/ScanSettings.kt — allowlists, blockedCommands, maxScriptDepth, maxFileBytes,
-  requireDistributionSha256, knownSafeRepositoryHosts, trustedWrapperChecksums,
-  maxLineLength, maxFilesPerScan, maxDirectoryDepth.
-- spi/ScannerApi.kt — Rule, ScannerEngine (scan with baseline param), ScriptReference,
-  MlScorer/NoopMlScorer (intentionally inactive — ML BLOCKED, see §7).
-- util/Fingerprints.kt — SHA-256 24-char stable fingerprints (baselines depend on them).
-- util/CredentialRedaction.kt — masks secret assignments, auth headers, URL userinfo,
-  credentials{} blocks; idempotent.
-- util/UrlAllowlist.kt — host + regex allowlist, subdomain-aware.
-- export/SarifExporter.kt — SARIF 2.1.0 export.
+Run from the repository root:
 
-### wrapperguard-rules (pure Kotlin, NO IntelliJ imports)
-- RuleIds.kt — 46 stable rule IDs (WG-SCRIPT-*, WG-WRAPPER-*, WG-BUILD-*, WG-CATALOG-*,
-  WG-STRUCT-*, WG-SCAN-*). Canonical keys for policy/baselines. Never renumber.
-- ScriptRules.kt — shell/bat/ps1 per-line engine. SUPPRESSION MODEL: repo-shipped
-  wrapperguard:ignore markers are UNTRUSTED — findings are still emitted; the marker is
-  stripped from line-level evidence so fingerprints stay stable when the user later
-  approves. Only a trusted external baseline suppresses.
-- WrapperPropertiesRules.kt, BuildScriptRules.kt (repo decision tree, remote apply, exec,
-  network, dynamic code, credentials redacted, unstable deps, init scripts),
-  VersionCatalogRules.kt, ProjectStructureAnalyzer.kt (wrapper-JAR SHA-256 observation +
-  WG-WRAPPER-007 escalation when a trusted checksum list is configured),
-  FileTypeRouter.kt, CalledScriptsResolver.kt, SafePathResolver.kt (root-containment).
-- RepositoryScanner.kt — DFS with cycle detection + memoization, deterministic sorted walk,
-  trusted-baseline application, hostile-input hardening (UTF-16/BOM decode, null-byte
-  rejection, oversized-line skip, depth/file caps). Excludes .git .gradle .idea build out
-  .intellijPlatform .kotlin node_modules.
-- Tests: RepositoryScannerTest (13), BaselineSuppressionTest (1), WrapperJarEscalationTest
-  (3), HostileInputTest (5), UntrustedSuppressionTest (3).
+```sh
+./gradlew build :wrapperguard-intellij:verifyPlugin
+./gradlew :wrapperguard-cli:installDist
+cd vscode-extension
+npm ci
+npm test
+npm run parity
+npm run hardening
+```
 
-### wrapperguard-cli
-- Main.kt — args: [path] --json --enforce --baseline <file> --sarif. Default WARN (exit 0);
-  --enforce exit 2 only when ACTIVE BLOCK findings remain. --sarif prints SARIF instead of
-  the report. Missing baseline file = no suppressions (not an error).
+These are required gates for implementation work. Parity requires a built CLI distribution
+and compiled TypeScript. The default fixtures are `/tmp/wg-demo`, `old_project/test-samples`,
+and the repository root. **Missing fixtures are skipped**, so report the actual coverage;
+a zero exit code does not prove all fixtures ran. `/tmp/wg-demo` is currently missing.
+`old_project/test-samples` exists locally but is git-ignored: regression tests depend on it;
+do not assume an ordinary fresh checkout or CI has that fixture directory.
 
-### wrapperguard-intellij (Jewel/Compose; Swing only at the platform boundary)
-- WrapperGuardProjectService.kt — single-flight scan/scanAsync, STALE state, content-hash
-  seal (computeSeal), watched-file hashing, debounced rescan, publishExternalReport.
-- WrapperGuardVfsListener.kt — BulkFileListener; watched files: gradlew, gradlew.bat,
-  gradle-wrapper.properties, gradle-wrapper.jar, libs.versions.toml, *.gradle(.kts), *.sh,
-  *.bat, *.cmd, *.ps1. Marks STALE immediately; rescan debounced 3 s.
-- WrapperGuardStartupActivity.kt — scan on open (no smart-mode wait), VFS listener,
-  before-run back-fill into EXISTING run configs, Gradle-sync gate (ProjectDataImport-
-  Listener post-import ENFORCE re-validation), Trusted Projects listener (rescan on trust
-  change). Note: sync launches themselves are guarded because they run through an
-  ExternalSystemRunConfiguration covered by the before-run provider.
-- execution/WrapperGuardBeforeRunTaskProvider.kt — run guard: saveAllDocuments, ENFORCE
-  scan, TOCTOU seal (before/after watched-file hashes, one retry, synthetic WG-SCAN-TOCTOU
-  blocker if still churning), blocks only on ACTIVE BLOCK findings, scanner failure fails
-  OPEN, ExecutionBlockedDialog with Run Once / Cancel / Review Blockers. isApplicable is a
-  companion function; the dialog seam is protected open fun askUserToRunOnce (tests override).
-- settings/ — WrapperGuardSettings (persisted wrapperguard.xml: allowed hosts text, checksum
-  requirement, scan toggles) + WrapperGuardConfigurable (Settings → Tools → WrapperGuard).
-  buildScanSettings() merges user settings over defaults for every scan.
-- ui/ — WrapperGuardApp (custom TabBar + scan-state banners), OverviewTab, FindingsTab
-  (search, severity/policy segments, category chips, detail inspector), ExecutionGraphTab
-  (LAYERED CALL-GRAPH CANVAS: barycenter layout, bezier edges with arrowheads, red dashed
-  blocker hops with line labels, dot-grid background, clickable node cards with entry/
-  category chips and suspicious badges, detached-file chips, risky-path explorer),
-  PolicyTab, WgTheme, EditorNavigation, ReportExport (sanitizes evidence on export).
-- plugin.xml — depends com.intellij.modules.platform, com.intellij.modules.compose (needs
-  252+), com.intellij.gradle; registers projectService, applicationService, application-
-  Configurable, toolWindow, postStartupActivity, beforeRunTaskProvider.
-- Tests: GuardSmokeTest (3: malicious blocks + dialog requested + redacted evidence; clean
-  passes; back-fill) and FileChangeRescanTest (3: stale→rescan, unchanged-content restore,
-  wrapper-jar watched + TOCTOU report).
+Useful commands from the repository root:
 
-### vscode-extension (npm/tsc, NOT a Gradle module)
-- src/scanner/ — the complete TypeScript port (models, policy, fingerprints, redaction,
-  URL allowlist, script/build/wrapper-props/catalog/structure rules, called-scripts,
-  safe-path, repository scanner, baseline, SARIF). In-process, no CLI, no cliPath setting.
-- src/webviewUi.ts — the whole web app (app bar, tabs, verdict pill, summary card,
-  overview tiles, searchable grouped findings + detail pane, execution graph canvas with
-  zoom/fit/search/hover-tracing, policy pane, status footer). One big template literal —
-  client JS must be plain ES5-style (no TS types), and there is a delivered-script syntax
-  check (see §8 traps).
-- src/extension.ts — state machine (not-scanned/scanning/scanned/failed), status bar with
-  verdict colors, scan-on-open, suppress (marker + trusted baseline), baseline/restore,
-  JSON + SARIF export, webview error logging to Output channel "WrapperGuard".
-- tests/ — 19 node:test tests (redaction, fingerprints, policy, scanner integration).
-- scripts/parity.js + scripts/hardening.js — cross-scanner gates (see §3).
+```sh
+./gradlew :wrapperguard-intellij:runIde
+./gradlew :wrapperguard-intellij:buildPlugin
+wrapperguard-cli/build/install/wrapperguard-cli/bin/wrapperguard-cli <project> --json --enforce
+wrapperguard-cli/build/install/wrapperguard-cli/bin/wrapperguard-cli <project> --sarif --baseline <trusted-file>
+```
 
-### schema/ — wrapperguard-report.schema.json (draft 2020-12) + sample. CLI JSON validates.
+Package VS Code from `vscode-extension/` with `npx @vscode/vsce package`.
+Close the **runIde sandbox** before buildPlugin/buildSearchableOptions/verifyPlugin; those
+operations can conflict over the same sandbox lock. Close Android Studio before replacing
+its installed plugin. Keep a backup and verify the installed JARs match the new zip.
 
----
+| Toolchain | Repository pin |
+|---|---|
+| Gradle wrapper | 9.1.0 |
+| Kotlin / Compose compiler | 2.2.20 |
+| IntelliJ Platform Gradle plugin | 2.11.0 |
+| Development/verifier IDE | IntelliJ IDEA 2025.3 |
+| Plugin minimum build | 252; do not confuse this with the development SDK version |
+| JVM toolchain | 21 |
+| kotlinx serialization JSON | 1.8.0 |
+| VS Code API | ^1.95.0 |
+| TypeScript / Node types | ^5.7.0 / ^22.0.0; lockfile resolves dependencies, CI uses Node 22 |
 
-## 3. Build, test, verify (macOS, this machine)
+Use `composeUI()` in `intellijPlatform` dependencies and the platform Compose module;
+do not replace these with independent Jewel artifacts. Pure Kotlin modules explicitly
+include stdlib because `kotlin.stdlib.default.dependency=false` is set globally.
+On the last validated machine the system JDK was 26 while Gradle used Android Studio's
+JBR 21. That daemon choice is machine-local, not pinned in repository `gradle.properties`.
+Use JDK 21 when setting up another machine.
 
-    cd /Users/salehalanazi/Documents/wrappppper/wrapperguard-next-starter
+## Last validation evidence — 2026-09-08
 
-    ./gradlew build                                   # all modules + all Kotlin tests
-    ./gradlew :wrapperguard-rules:test                # 25 tests
-    ./gradlew :wrapperguard-intellij:test             # 6 tests
-    ./gradlew :wrapperguard-intellij:runIde           # IDEA 2025.3 sandbox
-    ./gradlew :wrapperguard-intellij:runIde --args="/tmp/wg-demo"
-    ./gradlew :wrapperguard-intellij:buildPlugin      # zip under build/distributions/
-    ./gradlew :wrapperguard-intellij:verifyPlugin     # binary-compat vs IU-2025.3 (~1-4 min)
-    ./gradlew :wrapperguard-cli:installDist           # then run
-    wrapperguard-cli/build/install/wrapperguard-cli/bin/wrapperguard-cli old_project/test-samples --json --enforce
+- `./gradlew build :wrapperguard-intellij:verifyPlugin` passed. Verifier: compatible with
+  IU-253.28294.334; 4 deprecated and 21 experimental API usages. Android Studio was checked
+  by live installation, not this verifier configuration.
+- Kotlin tests: core **9**, rules **25**, IntelliJ **13**, no failures. IntelliJ coverage:
+  guard 3, rescan/lifecycle 4, presentation 6. The rebuild added busy/completion state,
+  stale status, active-only scopes, numeric line/priority ordering, multi-term search and
+  rootless-cycle coverage.
+- Node tests **19/19**, hardening **5/5**. Parity matched on `old_project/test-samples` and
+  repository root; `/tmp/wg-demo` was missing and skipped. Do not claim three-fixture coverage.
+- Live Android Studio Quail 1 | 2026.1.1 Patch 2: wide split view and narrow list/detail,
+  built-in Light and [Legacy] Gerry Violet, Summary-to-Findings links, search, sorting with
+  selection retained, graph/file/finding navigation, Policy and real settings opening.
+  Open in editor landed at `scripts/post-install.sh`, line 3, column 1.
+- Fixed secondary-text and graph-arrow contrast during that pass; rebuilt, verified,
+  reinstalled and visually checked. All eight installed JARs matched the final zip.
+- The static fixture was opened in Safe Mode; no scripts were executed or trusted.
+  The safe-mode configuration notice came from the IDE. Original theme and 1183×768 window
+  size were restored. This was a focused smoke pass, not exhaustive keyboard/accessibility
+  testing, every error/cancellation state, or owner aesthetic acceptance.
 
-    cd vscode-extension
-    npm ci && npm test        # 19 tests (node:test, zero extra deps)
-    npm run parity            # TS scanner vs Kotlin CLI — MUST show PARITY OK, zero diffs
-    npm run hardening         # 5 hostile-input checks
-    npx @vscode/vsce package  # .vsix artifact
+Installation used:
+`~/Library/Application Support/Google/AndroidStudio2026.1.1/plugins/wrapperguard`.
+The paths below still existed on 2026-09-13 but are temporary and may disappear:
 
-JAVA_HOME: the system JDK is 26; the Gradle daemon already runs on Android Studio's JBR 21
-via org.gradle.java.home, and the Kotlin toolchain (21) resolves on its own. No manual
-export is needed on this machine; on a fresh machine, point JAVA_HOME at any JDK 21.
+- Preview: `/var/folders/l4/mpjkp4sj575bvf9qp_lfwgrm0000gn/T/wg-ui-preview-pww143bc`.
+- Previous plugin backup: `/var/folders/l4/mpjkp4sj575bvf9qp_lfwgrm0000gn/T/wg-plugin-backup-cd11h8vk/wrapperguard`.
 
-NOTE: buildPlugin/buildSearchableOptions/verifyPlugin fail with "Only one instance of IDEA
-can be run at a time" while a runIde sandbox is open — close the sandbox IDE first.
+The prior IDE session was left on Summary. Do not assume that window or installation is
+still unchanged without inspecting it. Preview scripts are scanner inputs only.
 
-Validate CLI JSON: python3 jsonschema against schema/wrapperguard-report.schema.json.
+## Implementation traps
 
----
+- Keep the `JPanel(BorderLayout)` host in `WrapperGuardToolWindowFactory`; removing it
+  can squeeze the Compose tool window to intrinsic width.
+- Construct `JewelComposePanel(config = { }, content = { ... })` with named arguments to
+  avoid the deprecated boolean overload. `JewelTheme.isDark` is a property.
+- Use bounded constraints for `Modifier.weight`; scroll parents can make them unbounded.
+  Resolve composable theme colors before entering a Canvas draw lambda.
+- Keep platform-adaptive native controls. The removed HTML mockups are not implementation
+  requirements; do not restore the previous UI or fake metrics to match them.
+- `webviewUi.ts` embeds client JavaScript in a TypeScript template literal. After edits,
+  evaluate the delivered template, extract the script and run `node --check` on it. TypeScript
+  compilation alone cannot catch emitted-script escaping errors or leaked type annotations.
+- Escape backslashes/backticks/interpolation carefully across shell, JavaScript template,
+  and Kotlin raw-string layers. Read a file before editing; avoid blind string replacement.
+- `RegExp.exec()` without the global flag repeats the same match in a loop. Non-global
+  `String.replace()` replaces only the first match; Kotlin findAll/replace semantics differ.
+- SVG presentation attributes cannot reliably use CSS `var()` values; use CSS stroke/fill
+  classes and `context-stroke` for markers where appropriate.
+- Node execFile throws for CLI exit 2: preserve and parse stdout for the blocker report.
 
-## 4. Contracts that MUST NOT break
+## Remaining work
 
-1. Parity gate. Scanner changes go into BOTH wrapperguard-rules (Kotlin) and
-   vscode-extension/src/scanner (TS). npm run parity must stay PARITY OK (same verdicts,
-   finding counts, blockers, per-rule counts, and every fingerprint). The parity fixtures
-   are /tmp/wg-demo, old_project/test-samples, and the repo root.
-2. Fingerprint stability. Fingerprints are SHA-256(ruleId + NUL + path-with-slash + NUL +
-   trimmed evidence).slice(24). They are the keys for baselines/suppression — changing the
-   normalization invalidates users' baselines. Keep the ignore-marker stripping in
-   ScriptRules (both sides) so fingerprints are stable before/after suppression.
-3. Rule IDs are immutable keys. Add new ones, never renumber.
-4. Trust model: repo-shipped wrapperguard:ignore and .wrapperguard-baseline.json are
-   UNTRUSTED. Only baselines from outside the repo (VS Code global storage, CLI --baseline,
-   user/org config) suppress. A malicious repo must not be able to suppress its own payload.
-5. Exit code semantics: CLI exit 2 = blockers present = a SUCCESSFUL scan (consumers must
-   parse stdout on exit 2 — see the VS Code history for the bug this caused).
-6. INFO/audit evidence never blocks; ML never blocks (ML is BLOCKED — do not implement).
-7. Core/rules/CLI must not import com.intellij (there is a test asserting the SPI package
-   name). VS Code client JS must remain valid ES5-style (see delivered-script check).
-8. old_project/ is read-only. .DS_Store and *.zip are ignored; don't commit artifacts.
+- Decide user-level Gradle init-script scope (`~/.gradle/init.gradle`, `~/.gradle/init.d/`).
+  This is the unresolved product decision; do not infer permission to scan the user's home.
+- Finish explicit trust-state/pre-import protection behavior. Trust-change rescanning is
+  implemented, but it is not proof that every import path is intercepted before execution.
+- Audit multi-module/root containment, external calls, and exclusions such as `target`,
+  `dist`, `.cache`; root scanning and some exclusions already exist. Add focused coverage
+  where needed rather than reimplementing the completed scanner.
+- Expand the execution seal to policy/baseline/version inputs if required. Review configurable
+  policy edge cases against the INFO-never-blocks contract; the current file seal does not
+  by itself establish every intended security invariant.
+- IntelliJ trusted-baseline approval/restore UI and an explicit policy for internally approved
+  custom wrappers. Existing checksum support is not a full custom-wrapper management flow.
+- Further accessibility/keyboard and error-state visual checks; address owner feedback on
+  the rebuilt UI. The automated and visual checks above do not establish universal usability.
+- Parser-aware PowerShell/Bash adapters, rule packs/community SDK, and a local multi-project
+  console remain future work. Both IDE surfaces already have graph canvases.
+- Before publishing, make regression fixtures available to a clean checkout/CI without
+  including the read-only old project. Publishing remains the owner's decision.
 
----
+### Research boundary — blocked
 
-## 5. Toolchain pins (do not drift casually)
-
-| What | Value | Why |
-|---|---|---|
-| Kotlin | 2.2.20 | matches IPGP 2.11 expectations |
-| org.jetbrains.intellij.platform | 2.11.0 | 2.16.0 injects a compose-compiler option Kotlin rejects |
-| Platform SDK | intellijIdea("2025.3") | com.intellij.modules.compose requires 2025.3+ |
-| sinceBuild | 252 | same reason |
-| Compose dep | composeUI() inside dependencies{intellijPlatform{}} | official pattern; do NOT use bundledModule(intellij.platform.compose) or standalone jewel artifacts |
-| Gradle | 9.1.0 wrapper | — |
-| JVM toolchain | 21 | — |
-| kotlinx-serialization-json | 1.8.0 | declared where used (does not leak transitively) |
-| kotlin.stdlib.default.dependency=false | global | pure modules must declare implementation(kotlin("stdlib")) |
-| VS Code | typescript 5.x, @types/vscode ^1.95, node >= 22, no runtime deps | node:test built-in runner |
-
----
-
-## 6. Jewel/Compose gotchas (current, verified)
-
-1. Width squeeze: mount the compose panel inside a JPanel(BorderLayout) wrapper
-   (WrapperGuardToolWindowFactory) or the tool window shrinks to intrinsic width. KEEP IT.
-2. JewelComposePanel in 2025.3: use NAMED arguments —
-   JewelComposePanel(config = { }, content = { ... }). There is a deprecated
-   focusOnClickInside boolean overload; don't call positionally with two lambdas.
-3. JewelTheme.isDark is a Boolean PROPERTY, not a function.
-4. Custom TabBar in WrapperGuardApp is the design-accurate approach; don't switch to
-   TabStrip/TabStripState.
-5. No return inside @Composable lambdas; use if/else.
-6. Modifier.weight only inside Row/Column with bounded constraints (watch scroll parents).
-7. Theme tokens: JewelTheme.globalColors.{text{normal,disabled,info,error,warning},
-   panelBackground, toolwindowBackground, borders.normal}; severity/verdict mapping in
-   WgTheme.kt.
-8. Bundle jars for API inspection:
-   ~/.gradle/caches/.../idea-2025.3-aarch64/lib/modules/intellij.platform.jewel.*.jar
-9. SVG inside webviews: CSS var() is INVALID in SVG attributes (falls back to black). Use
-   CSS classes for stroke/fill and fill="context-stroke" for markers (see the graph fix
-   history). Canvas draw-scope colors must be resolved OUTSIDE the Canvas draw lambda
-   (theme helpers are @Composable).
-
----
-
-## 7. Behavioral decisions made (deliberate, keep)
-
-- Stable rule IDs replace message-string identification.
-- Run guard blocks ONLY on ACTIVE BLOCK findings (ENFORCE); scanner exceptions fail OPEN.
-- TOCTOU seal: save all documents, hash watched files before/after the scan, one retry,
-  then a synthetic WG-SCAN-TOCTOU blocker.
-- Untrusted suppression (§4.4). Suppress actions (VS Code) write the inline marker AND
-  add the fingerprint to the trusted baseline in one click; Restore removes the baseline
-  entry (the marker stays — it is inert anyway).
-- Wrapper-JAR escalation only when trustedWrapperChecksums is non-empty (unconfigured
-  users keep the INFO observation).
-- Credential evidence is redacted at creation (both scanners) and again on JSON export.
-- VS Code scans in ENFORCE mode (matches the guard policy); settings
-  wrapperGuard.{scanOnOpen,allowedHosts,blockedCommands,requireDistributionSha256}.
-- Auto-scan on open + on first tool-window open; single-flight scan generation.
-- old_project is not part of the build; its test-samples are parity/regression fixtures.
-
----
-
-## 8. Traps that cost hours (agent-facing, read carefully)
-
-1. Template-literal escaping when writing files: backticks terminate the literal; dollar-
-   brace sequences interpolate; \1 \u0000 \n get processed. Prefer the write tool with
-   String.raw (still interpolates dollar-brace — avoid it), or double every backslash.
-   Kotlin raw strings need SINGLE backslashes in the file (heredocs are verbatim, run_code
-   template literals are NOT).
-2. The webview: the delivered inline script differs from the TS source (template escapes
-   processed once). After editing webviewUi.ts, ALWAYS run the delivered-script check:
-   evaluate the template, extract the script tag, node --check it. Type annotations leaked
-   into the client JS and backslash escapes breaking the delivered script are the two bugs
-   that shipped this way.
-3. JS regex iteration: String.prototype.exec on a NON-global regex returns the same match
-   forever (infinite loop); String.replace with a non-global regex replaces only the FIRST
-   match. Kotlin's Regex.replace/findAll replace/find ALL — port accordingly (this caused
-   the "apiKey not redacted" parity bug).
-4. The edit tool requires a fresh read of the file (read → edit → write sequence) and
-   aborts whole multi-edit programs on one mismatch — apply edits one at a time or use
-   python splices for fragile content.
-5. buildSearchableOptions/buildPlugin/verifyPlugin lock the sandbox (close runIde first).
-6. Exit code 2 is success (blockers found) — node execFile throws on it; catch and parse
-   e.stdout.
-7. Screen capture on macOS needs Screen Recording permission; the owner runs visual passes
-   themselves — do not block on screenshots.
-8. Gradle configuration cache is enabled; after touching build scripts a plain
-   ./gradlew ... handles invalidation, but weird staleness is usually fixed by
-   ./gradlew --stop or deleting .gradle.
-
----
-
-## 9. Verified vs NOT verified (be honest)
-
-VERIFIED: full clean build green; core 9 / rules 25 / intellij 6 / node 19 tests green;
-parity 3/3 fixtures zero-diff; hardening 5/5; Plugin Verifier Compatible with IU-2025.3;
-CLI JSON + SARIF output validated; plugin zip + .vsix packaged; zip installed into Android
-Studio 2026.1.1; sandbox IDE launched with the plugin loaded (log line "Loaded custom
-plugins: WrapperGuard"); VS Code extension runs in the Extension Development Host.
-
-NOT verified (human steps, owned by the project owner):
-1. Final visual pass verdict on the IntelliJ UI batch (tabs/canvas/settings) — sandbox
-   ready via runIde --args="/tmp/wg-demo".
-2. Android Studio launch with the installed zip (AS 2026.1.1, build 261 >= sinceBuild 252).
-3. Light/dark toggle across all tabs (semantic tokens assumed adaptive).
-
----
-
-## 10. Decisions already made by the owner (do not re-ask)
-
-- License: Apache-2.0 (done).
-- old_project/: excluded from the published repo, kept locally (git-ignored).
-- Repo: local-only for now — NO push/release/Marketplace yet; make public after the guard
-  work lands (it has landed; publishing is the owner's call).
-- VS Code: full scanner migration into TypeScript (in-process), parity-locked.
-- Android Studio: zip installed into the AS plugins dir (refresh by re-running the unzip in
-  §3 into ~/Library/Application Support/Google/AndroidStudio2026.1.1/plugins/wrapperguard).
-- Marketplace: later, not now.
-
-OPEN question still unanswered: whether user-level Gradle init scripts (~/.gradle/init.d)
-are in scan scope (BACKLOG §8).
-
----
-
-## 11. Remaining work (small — see BACKLOG.md)
-
-- Parser-aware PowerShell/Bash AST adapters (replace regex where practical).
-- IntelliJ baseline-approval UI (VS Code already has one).
-- Visual acceptance of the rebuilt IntelliJ UI (see unreleased section).
-- Rule packs / community rule SDK.
-- Marketplace publish + repo push (owner's call).
-- ML/PowerShell detector: BLOCKED until the researcher delivers the follow-up paper +
-  artifacts + integration guidance. Keep only the inactive MlScorer/NoopMlScorer seam.
-
----
-
-## 12. Environment quirks
-
-- macOS aarch64. System JDK 26; Gradle daemon uses Android Studio's JBR 21.
-- /tmp/wg-demo is the demo project for UI and parity; recreate with the fixture in the
-  repo history if missing (gradlew -> scripts/bootstrap.sh -> scripts/post-install.sh plus a
-  malicious build.gradle).
-- design_reference/*/screen.png are renders of the sibling code.html — visual acceptance
-  references. Dashboard page is OUT of scope.
-- Duplicate IC SDK transforms in ~/.gradle/caches/9.1.0/transforms can eat ~3 GB each;
-  safe to delete duplicates if disk space is needed.
-- wrapperguard-next-starter.zip in the parent folder is an old snapshot — ignore.
+Do not implement, approximate, reproduce, reverse-engineer or train MPSAutodetect or its
+follow-up. Wait for the researcher to supply the paper, model artifacts, preprocessing
+specification, dataset/licensing guidance and direct integration instructions in the repo.
+Do not invent weights, thresholds, datasets, or performance claims; do not add Python ML
+runtimes, SdA/XGBoost/ONNX models or ML blocking now. Keep deterministic scanning as the only
+active detector, with `MlScorer`/`NoopMlScorer` inactive. ML output must not affect verdicts,
+policy, severity or execution blocking. Any later authorized detector starts as a separate,
+local, optional PowerShell shadow signal with model version/confidence and can be disabled
+without changing deterministic scanning.

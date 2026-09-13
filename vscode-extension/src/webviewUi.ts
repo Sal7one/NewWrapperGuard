@@ -36,8 +36,7 @@ function getNonce(): string {
 }
 
 /**
- * The WrapperGuard sidebar as a real web app, following design_reference/
- * vs_code_finding_details and intellij_plugin_overview: app bar, editor-style tabs,
+ * The WrapperGuard sidebar as a web app: app bar, editor-style tabs,
  * verdict pill + summary card, searchable grouped findings with a syntax-highlighted
  * evidence snippet and full finding detail, execution graph, policy pane, and a
  * status footer with blocker chip.

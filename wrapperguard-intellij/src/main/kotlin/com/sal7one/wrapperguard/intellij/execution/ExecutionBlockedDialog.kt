@@ -17,9 +17,9 @@ import javax.swing.JLabel
 import javax.swing.JPanel
 
 /**
- * Modal shown by the run guard when policy-selected findings block a run. Matches
- * `design_reference/execution_blocked_dialog`: header, the intercepted command, the
- * policy-violation list (rule id + title, evidence in mono, location), the assurance
+ * Modal shown by the run guard when policy-selected findings block a run. Shows
+ * the header, the intercepted command, the policy-violation list (rule id + title,
+ * evidence in mono, location), the assurance
  * line, and Cancel / Run Once / Review Blockers actions.
  *
  * OK ("Run Once") = user explicitly accepts the risk; anything else blocks the run.

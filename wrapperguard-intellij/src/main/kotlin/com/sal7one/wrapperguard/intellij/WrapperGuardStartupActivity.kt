@@ -12,16 +12,14 @@ import com.sal7one.wrapperguard.intellij.execution.runGuardScan
 
 /**
  * Scans the project as early as possible after open. The scanner is pure text analysis
- * (no PSI/index dependency), so this intentionally does NOT wait for smart mode — per the
- * backlog's security-first ordering, WrapperGuard must establish its verdict before the user
- * (or another plugin) can trigger a build, sync, or run.
+ * (no PSI/index dependency), so this intentionally does NOT wait for smart mode.
  *
  * Also wires the file-change watcher (mark STALE immediately, debounced rescan) and back-fills
  * the before-run guard task into run configurations that predate the plugin installation.
  *
- * Honest limitation (documented in BACKLOG.md): this runs post-startup, so it cannot retro-
- * actively stop a Gradle sync that was already in flight when the project opened. The sync
- * gate (planned) closes that window further.
+ * Honest limitation (documented in HANDOVER.md): this runs post-startup, so it cannot
+ * retroactively stop a Gradle sync already in flight. Before-run interception and
+ * post-import revalidation complement startup scanning.
  */
 class WrapperGuardStartupActivity : ProjectActivity {
     override suspend fun execute(project: Project) {

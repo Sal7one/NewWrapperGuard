@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Consolidate engineering state, contracts, validation and remaining work in HANDOVER.md; remove superseded briefs, duplicate notes and old UI mockups.
 - Rebuild the IntelliJ tool window: compact toolbar, actual scan summaries, responsive findings browser with persistent filters and selection, and selectable evidence.
 - Execution graph: retain cyclic/disconnected call chains, bound scrolling, provide a file-list fallback and link file findings to their inspector.
 - Fix scan progress/failure/cancellation display, stale-status handling, saved Policy settings, summary navigation, and reversed theme fallback colors.

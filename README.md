@@ -21,7 +21,7 @@ commands, and unsafe repository/network configuration — **without ever executi
 
 ```text
                    shared scanner (Kotlin: core + rules)
-                   deterministic regex/recursive engine, 47 stable rule IDs
+                   deterministic regex/recursive engine, 46 stable rule IDs
                                   │
           ┌───────────────────────┼───────────────────────────┐
           │                       │                           │
@@ -39,8 +39,8 @@ commands, and unsafe repository/network configuration — **without ever executi
 - **Never execute analyzed scripts** — analysis is pure text.
 - **Repo content may tighten but never silently weaken your policy** — repo-shipped
   `wrapperguard:ignore` markers and baselines are *untrusted* until you approve the finding.
-  Your approvals live **outside the repository** (VS Code global storage, CLI `--baseline`,
-  IDE baselines).
+  Your approvals live **outside the repository** in VS Code global storage or an explicitly
+  supplied CLI baseline. IntelliJ approval UI is planned.
 - **Enforcement is policy-driven** — only actionable findings at severity ≥ ERROR block
   (ENFORCE); INFO/audit evidence never blocks. Unknown wrapper JARs escalate to blockers
   when you configure a trusted checksum list.
@@ -52,13 +52,12 @@ commands, and unsafe repository/network configuration — **without ever executi
 
 ```text
 wrapperguard-core/      models, policy, fingerprints, redaction, SARIF, scanner SPI
-wrapperguard-rules/     47 deterministic rules + recursive call-chain scanner + baselines
+wrapperguard-rules/     46 stable rule IDs + recursive call-chain scanner + baselines
 wrapperguard-cli/       CLI entry point (JSON/SARIF/baseline)
 wrapperguard-intellij/  IntelliJ/AS plugin — Compose tool window, run guard, sync gate, settings
 vscode-extension/       VS Code extension + full TypeScript scanner port + tests
 schema/                 JSON Schema + sample report
-design_reference/       design mockups for all surfaces
-docs/                   component notes + research integration boundary
+HANDOVER.md             engineering state, contracts, validation and remaining work
 ```
 
 ## Build & verify
@@ -80,17 +79,19 @@ npx @vscode/vsce package              # .vsix artifact
 CLI: `./gradlew :wrapperguard-cli:installDist` then
 `wrapperguard-cli/build/install/wrapperguard-cli/bin/wrapperguard-cli --json --enforce <project>`.
 
-## Screenshots
+## Engineering handover
 
-*(Sandbox run: `./gradlew :wrapperguard-intellij:runIde --args="/tmp/wg-demo"` — the tool
-window auto-opens in the dev sandbox. VS Code: run the Extension Development Host.)*
+Read [HANDOVER.md](HANDOVER.md) before changing the scanner or IDE integration. It records
+the rebuilt IntelliJ UI, verification evidence, security contracts, toolchain and remaining
+work. The IntelliJ tool window now uses Summary / Findings / Execution / Policy tabs,
+with responsive findings list/detail navigation. The VS Code interface remains separate.
 
 ## Roadmap
 
 - Parser-aware PowerShell/Bash AST adapters, IntelliJ baseline-approval UI, rule-pack SDK.
 - Optional research-backed PowerShell detector — **shadow mode only, never blocks by itself**
-  (see `docs/MPSAUTODETECT.md`; deliberately unimplemented until the researcher provides
-  integration guidance).
+  (see the [research boundary](HANDOVER.md#research-boundary--blocked); deliberately
+  unimplemented until the researcher provides integration guidance).
 
 ## License
 
