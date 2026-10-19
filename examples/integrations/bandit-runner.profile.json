@@ -1,0 +1,15 @@
+{
+  "id": "python.bandit",
+  "displayName": "Bandit Python SAST",
+  "version": "0.1.0",
+  "analysisKind": "SAST",
+  "format": "bandit",
+  "runner": {
+    "tool": "bandit",
+    "executable": "/absolute/trusted-scanner-environment/bin/bandit",
+    "timeoutMs": 30000,
+    "maxOutputBytes": 16777216
+  },
+  "allowedOperations": ["SCAN"],
+  "requestedActions": ["WARNING"]
+}

@@ -1,0 +1,14 @@
+{
+  "id": "dast.zap",
+  "displayName": "Scoped ZAP report",
+  "version": "0.1.0",
+  "analysisKind": "DAST",
+  "format": "zap",
+  "reportPath": "/absolute/user-reports/zap.json",
+  "targetScope": {
+    "origins": ["https://owned-application.example.invalid"],
+    "pathPrefixes": ["/app"]
+  },
+  "allowedOperations": ["SCAN"],
+  "requestedActions": ["WARNING"]
+}

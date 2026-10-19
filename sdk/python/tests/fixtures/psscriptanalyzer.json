@@ -1,0 +1,19 @@
+[
+  {
+    "Message": "Synthetic PowerShell configuration warning.",
+    "RuleName": "PSFakeFixture",
+    "Severity": "Warning",
+    "ScriptPath": "scripts/setup.ps1",
+    "Extent": {
+      "File": "scripts/setup.ps1",
+      "StartLineNumber": 4,
+      "StartColumnNumber": 1,
+      "Text": "FAKE_PS_SOURCE_SECRET"
+    },
+    "SuggestedCorrections": [
+      {
+        "Text": "FAKE_PS_CORRECTION_SECRET"
+      }
+    ]
+  }
+]

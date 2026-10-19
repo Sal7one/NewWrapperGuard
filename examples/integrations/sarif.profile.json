@@ -1,0 +1,10 @@
+{
+  "id": "sast.sarif",
+  "displayName": "SARIF SAST report",
+  "version": "0.1.0",
+  "analysisKind": "SAST",
+  "format": "sarif",
+  "reportPath": "/absolute/user-reports/sast.sarif",
+  "allowedOperations": ["SCAN"],
+  "requestedActions": ["WARNING"]
+}

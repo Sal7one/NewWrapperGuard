@@ -1,0 +1,37 @@
+{
+  "results": [
+    {
+      "source": {
+        "path": "requirements.txt",
+        "type": "lockfile"
+      },
+      "packages": [
+        {
+          "package": {
+            "name": "fake-fixture",
+            "version": "1.0",
+            "ecosystem": "PyPI"
+          },
+          "vulnerabilities": [
+            {
+              "id": "PYSEC-2099-FAKE",
+              "summary": "Synthetic dependency advisory",
+              "details": "FAKE_OSV_DESCRIPTION_SECRET",
+              "database_specific": {
+                "severity": "HIGH"
+              }
+            }
+          ],
+          "groups": [
+            {
+              "ids": [
+                "PYSEC-2099-FAKE"
+              ],
+              "max_severity": "8.1"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

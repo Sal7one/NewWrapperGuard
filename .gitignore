@@ -10,3 +10,7 @@ node_modules/
 dist/
 *.zip
 *.vsix
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/

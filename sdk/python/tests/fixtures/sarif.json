@@ -1,0 +1,60 @@
+{
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Synthetic SARIF fixture",
+          "rules": [
+            {
+              "id": "FAKE-SAST-1",
+              "shortDescription": {
+                "text": "Synthetic unsafe process call"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              }
+            }
+          ]
+        }
+      },
+      "artifacts": [
+        {
+          "location": {
+            "uri": "src/app.py"
+          }
+        }
+      ],
+      "invocations": [
+        {
+          "executionSuccessful": true
+        }
+      ],
+      "results": [
+        {
+          "ruleId": "FAKE-SAST-1",
+          "level": "error",
+          "message": {
+            "text": "Synthetic process call requires review."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/app.py"
+                },
+                "region": {
+                  "startLine": 3,
+                  "startColumn": 2,
+                  "snippet": {
+                    "text": "FAKE_SARIF_SOURCE_SECRET"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

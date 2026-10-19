@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Add the separately packaged Python integration SDK 0.1.0 for existing provider API 1 hosts.
+- Normalize SARIF, Bandit, PSScriptAnalyzer, Trivy, OSV-Scanner and scoped ZAP reports without executing their source or contacting DAST targets.
+- Require explicit external user profiles, operation selection, review plans, bounded input/output and source-location containment; host action grants remain authoritative.
+- Add a fixed Bandit runner for POSIX hosts using a bounded source snapshot, owned configuration and a cleaned environment; retain host process-group cancellation.
+- Add installed SDK checks through both JVM and TypeScript hosts, real Bandit smoke coverage, profile schema, examples and Python version coverage in CI.
+
 ## 0.4.0 — 2026-10-19
 
 ### Provider platform
