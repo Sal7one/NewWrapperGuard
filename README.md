@@ -50,6 +50,13 @@ action contract, user grants, failures, Kotlin/IntelliJ extensions, VS Code regi
 and the any-language JSON subprocess adapter. A working Python adapter and user
 configuration are in [examples/providers](examples/providers).
 
+The [controlled integration SDK](docs/integrations.md) adds report adapters for SARIF,
+Bandit, PSScriptAnalyzer, Trivy, OSV-Scanner and ZAP. User-owned profiles select inputs,
+operations and requested actions; host grants remain authoritative. A scan plan previews
+the work, and the supported Bandit runner analyzes an isolated source snapshot. ZAP
+reports require explicit target scope. See [the Python SDK](sdk/python/README.md) for
+installation and the distinction between report imports and tool execution.
+
 In IntelliJ/Android Studio use **Settings → Tools → WrapperGuard**. In VS Code use the
 **Policy** tab or WrapperGuard user settings. Existing detector rules and fingerprints
 remain available; disabling the built-in provider does not require replacing the UI.

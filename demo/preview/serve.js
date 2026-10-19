@@ -3,7 +3,7 @@
 const http=require('node:http');
 const fs=require('node:fs');
 const path=require('node:path');
-function servePreview(port=4173,demoRoot=path.resolve(__dirname,'..')) {
+function servePreview(port=4173,demoRoot=path.resolve(__dirname,'..'),host='127.0.0.1') {
   const headers={'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'};
   const root=fs.realpathSync(demoRoot);
   const aliases={'/':'preview/vscode.html','/vscode.html':'preview/vscode.html','/preview/vscode.html':'preview/vscode.html','/index.html':'index.html','/README.md':'README.md','/preview/README.md':'preview/README.md','/screenshots/manifest.json':'screenshots/manifest.json'};
@@ -32,7 +32,11 @@ function servePreview(port=4173,demoRoot=path.resolve(__dirname,'..')) {
     }
     handle().catch(()=>{if(!response.headersSent)reject(500,'Could not load demo resource');else response.destroy();});
   });
-  return new Promise((resolve,reject)=>{server.once('error',reject);server.listen(port,'127.0.0.1',()=>resolve(server));});
+  return new Promise((resolve,reject)=>{server.once('error',reject);server.listen(port,host,()=>resolve(server));});
 }
 module.exports={servePreview};
-if(require.main===module)servePreview(Number(process.argv[2]||4173)).then(server=>console.log('Atlas Payments simulated demo: http://127.0.0.1:'+server.address().port)).catch(error=>{console.error(error.message);process.exitCode=1;});
+if(require.main===module)servePreview(Number(process.argv[2]||4173),undefined,process.argv[3]||'127.0.0.1').then(server=>{
+  const address=server.address();
+  const host=address.address.includes(':')?'['+address.address+']':address.address;
+  console.log('Atlas Payments simulated demo: http://'+host+':'+address.port);
+}).catch(error=>{console.error(error.message);process.exitCode=1;});

@@ -14,7 +14,9 @@ node demo/preview/serve.js
 
 Open `http://127.0.0.1:4173`. The generated `vscode.html` also opens directly as a local file. `?theme=light&tab=findings` selects a theme and tab. Choose findings, search, inspect the execution graph, simulate baseline approval/restore, change demo permissions, export fictional JSON, or reset the demo. All changes stay in the current browser page.
 
-`http://127.0.0.1:4173/index.html` opens the screenshot gallery when `demo/index.html` has been generated. Gallery screenshot links and the demo/preview README links are served by the same loopback server. Only the explicit demo pages, README files and PNG screenshot paths are served; repository files outside this allowlist remain inaccessible.
+To share the demo on your LAN, pass a port and this computer's LAN IP as positional arguments. For example, `node demo/preview/serve.js 4173 192.168.1.20` serves the interactive demo at `http://192.168.1.20:4173` and the gallery at `/index.html`. Open that address from another device on the same network. The default remains loopback-only; the demo file allowlist also applies to LAN serving.
+
+`http://127.0.0.1:4173/index.html` opens the screenshot gallery when `demo/index.html` has been generated. Gallery screenshot links and the demo/preview README links are served by the same server. Only the explicit demo pages, README files and PNG screenshot paths are served; repository files outside this allowlist remain inaccessible.
 
 To regenerate screenshots:
 

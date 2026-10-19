@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wrapperguard.dev/schema/integration-profile-v1.json",
+  "title": "WrapperGuard controlled integration profile",
+  "description": "Explicit user-owned SDK profile stored outside the scanned project. Host action grants remain separate. Path containment and executable checks are enforced at runtime.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "displayName", "version", "analysisKind", "format"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9._-]{0,79}$",
+      "not": {"const": "wrapperguard"}
+    },
+    "displayName": {"type": "string", "minLength": 1, "maxLength": 160},
+    "version": {"type": "string", "minLength": 1, "maxLength": 80},
+    "analysisKind": {"enum": ["SAST", "SCA", "DAST"]},
+    "format": {"enum": ["sarif", "bandit", "psscriptanalyzer", "trivy", "osv", "zap"]},
+    "reportPath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "description": "Absolute path to a JSON report selected by the user. No report location is discovered from repository settings."
+    },
+    "runner": {"$ref": "#/$defs/runner"},
+    "allowedOperations": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "uniqueItems": true,
+      "items": {"enum": ["SCAN", "BUILD", "SYNC"]},
+      "default": ["SCAN"]
+    },
+    "requestedActions": {
+      "type": "array",
+      "maxItems": 5,
+      "uniqueItems": true,
+      "items": {"enum": ["WARNING", "MAJOR_WARNING", "ALERT", "BLOCK_BUILD", "BLOCK_SYNC"]},
+      "default": ["WARNING"],
+      "description": "Requests only; the host intersects these actions with separate user grants."
+    },
+    "targetScope": {"$ref": "#/$defs/targetScope"}
+  },
+  "oneOf": [
+    {"required": ["reportPath"], "not": {"required": ["runner"]}},
+    {"required": ["runner"], "not": {"required": ["reportPath"]}}
+  ],
+  "allOf": [
+    {
+      "if": {"properties": {"format": {"enum": ["bandit", "psscriptanalyzer"]}}, "required": ["format"]},
+      "then": {"properties": {"analysisKind": {"const": "SAST"}}}
+    },
+    {
+      "if": {"properties": {"format": {"enum": ["trivy", "osv"]}}, "required": ["format"]},
+      "then": {"properties": {"analysisKind": {"const": "SCA"}}}
+    },
+    {
+      "if": {"properties": {"format": {"const": "sarif"}}, "required": ["format"]},
+      "then": {"properties": {"analysisKind": {"enum": ["SAST", "SCA"]}}}
+    },
+    {
+      "if": {"properties": {"format": {"const": "zap"}}, "required": ["format"]},
+      "then": {"properties": {"analysisKind": {"const": "DAST"}}, "required": ["targetScope"]}
+    },
+    {
+      "if": {"properties": {"analysisKind": {"const": "DAST"}}, "required": ["analysisKind"]},
+      "then": {"properties": {"format": {"const": "zap"}}, "required": ["targetScope", "reportPath"]}
+    },
+    {
+      "if": {"properties": {"analysisKind": {"enum": ["SAST", "SCA"]}}, "required": ["analysisKind"]},
+      "then": {"not": {"required": ["targetScope"]}}
+    },
+    {
+      "if": {"required": ["runner"]},
+      "then": {"properties": {"analysisKind": {"const": "SAST"}, "format": {"const": "bandit"}}}
+    }
+  ],
+  "$defs": {
+    "runner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tool", "executable"],
+      "properties": {
+        "tool": {"const": "bandit"},
+        "executable": {"type": "string", "minLength": 1, "maxLength": 4096},
+        "timeoutMs": {"type": "integer", "minimum": 100, "maximum": 300000, "default": 30000},
+        "maxOutputBytes": {"type": "integer", "minimum": 1, "maximum": 16777216, "default": 16777216}
+      }
+    },
+    "targetScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["origins"],
+      "properties": {
+        "origins": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {"type": "string", "format": "uri", "pattern": "^https?://", "maxLength": 4096},
+          "description": "Exact HTTP(S) origins, including nondefault ports; wildcards, credentials, query strings and fragments are rejected at runtime."
+        },
+        "pathPrefixes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^/", "maxLength": 4096},
+          "default": ["/"],
+          "description": "Path boundaries are checked after URL normalization. A prefix /app does not permit /application."
+        }
+      }
+    }
+  }
+}

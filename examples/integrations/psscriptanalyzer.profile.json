@@ -1,0 +1,10 @@
+{
+  "id": "powershell.psscriptanalyzer",
+  "displayName": "PSScriptAnalyzer PowerShell SAST",
+  "version": "0.1.0",
+  "analysisKind": "SAST",
+  "format": "psscriptanalyzer",
+  "reportPath": "/absolute/user-reports/psscriptanalyzer.json",
+  "allowedOperations": ["SCAN"],
+  "requestedActions": ["WARNING"]
+}

@@ -1,5 +1,31 @@
 # WrapperGuard handover
 
+## Controlled integration SDK — unreleased
+
+The owner authorized PowerShell, Python, Gradle/Maven, SAST, SCA and DAST integrations.
+`sdk/python` supplies the separate `wrapperguard-sdk` 0.1.0 package using the existing
+provider API 1. It imports SARIF, Bandit, PSScriptAnalyzer, Trivy, OSV-Scanner and ZAP
+reports. The fixed POSIX Bandit runner is the first direct tool integration; the other
+adapters consume reports rather than claiming to execute their scanners. See
+[docs/integrations.md](docs/integrations.md) for profiles, bounds and execution limits.
+
+SDK profiles are explicitly selected absolute files outside the project. They constrain
+operations and input selection; host settings separately grant warning/build/sync actions.
+Report imports cannot establish source freshness. ZAP imports require exact target scope;
+there is no active DAST runner or implicitly authorized network target.
+
+The research restriction below concerns reproducing, training or activating the research
+ML detectors. It does not prohibit these separately authorized report integrations or the
+fixed Bandit analyzer. This SDK does not activate `MlScorer` or change existing detectors.
+
+Validation on 2026-10-19: the built wheel passed all 49 SDK tests on Python 3.10.20,
+3.12.14 and 3.14.7. The 3.10/3.14 runs used tests and all six fixtures extracted from
+the source archive outside the checkout. Installed SDK checks passed through both the
+JVM and TypeScript hosts, along with a real Bandit 1.9.4 run, all seven profile/schema
+examples, 52 existing Node tests, webview checks, hardening and scanner parity. JVM
+production sources are unchanged; their 107-test release run is recorded below.
+Local wheel/source archives are in ignored `build/sdk/`; no PyPI publication occurred.
+
 ## Current release work — 2026-10-19
 
 Version **0.4.0** is based on remote master `61aed0b`. The owner explicitly authorized

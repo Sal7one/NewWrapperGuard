@@ -1,0 +1,33 @@
+{
+  "@version": "synthetic fixture",
+  "site": [
+    {
+      "@name": "https://demo.invalid",
+      "@host": "demo.invalid",
+      "@port": "443",
+      "@ssl": "true",
+      "alerts": [
+        {
+          "pluginid": "99999",
+          "alert": "Synthetic target response warning",
+          "riskcode": "3",
+          "confidence": "2",
+          "desc": "<p>FAKE_ZAP_DESCRIPTION_SECRET</p>",
+          "solution": "<p>Review the scoped target configuration.</p><script>FAKE_SCRIPT_BODY</script>",
+          "instances": [
+            {
+              "uri": "https://demo.invalid/app/login?token=FAKE_QUERY_SECRET",
+              "method": "POST",
+              "param": "FAKE_PARAMETER_SECRET",
+              "attack": "FAKE_ATTACK_SECRET",
+              "evidence": "FAKE_HTTP_EVIDENCE_SECRET",
+              "requestHeader": "Cookie: FAKE_COOKIE_SECRET",
+              "requestBody": "FAKE_HTTP_BODY_SECRET",
+              "responseBody": "FAKE_RESPONSE_SECRET"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

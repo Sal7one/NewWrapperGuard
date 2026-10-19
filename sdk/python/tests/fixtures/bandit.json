@@ -1,0 +1,25 @@
+{
+  "errors": [],
+  "generated_at": "2026-10-19T00:00:00Z",
+  "metrics": {
+    "_totals": {
+      "loc": 8
+    },
+    "src/app.py": {
+      "loc": 8
+    }
+  },
+  "results": [
+    {
+      "filename": "src/app.py",
+      "issue_confidence": "HIGH",
+      "issue_severity": "HIGH",
+      "issue_text": "Synthetic shell invocation requires review.",
+      "test_id": "B999",
+      "test_name": "synthetic_process_call",
+      "line_number": 3,
+      "col_offset": 1,
+      "code": "FAKE_BANDIT_SOURCE_SECRET"
+    }
+  ]
+}

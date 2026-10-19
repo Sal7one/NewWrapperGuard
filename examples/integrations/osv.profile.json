@@ -1,0 +1,10 @@
+{
+  "id": "sca.osv",
+  "displayName": "OSV-Scanner dependency report",
+  "version": "0.1.0",
+  "analysisKind": "SCA",
+  "format": "osv",
+  "reportPath": "/absolute/user-reports/osv.json",
+  "allowedOperations": ["SCAN"],
+  "requestedActions": ["WARNING"]
+}

@@ -1,0 +1,10 @@
+{
+  "id": "python.bandit",
+  "displayName": "Bandit Python SAST",
+  "version": "0.1.0",
+  "analysisKind": "SAST",
+  "format": "bandit",
+  "reportPath": "/absolute/user-reports/bandit.json",
+  "allowedOperations": ["SCAN"],
+  "requestedActions": ["WARNING"]
+}

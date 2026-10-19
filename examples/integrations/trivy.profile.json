@@ -1,0 +1,10 @@
+{
+  "id": "sca.trivy",
+  "displayName": "Trivy dependency report",
+  "version": "0.1.0",
+  "analysisKind": "SCA",
+  "format": "trivy",
+  "reportPath": "/absolute/user-reports/trivy.json",
+  "allowedOperations": ["SCAN"],
+  "requestedActions": ["WARNING"]
+}

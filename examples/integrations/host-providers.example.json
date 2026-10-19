@@ -1,0 +1,25 @@
+{
+  "apiVersion": 1,
+  "builtIn": {
+    "enabled": true,
+    "actions": ["WARNING", "MAJOR_WARNING", "ALERT", "BLOCK_BUILD", "BLOCK_SYNC"],
+    "required": true,
+    "timeoutMs": 30000
+  },
+  "providers": [
+    {
+      "id": "python.bandit",
+      "displayName": "Bandit Python SAST",
+      "version": "0.1.0",
+      "command": ["/absolute/trusted-sdk-environment/bin/python", "-I", "-m", "wrapperguard_sdk", "--profile", "/absolute/user-config/bandit-report.profile.json"],
+      "permissions": {"enabled": false, "actions": ["WARNING"], "required": false, "timeoutMs": 45000}
+    },
+    {
+      "id": "sca.osv",
+      "displayName": "OSV-Scanner dependency report",
+      "version": "0.1.0",
+      "command": ["/absolute/trusted-sdk-environment/bin/python", "-I", "-m", "wrapperguard_sdk", "--profile", "/absolute/user-config/osv.profile.json"],
+      "permissions": {"enabled": false, "actions": ["WARNING"], "required": false, "timeoutMs": 45000}
+    }
+  ]
+}
