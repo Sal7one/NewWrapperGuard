@@ -3,15 +3,22 @@
     <name>WrapperGuard</name>
     <vendor>sal7one</vendor>
     <description><![CDATA[
-      Static analysis for wrappers, build files, and bootstrap scripts. Project code is never executed.
+      A local vetting workspace for wrappers, builds and bootstrap scripts. Includes static analysis,
+      configurable SDK and command providers, and independent build/run and Gradle sync permissions.
     ]]></description>
-    <idea-version since-build="251"/>
+    <idea-version since-build="252"/>
     <depends>com.intellij.modules.platform</depends>
     <!-- Compose + Jewel are exposed to plugin classloaders via the com.intellij.modules.compose
          module, available from IntelliJ Platform 2025.2 (build 252). Wired by the composeUI()
          helper in build.gradle.kts. -->
     <depends>com.intellij.modules.compose</depends>
     <depends>com.intellij.gradle</depends>
+
+    <extensionPoints>
+        <extensionPoint name="vettingProvider"
+                        interface="com.sal7one.wrapperguard.core.vetting.VettingProvider"
+                        dynamic="true"/>
+    </extensionPoints>
 
     <extensions defaultExtensionNs="com.intellij">
         <applicationService serviceImplementation="com.sal7one.wrapperguard.intellij.settings.WrapperGuardSettings"/>
@@ -25,5 +32,7 @@
         <beforeRunTaskProvider
             implementation="com.sal7one.wrapperguard.intellij.execution.WrapperGuardBeforeRunTaskProvider"
             id="WrapperGuard.BeforeRunTask"/>
+        <externalExecutionAware id="wrapperguardVetting" key="GRADLE" order="first"
+            implementationClass="com.sal7one.wrapperguard.intellij.execution.WrapperGuardGradleSyncGate"/>
     </extensions>
 </idea-plugin>

@@ -1,5 +1,7 @@
 package com.sal7one.wrapperguard.core.model
 
+import com.sal7one.wrapperguard.core.vetting.ProviderRun
+import com.sal7one.wrapperguard.core.vetting.VettingAction
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -52,7 +54,7 @@ data class CallChainLink(
 
 @Serializable
 data class Finding(
-    val fingerprint: String,
+    val fingerprint: String = "",
     val ruleId: String,
     val title: String,
     val message: String,
@@ -67,7 +69,11 @@ data class Finding(
     val callChain: List<CallChainLink> = emptyList(),
     val policyAction: PolicyAction = PolicyAction.REVIEW,
     val status: FindingStatus = FindingStatus.ACTIVE,
-    val mlSignal: MlSignal? = null
+    val mlSignal: MlSignal? = null,
+    /** Stable host-assigned provider identity. Null preserves the legacy scanner contract. */
+    val providerId: String? = null,
+    /** Provider requests on input; host-authorized actions in coordinated reports. */
+    val actions: Set<VettingAction> = emptySet()
 )
 
 @Serializable
@@ -97,7 +103,8 @@ data class ScanReport(
     val complete: Boolean = true,
     val stale: Boolean = false,
     val notices: List<ScanNotice> = emptyList(),
-    val generatedAtEpochMs: Long = System.currentTimeMillis()
+    val generatedAtEpochMs: Long = System.currentTimeMillis(),
+    val providerRuns: List<ProviderRun> = emptyList()
 ) {
     val blockers: List<Finding> get() = findings.filter {
         it.status == FindingStatus.ACTIVE && it.policyAction == PolicyAction.BLOCK

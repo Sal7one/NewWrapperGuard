@@ -22,7 +22,8 @@ dependencies {
         // which is the minimum platform version that exposes the com.intellij.modules.compose module.
         // NB: from 2025.3 the IntelliJ Platform Gradle Plugin requires intellijIdea() (IC/ideaIC
         // is no longer published as a Maven artifact).
-        intellijIdea("2025.3")
+        val localIdePath = providers.gradleProperty("wrapperguard.localIdePath").orNull
+        if (localIdePath != null) local(localIdePath) else intellijIdea("2025.3")
 
         bundledPlugin("com.intellij.gradle")
 
@@ -47,9 +48,9 @@ intellijPlatform {
         version = project.version.toString()
         vendor {
             name = "sal7one"
-            url = "https://github.com/sal7one/wrapperguard"
+            url = "https://github.com/Sal7one/NewWrapperGaurd"
         }
-        description = "Static analysis for wrappers, build files, and bootstrap scripts. Project code is never executed."
+        description = "Local vetting workspace with built-in static analysis, configurable SDK and command providers, and separate build/run and Gradle sync permissions."
         ideaVersion {
             sinceBuild = "252"
         }
@@ -58,12 +59,25 @@ intellijPlatform {
 
 kotlin { jvmToolchain(21) }
 
-tasks.test { useJUnitPlatform() }
+tasks.test {
+    // IDE platform tests and presentation tests use JUnit 3/4. Explicit discovery avoids
+    // picking up an unrelated bundled Jupiter engine from a locally supplied IDE SDK.
+    useJUnitPlatform { includeEngines("junit-vintage") }
+}
 
 tasks.runIde {
     // Sandbox-only: auto-open the WrapperGuard tool window so visual checks and
     // screenshots of the dev IDE do not need a manual click.
     jvmArgs("-Dwrapperguard.autoshow=true")
+    if (providers.gradleProperty("wrapperguard.demo").orNull == "true") {
+        jvmArgs("-Dwrapperguard.demo=true")
+        listOf("demoReport", "demoTab", "demoControl", "demoWindow").forEach { option ->
+            providers.gradleProperty("wrapperguard.$option").orNull?.let { value ->
+                jvmArgs("-Dwrapperguard.$option=$value")
+            }
+        }
+        providers.gradleProperty("wrapperguard.demoProject").orNull?.let { args(it) }
+    }
 }
 
 intellijPlatform {

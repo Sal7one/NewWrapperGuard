@@ -1,0 +1,10 @@
+# DISPLAY FIXTURE: event triggers deliberately absent. Never run this example.
+name: Atlas Payments example
+# on: workflow_dispatch  # inert documentation, not a workflow trigger
+permissions: write-all
+jobs:
+  example:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Display-only preparation reference
+        run: sh scripts/bootstrap.sh

@@ -1,0 +1,2 @@
+// Static regression input. Never import.
+repositories { mavenLocal() }

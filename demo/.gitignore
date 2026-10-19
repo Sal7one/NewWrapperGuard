@@ -1,0 +1,8 @@
+# Local native-demo tab requests and the matching development IDE process ID.
+/native-control.txt
+/native-control.txt.pid
+/control.txt
+/control.txt.pid
+
+# Optional Python syntax-check artifacts; generated reports and screenshots stay tracked.
+/__pycache__/

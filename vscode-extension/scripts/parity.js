@@ -1,7 +1,8 @@
 // Cross-checks the TypeScript scanner against the Kotlin CLI on the given fixtures.
-// Usage: node scripts/parity.js [dir1 dir2 ...]   (defaults to demo + test-samples + repo root)
+// Usage: node scripts/parity.js [dir1 dir2 ...]   (defaults to tracked scanner fixtures + repo root)
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
+const { evaluateProviders } = require('../dist/providers/coordinator.js');
 const { scanProject } = require('../dist/scanner/repositoryScanner.js');
 const { DEFAULT_ENFORCE_POLICY, DEFAULT_SETTINGS } = require('../dist/scanner/defaults.js');
 
@@ -12,8 +13,7 @@ const fs = require('node:fs');
 const dirs = process.argv.slice(2);
 if (dirs.length === 0) {
   dirs.push(
-    '/tmp/wg-demo',
-    path.join(repoRoot, 'old_project', 'test-samples'),
+    path.join(repoRoot, 'test-fixtures', 'scanner'),
     repoRoot
   );
 }
@@ -22,19 +22,24 @@ function runKotlin(dir) {
   try {
     return JSON.parse(execFileSync(CLI, [dir, '--json', '--enforce'], { maxBuffer: 30 * 1024 * 1024 }));
   } catch (e) {
-    if (e && e.stdout) return JSON.parse(e.stdout);
+    if (e && e.status === 2 && e.stdout) return JSON.parse(e.stdout);
     throw e;
   }
 }
 
+async function main() {
 let failed = false;
-for (const dir of dirs) {
+let fixturesRun = 0;
+for (const inputDir of dirs) {
+  const dir = path.resolve(inputDir);
   if (!fs.existsSync(dir)) {
-    console.log('SKIP (missing): ' + dir);
+    console.error('FAIL (missing fixture): ' + dir);
+    failed = true;
     continue;
   }
+  fixturesRun++;
   const k = runKotlin(dir);
-  const t = scanProject(dir, DEFAULT_ENFORCE_POLICY, DEFAULT_SETTINGS, []);
+  const t = await evaluateProviders({projectRoot:dir,policy:DEFAULT_ENFORCE_POLICY,settings:DEFAULT_SETTINGS,baseline:[],operation:'SCAN',signal:new AbortController().signal},{providers:[{descriptor:{id:'wrapperguard',displayName:'WrapperGuard',version:'0.4.0',apiVersion:1},scan:request=>scanProject(request.projectRoot,request.policy,request.settings,request.baseline)}]});
   const kFp = new Set(k.findings.map((f) => f.fingerprint));
   const tFp = new Set(t.findings.map((f) => f.fingerprint));
   const onlyK = [...kFp].filter((x) => !tFp.has(x));
@@ -59,4 +64,7 @@ for (const dir of dirs) {
     }
   }
 }
-process.exit(failed ? 1 : 0);
+if (fixturesRun === 0) { console.error('FAIL: no fixtures were scanned.'); failed = true; }
+process.exitCode = failed ? 1 : 0;
+}
+main().catch(error => { console.error(error.message); process.exitCode = 1; });

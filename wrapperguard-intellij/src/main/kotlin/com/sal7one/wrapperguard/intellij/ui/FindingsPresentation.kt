@@ -29,7 +29,7 @@ internal fun visibleFindings(findings: List<Finding>, state: FindingsViewState):
             FindingScope.SUPPRESSED -> finding.status == FindingStatus.SUPPRESSED
         }
         inScope && terms.all { term ->
-            listOf(finding.title, finding.ruleId, finding.location.path, finding.category.name,
+            listOf(finding.title, finding.ruleId, finding.providerId.orEmpty(), finding.actions.joinToString(), finding.location.path, finding.category.name,
                 finding.severity.name, finding.evidence?.text.orEmpty()).any { it.contains(term, ignoreCase = true) }
         }
     }

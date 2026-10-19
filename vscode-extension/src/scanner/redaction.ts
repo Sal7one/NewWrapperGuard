@@ -13,7 +13,7 @@ const SECRET_ASSIGN_BARE = new RegExp('(\\b(?:' + SECRET_KEYS + ')\\b\\s*[=:]\\s
 const AUTH_HEADER = new RegExp('(\\bauthorization\\b\\s*[=:]\\s*["\']?\\s*(?:bearer|basic|token)?\\s*)([^"\'\\s,;]+)', 'ig');
 const URL_USERINFO = /(:\/\/[^/\s:@]+):([^@\s/]+)@/g;
 const CREDENTIALS_BLOCK_ASSIGNMENT = new RegExp('(\\b[a-zA-Z_][\\w.]*\\b\\s*[=:]\\s*)(["\'])([^"\']{2,})\\2', 'ig');
-const CREDENTIALS_BLOCK_START = /\\bcredentials\\b\\s*\\{/i;
+const CREDENTIALS_BLOCK_START = /\bcredentials\b\s*\{/i;
 
 export function maskSecretValues(value: string): { masked: string; changed: boolean } {
   let changed = false;
@@ -72,7 +72,8 @@ function maskCredentialsBlocks(text: string, onChanged: (b: boolean) => void): s
       return g1 + g2 + MASK + g2;
     });
     out = out.substring(0, open + 1) + masked + out.substring(end);
-    searchFrom = end + 1;
+    // Replacement may shrink or expand the span; continue after its new closing brace.
+    searchFrom = open + 1 + masked.length + 1;
   }
   onChanged(changed);
   return out;

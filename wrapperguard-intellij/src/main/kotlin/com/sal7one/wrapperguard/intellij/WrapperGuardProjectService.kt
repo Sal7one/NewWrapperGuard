@@ -1,7 +1,10 @@
 package com.sal7one.wrapperguard.intellij
 
 import com.intellij.openapi.components.Service
+import com.intellij.ide.trustedProjects.TrustedProjects
 import com.intellij.openapi.progress.ProgressIndicator
+import com.intellij.openapi.progress.ProgressManager
+import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
 import com.intellij.util.concurrency.AppExecutorUtil
@@ -9,7 +12,11 @@ import com.sal7one.wrapperguard.core.model.ScanReport
 import com.sal7one.wrapperguard.core.policy.EnforcementMode
 import com.sal7one.wrapperguard.core.policy.ScanPolicy
 import com.sal7one.wrapperguard.intellij.settings.buildScanSettings
-import com.sal7one.wrapperguard.rules.RepositoryScanner
+import com.sal7one.wrapperguard.intellij.settings.WrapperGuardSettings
+import com.sal7one.wrapperguard.intellij.vetting.IntellijVettingProviders
+import com.sal7one.wrapperguard.core.vetting.VettingOperation
+import com.sal7one.wrapperguard.intellij.execution.watchedFileHashes
+import com.sal7one.wrapperguard.intellij.demo.WrapperGuardDemo
 import java.nio.file.Files
 import java.nio.file.Path
 import java.security.MessageDigest
@@ -18,9 +25,14 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.CancellationException
 
 @Service(Service.Level.PROJECT)
 class WrapperGuardProjectService(private val project: Project) {
+
+    private val demoAtCreation = WrapperGuardDemo.enabled
+    val isDemo: Boolean get() = demoAtCreation || WrapperGuardDemo.enabled
 
     private val listeners = CopyOnWriteArrayList<(ScanReport?) -> Unit>()
 
@@ -35,6 +47,8 @@ class WrapperGuardProjectService(private val project: Project) {
 
     /** A relevant file changed while a scan was running; another pass is needed. */
     private val rescanRequested = AtomicBoolean(false)
+    private val inputGeneration = AtomicLong()
+    private val publicationLock = Any()
 
     private val rescanScheduler = AppExecutorUtil.getAppScheduledExecutorService()
     private var scheduledRescan: ScheduledFuture<*>? = null
@@ -56,14 +70,25 @@ class WrapperGuardProjectService(private val project: Project) {
      * UI callers should prefer [scanAsync].
      */
     fun scan(): ScanReport? {
+        if (project.isDisposed) return null
+        if (isDemo) return reloadDemoReport()
         val root = project.basePath?.let(Path::of) ?: return null
-        val result = RepositoryScanner().scan(root, ScanPolicy(mode = EnforcementMode.WARN), buildScanSettings())
+        val generation = inputGeneration.get()
+        val trusted = TrustedProjects.isProjectTrusted(project)
+        val result = IntellijVettingProviders.scan(project, root, ScanPolicy(mode = EnforcementMode.WARN), VettingOperation.SCAN)
+        if (project.isDisposed) return null
+        ProgressManager.checkCanceled()
         refreshHashes(root)
-        stale = false
-        scanError = null
-        report = result
-        notifyListeners(result)
-        return result
+        ProgressManager.checkCanceled()
+        val published = synchronized(publicationLock) {
+            val changed = generation != inputGeneration.get() || trusted != TrustedProjects.isProjectTrusted(project)
+            stale = changed
+            if (changed) rescanRequested.set(true)
+            scanError = null
+            (if (changed) result.copy(stale = true) else result).also { report = it }
+        }
+        notifyListeners(published)
+        return published
     }
 
     /**
@@ -74,6 +99,10 @@ class WrapperGuardProjectService(private val project: Project) {
      */
     fun scanAsync() {
         if (project.isDisposed) return
+        if (isDemo) {
+            reloadDemoReport()
+            return
+        }
         if (!scanInFlight.compareAndSet(false, true)) {
             rescanRequested.set(true)
             return
@@ -88,7 +117,7 @@ class WrapperGuardProjectService(private val project: Project) {
 
             override fun onThrowable(error: Throwable) {
                 // Do not put arbitrary exception text (which may include source data) into the UI.
-                scanError = "The scan could not finish. Retry the scan."
+                scanError = "The scan could not finish. Review the provider configuration in WrapperGuard settings and retry."
             }
 
             override fun onCancel() {
@@ -118,8 +147,12 @@ class WrapperGuardProjectService(private val project: Project) {
      * [runDebouncedRescan] drops VFS-only noise (timestamp refreshes, reverts).
      */
     fun markStaleAndScheduleRescan() {
-        val current = report
-        stale = true
+        if (isDemo) return
+        val current = synchronized(publicationLock) {
+            inputGeneration.incrementAndGet()
+            stale = true
+            report
+        }
         if (current != null) notifyListeners(current.copy(stale = true))
         scheduledRescan?.cancel(false)
         scheduledRescan = rescanScheduler.schedule(
@@ -131,6 +164,7 @@ class WrapperGuardProjectService(private val project: Project) {
 
     private fun runDebouncedRescan() {
         if (project.isDisposed) return
+        if (isDemo) return
         if (scanInFlight.get()) {
             rescanRequested.set(true)
             return
@@ -148,7 +182,7 @@ class WrapperGuardProjectService(private val project: Project) {
 
     private fun hashesUnchanged(root: Path): Boolean {
         if (lastHashes.isEmpty()) return false
-        return runCatching { computeWatchedHashes(root) }.getOrNull() == lastHashes
+        return sealOrNull { computeWatchedHashes(root) } == lastHashes
     }
 
     /**
@@ -156,9 +190,43 @@ class WrapperGuardProjectService(private val project: Project) {
      * compares two such seals (before/after its scan) so a file changing mid-scan cannot
      * slip through — see WrapperGuardBeforeRunTaskProvider.
      */
-    fun computeSeal(): Map<String, String>? {
-        val root = project.basePath?.let(Path::of) ?: return null
-        return runCatching { computeWatchedHashes(root) }.getOrNull()
+    fun computeSeal(root: Path? = project.basePath?.let(Path::of)): Map<String, String>? {
+        if (isDemo) return null
+        root ?: return null
+        return sealOrNull {
+            computeWatchedHashes(root) + ("<user-policy>" to policySeal())
+        }
+    }
+
+    /** Include user policy, provider grants and command config in the launch seal. */
+    private fun policySeal(): String {
+        val settings = WrapperGuardSettings.getInstance()
+        val state = settings.state
+        val text = buildString {
+            append(buildScanSettings().toString())
+            append(state.providers.toString())
+            append(TrustedProjects.isProjectTrusted(project))
+            if (TrustedProjects.isProjectTrusted(project)) {
+                append(IntellijVettingProviders.installedProviders().map { it.descriptor }.toString())
+            }
+            append(state.providerConfigurationPath)
+            if (state.providerConfigurationPath.isNotBlank()) {
+                val path = Path.of(state.providerConfigurationPath)
+                require(Files.size(path) <= 65_536) { "Provider configuration exceeds the limit" }
+                val bytes = Files.newInputStream(path).use { it.readNBytes(65_537) }
+                require(bytes.size <= 65_536) { "Provider configuration exceeds the limit" }
+                append(bytes.toString(Charsets.UTF_8))
+            }
+        }
+        return MessageDigest.getInstance("SHA-256").digest(text.toByteArray()).joinToString("") { "%02x".format(it) }
+    }
+
+    fun settingsChanged() {
+        synchronized(publicationLock) {
+            inputGeneration.incrementAndGet()
+            stale = true
+        }
+        scanAsync()
     }
 
     /**
@@ -167,8 +235,10 @@ class WrapperGuardProjectService(private val project: Project) {
      * hash baseline and stale state are refreshed to match that scan.
      */
     fun publishExternalReport(newReport: ScanReport) {
+        if (project.isDisposed) return
+        if (isDemo) return
         project.basePath?.let(Path::of)?.let { refreshHashes(it) }
-        stale = false
+        stale = newReport.stale
         scanError = null
         report = newReport
         notifyListeners(newReport)
@@ -187,46 +257,41 @@ class WrapperGuardProjectService(private val project: Project) {
         listeners.forEach { it(r) }
     }
 
+    private fun reloadDemoReport(): ScanReport? {
+        scheduledRescan?.cancel(false)
+        stale = false
+        report = try {
+            WrapperGuardDemo.loadReport().also { scanError = null }
+        } catch (_: Exception) {
+            scanError = "Demo report could not be loaded. Set an absolute wrapperguard.demoReport JSON path."
+            null
+        }
+        notifyListeners(report)
+        return report
+    }
+
     private fun refreshHashes(root: Path) {
         lastHashes.clear()
-        runCatching { computeWatchedHashes(root) }
-            .getOrDefault(emptyMap())
+        sealOrNull { computeWatchedHashes(root) }.orEmpty()
             .forEach { (k, v) -> lastHashes[k] = v }
     }
 
-    private fun computeWatchedHashes(root: Path): Map<String, String> {
-        val hashes = HashMap<String, String>()
-        if (!Files.isDirectory(root)) return hashes
-        Files.walk(root).use { stream ->
-            stream
-                .filter { path ->
-                    Files.isRegularFile(path) &&
-                        !isExcluded(root, path) &&
-                        isWatchedFileName(path.fileName.toString())
-                }
-                .forEach { path ->
-                    val content = runCatching { Files.readAllBytes(path) }.getOrNull() ?: return@forEach
-                    val sha = MessageDigest.getInstance("SHA-256")
-                        .digest(content)
-                        .joinToString("") { "%02x".format(it) }
-                    hashes[root.relativize(path).toString().replace('\\', '/')] = sha
-                }
-        }
-        return hashes
+    private inline fun <T> sealOrNull(action: () -> T): T? = try {
+        action()
+    } catch (error: ProcessCanceledException) {
+        throw error
+    } catch (error: CancellationException) {
+        throw error
+    } catch (_: Exception) {
+        null
     }
 
-    private fun isExcluded(root: Path, path: Path): Boolean {
-        val parts = root.relativize(path).map { it.toString() }
-        return parts.any { it in EXCLUDED_DIRS }
-    }
+    private fun computeWatchedHashes(root: Path): Map<String, String> =
+        watchedFileHashes(root, buildScanSettings()) { ProgressManager.checkCanceled() }
 
     companion object {
         /** Debounce window for rescans after VFS change bursts (Gradle sync writes etc.). */
         const val RESCAN_DEBOUNCE_MS: Long = 3_000
-
-        private val EXCLUDED_DIRS = setOf(
-            ".git", ".gradle", ".idea", "build", "out", ".intellijPlatform", ".kotlin", "node_modules"
-        )
 
         /** The file names whose content changes invalidate a scan. */
         fun isWatchedFileName(name: String): Boolean =

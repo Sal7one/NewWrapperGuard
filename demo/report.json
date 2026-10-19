@@ -1,0 +1,624 @@
+{
+  "schemaVersion": 1,
+  "projectPath": "/Users/salehalanazi/Repos/NewWrapperGaurd/demo/project",
+  "verdict": "EXECUTION_BLOCKED",
+  "policyName": "Atlas Payments · Enforce demo",
+  "findings": [
+    {
+      "fingerprint": "daf02ab1f65c40bfe29b06c5",
+      "ruleId": "WG-WRAPPER-003",
+      "title": "Wrapper distribution host needs approval",
+      "message": "The sample wrapper points to a host outside the approved distribution list. Build and sync are blocked in this demo.",
+      "severity": "ERROR",
+      "confidence": "HIGH",
+      "category": "WRAPPER",
+      "kind": "ACTIONABLE",
+      "location": {
+        "path": "gradle/wrapper/gradle-wrapper.properties",
+        "line": 4,
+        "column": 1
+      },
+      "evidence": {
+        "text": "https://downloads.atlas-payments.invalid/gradle-9.1.0-bin.zip",
+        "redacted": false
+      },
+      "remediation": "Use an approved distribution mirror and verify its published SHA-256 checksum.",
+      "reachable": true,
+      "callChain": [],
+      "policyAction": "BLOCK",
+      "status": "ACTIVE",
+      "mlSignal": null,
+      "providerId": "wrapperguard",
+      "actions": [
+        "MAJOR_WARNING",
+        "BLOCK_BUILD",
+        "BLOCK_SYNC"
+      ]
+    },
+    {
+      "fingerprint": "464ac94898ab4daf17e19410",
+      "ruleId": "ACME-PROVENANCE-001",
+      "title": "Payment adapter provenance is unverified",
+      "message": "The fictional Acme provider requests a build gate until the adapter's provenance is reviewed. It has no sync-blocking grant.",
+      "severity": "ERROR",
+      "confidence": "HIGH",
+      "category": "SUPPLY_CHAIN",
+      "kind": "ACTIONABLE",
+      "location": {
+        "path": "build.gradle.kts",
+        "line": 16,
+        "column": 1
+      },
+      "evidence": {
+        "text": "implementation(\"com.atlas.demo:payment-adapter:4.2.0\")",
+        "redacted": false
+      },
+      "remediation": "Attach the organization's approved provenance record or choose a verified release.",
+      "reachable": true,
+      "callChain": [],
+      "policyAction": "BLOCK",
+      "status": "ACTIVE",
+      "mlSignal": null,
+      "providerId": "acme.supply-chain",
+      "actions": [
+        "ALERT",
+        "BLOCK_BUILD"
+      ]
+    },
+    {
+      "fingerprint": "12ba7b1001afa56dde7190bf",
+      "ruleId": "SENTINEL-INIT-001",
+      "title": "Remote init script requires sync approval",
+      "message": "The fictional Sentinel provider requests a sync gate for this init-script reference. It has no build-blocking grant.",
+      "severity": "ERROR",
+      "confidence": "HIGH",
+      "category": "CONFIGURATION",
+      "kind": "ACTIONABLE",
+      "location": {
+        "path": "scripts/bootstrap.sh",
+        "line": 9,
+        "column": 1
+      },
+      "evidence": {
+        "text": "https://policy.atlas-payments.invalid/init.gradle.kts",
+        "redacted": false
+      },
+      "remediation": "Pin the init script in an approved local policy package before allowing sync.",
+      "reachable": true,
+      "callChain": [],
+      "policyAction": "BLOCK",
+      "status": "ACTIVE",
+      "mlSignal": null,
+      "providerId": "sentinel.policy",
+      "actions": [
+        "ALERT",
+        "BLOCK_SYNC"
+      ]
+    },
+    {
+      "fingerprint": "88d7ccc526ea2a3b0ce2c96b",
+      "ruleId": "WG-SCRIPT-001",
+      "title": "Installer streams remote content into a shell",
+      "message": "This unreachable sample demonstrates a remote installer warning. The provider's effective action is a warning for this finding.",
+      "severity": "WARN",
+      "confidence": "HIGH",
+      "category": "EXECUTION",
+      "kind": "ACTIONABLE",
+      "location": {
+        "path": "scripts/install.sh",
+        "line": 6,
+        "column": 1
+      },
+      "evidence": {
+        "text": "curl -fsSL https://tools.atlas-payments.invalid/install.sh | sh",
+        "redacted": false
+      },
+      "remediation": "Download an approved artifact, verify its digest, and review it before execution.",
+      "reachable": true,
+      "callChain": [
+        {
+          "source": {
+            "path": "scripts/bootstrap.sh",
+            "line": 7,
+            "column": 1
+          },
+          "viaCommand": "sh scripts/install.sh"
+        }
+      ],
+      "policyAction": "REVIEW",
+      "status": "ACTIVE",
+      "mlSignal": null,
+      "providerId": "wrapperguard",
+      "actions": [
+        "WARNING"
+      ]
+    },
+    {
+      "fingerprint": "f08d50fefddd0393a8488fd7",
+      "ruleId": "WG-BUILD-010",
+      "title": "Inline credential placeholder detected",
+      "message": "The source contains a clearly fake credential placeholder. Exported evidence is redacted to demonstrate the production UI behavior.",
+      "severity": "WARN",
+      "confidence": "HIGH",
+      "category": "CREDENTIALS",
+      "kind": "ACTIONABLE",
+      "location": {
+        "path": "build.gradle.kts",
+        "line": 10,
+        "column": 1
+      },
+      "evidence": {
+        "text": "password = \"[redacted]\"",
+        "redacted": true
+      },
+      "remediation": "Use the user's secret store or a short-lived credential provider.",
+      "reachable": true,
+      "callChain": [],
+      "policyAction": "REVIEW",
+      "status": "ACTIVE",
+      "mlSignal": null,
+      "providerId": "wrapperguard",
+      "actions": [
+        "WARNING"
+      ]
+    },
+    {
+      "fingerprint": "b3341bfe2898b6eba2e3e6d6",
+      "ruleId": "ACME-PIN-002",
+      "title": "Receipt codec uses a moving version",
+      "message": "The fictional Acme adapter reports a dependency that can change without a source revision.",
+      "severity": "WARN",
+      "confidence": "HIGH",
+      "category": "SUPPLY_CHAIN",
+      "kind": "ACTIONABLE",
+      "location": {
+        "path": "gradle/libs.versions.toml",
+        "line": 4,
+        "column": 1
+      },
+      "evidence": {
+        "text": "receipt-codec = \"2.+\"",
+        "redacted": false
+      },
+      "remediation": "Pin the dependency to an approved exact version.",
+      "reachable": true,
+      "callChain": [],
+      "policyAction": "REVIEW",
+      "status": "ACTIVE",
+      "mlSignal": null,
+      "providerId": "acme.supply-chain",
+      "actions": [
+        "MAJOR_WARNING"
+      ]
+    },
+    {
+      "fingerprint": "4464842198e4ff43d809acb9",
+      "ruleId": "SENTINEL-CI-002",
+      "title": "Workflow token permissions are broader than needed",
+      "message": "An alert highlights broad token scope in a non-runnable workflow example. Alert permission does not grant a build block.",
+      "severity": "WARN",
+      "confidence": "HIGH",
+      "category": "CONFIGURATION",
+      "kind": "ACTIONABLE",
+      "location": {
+        "path": ".github/workflows/ci-demo.yml",
+        "line": 4,
+        "column": 1
+      },
+      "evidence": {
+        "text": "permissions: write-all",
+        "redacted": false
+      },
+      "remediation": "Grant only the workflow token permissions required by each job.",
+      "reachable": true,
+      "callChain": [],
+      "policyAction": "REVIEW",
+      "status": "ACTIVE",
+      "mlSignal": null,
+      "providerId": "sentinel.policy",
+      "actions": [
+        "ALERT"
+      ]
+    },
+    {
+      "fingerprint": "4125ba34cf3ac3aed237ade1",
+      "ruleId": "SENTINEL-CACHE-003",
+      "title": "Shared cache path needs a boundary review",
+      "message": "The sample sync configuration references a cache outside the project. No file operations occur in this fixture.",
+      "severity": "WARN",
+      "confidence": "HIGH",
+      "category": "FILE_SYSTEM",
+      "kind": "ACTIONABLE",
+      "location": {
+        "path": "scripts/sync.sh",
+        "line": 7,
+        "column": 1
+      },
+      "evidence": {
+        "text": "export DEMO_SHARED_CACHE=../../shared-cache",
+        "redacted": false
+      },
+      "remediation": "Review this simulated observation with the owning team before changing policy.",
+      "reachable": true,
+      "callChain": [
+        {
+          "source": {
+            "path": "scripts/bootstrap.sh",
+            "line": 8,
+            "column": 1
+          },
+          "viaCommand": "sh scripts/sync.sh"
+        }
+      ],
+      "policyAction": "REVIEW",
+      "status": "ACTIVE",
+      "mlSignal": null,
+      "providerId": "sentinel.policy",
+      "actions": [
+        "WARNING"
+      ]
+    },
+    {
+      "fingerprint": "29fc1ae8643fff7e32d183f1",
+      "ruleId": "WG-WRAPPER-005",
+      "title": "Wrapper distribution checksum is missing",
+      "message": "The illustrative wrapper properties do not contain a distributionSha256Sum value.",
+      "severity": "WARN",
+      "confidence": "HIGH",
+      "category": "WRAPPER",
+      "kind": "ACTIONABLE",
+      "location": {
+        "path": "gradle/wrapper/gradle-wrapper.properties",
+        "line": 4,
+        "column": 1
+      },
+      "evidence": {
+        "text": "distributionSha256Sum is not configured",
+        "redacted": false
+      },
+      "remediation": "Record the independently verified SHA-256 checksum of the approved distribution.",
+      "reachable": true,
+      "callChain": [],
+      "policyAction": "REVIEW",
+      "status": "ACTIVE",
+      "mlSignal": null,
+      "providerId": "wrapperguard",
+      "actions": [
+        "WARNING"
+      ]
+    },
+    {
+      "fingerprint": "41be4441f8a2bf81099c32b3",
+      "ruleId": "WG-SCAN-CIRCULAR",
+      "title": "A script call cycle is visible",
+      "message": "The audit and sync fixtures form a cycle. This is audit evidence and cannot block execution.",
+      "severity": "INFO",
+      "confidence": "HIGH",
+      "category": "AUDIT",
+      "kind": "AUDIT_EVIDENCE",
+      "location": {
+        "path": "scripts/audit.sh",
+        "line": 6,
+        "column": 1
+      },
+      "evidence": {
+        "text": "scripts/sync.sh → scripts/audit.sh → scripts/sync.sh",
+        "redacted": false
+      },
+      "remediation": "Inspect the cycle when reviewing the script orchestration.",
+      "reachable": true,
+      "callChain": [],
+      "policyAction": "ALLOW",
+      "status": "ACTIVE",
+      "mlSignal": null,
+      "providerId": "wrapperguard",
+      "actions": []
+    },
+    {
+      "fingerprint": "0bb858ed1a04a76d14bfed98",
+      "ruleId": "ACME-LEGACY-004",
+      "title": "Legacy bridge exception is approved",
+      "message": "A simulated user-approved baseline suppresses this build finding. The repository does not grant this approval.",
+      "severity": "ERROR",
+      "confidence": "HIGH",
+      "category": "SUPPLY_CHAIN",
+      "kind": "ACTIONABLE",
+      "location": {
+        "path": "build.gradle.kts",
+        "line": 17,
+        "column": 1
+      },
+      "evidence": {
+        "text": "implementation(\"com.atlas.demo:legacy-bridge:1.8.2\")",
+        "redacted": false
+      },
+      "remediation": "Revisit the approved exception before the next dependency upgrade.",
+      "reachable": true,
+      "callChain": [],
+      "policyAction": "BLOCK",
+      "status": "SUPPRESSED",
+      "mlSignal": null,
+      "providerId": "acme.supply-chain",
+      "actions": [
+        "MAJOR_WARNING",
+        "BLOCK_BUILD"
+      ]
+    },
+    {
+      "fingerprint": "51de155a7986585d5ecdfe66",
+      "ruleId": "SENTINEL-MIRROR-004",
+      "title": "Archive mirror review has been accepted",
+      "message": "This historical observation is accepted in the simulated UI state and contributes no active warning or blocker.",
+      "severity": "WARN",
+      "confidence": "HIGH",
+      "category": "NETWORK",
+      "kind": "ACTIONABLE",
+      "location": {
+        "path": "scripts/publish.sh",
+        "line": 6,
+        "column": 1
+      },
+      "evidence": {
+        "text": "https://archive.atlas-payments.invalid/approved-receipts.tar.gz",
+        "redacted": false
+      },
+      "remediation": "Review this simulated observation with the owning team before changing policy.",
+      "reachable": true,
+      "callChain": [],
+      "policyAction": "REVIEW",
+      "status": "ACCEPTED",
+      "mlSignal": null,
+      "providerId": "sentinel.policy",
+      "actions": [
+        "WARNING"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": {
+        "path": "scripts/bootstrap.sh",
+        "line": 7,
+        "column": 1
+      },
+      "to": {
+        "path": "scripts/install.sh",
+        "line": 1,
+        "column": 1
+      },
+      "viaCommand": "sh scripts/install.sh"
+    },
+    {
+      "from": {
+        "path": "scripts/bootstrap.sh",
+        "line": 8,
+        "column": 1
+      },
+      "to": {
+        "path": "scripts/sync.sh",
+        "line": 1,
+        "column": 1
+      },
+      "viaCommand": "sh scripts/sync.sh"
+    },
+    {
+      "from": {
+        "path": "scripts/install.sh",
+        "line": 7,
+        "column": 1
+      },
+      "to": {
+        "path": "scripts/fetch-metadata.sh",
+        "line": 1,
+        "column": 1
+      },
+      "viaCommand": "sh scripts/fetch-metadata.sh"
+    },
+    {
+      "from": {
+        "path": "scripts/fetch-metadata.sh",
+        "line": 7,
+        "column": 1
+      },
+      "to": {
+        "path": "scripts/audit.sh",
+        "line": 1,
+        "column": 1
+      },
+      "viaCommand": "sh scripts/audit.sh"
+    },
+    {
+      "from": {
+        "path": "scripts/sync.sh",
+        "line": 6,
+        "column": 1
+      },
+      "to": {
+        "path": "scripts/audit.sh",
+        "line": 1,
+        "column": 1
+      },
+      "viaCommand": "sh scripts/audit.sh"
+    },
+    {
+      "from": {
+        "path": "scripts/audit.sh",
+        "line": 6,
+        "column": 1
+      },
+      "to": {
+        "path": "scripts/sync.sh",
+        "line": 1,
+        "column": 1
+      },
+      "viaCommand": "sh scripts/sync.sh"
+    },
+    {
+      "from": {
+        "path": "scripts/audit.sh",
+        "line": 7,
+        "column": 1
+      },
+      "to": {
+        "path": "scripts/publish.sh",
+        "line": 1,
+        "column": 1
+      },
+      "viaCommand": "sh scripts/publish.sh"
+    }
+  ],
+  "scannedFiles": 12,
+  "durationMs": 1532,
+  "complete": false,
+  "stale": false,
+  "notices": [
+    {
+      "code": "DEMO-SIMULATED",
+      "message": "DEMO: simulated findings and fictional providers. No SDK calls or project code were executed.",
+      "location": null
+    },
+    {
+      "code": "WG-PROVIDER-TIMEOUT",
+      "message": "DEMO: optional Registry Audit timed out; this scenario intentionally has incomplete coverage.",
+      "location": null
+    },
+    {
+      "code": "WG-PROVIDER-FAILED",
+      "message": "DEMO: optional License Check is unavailable. Other provider results remain visible.",
+      "location": null
+    }
+  ],
+  "generatedAtEpochMs": 1792407000000,
+  "providerRuns": [
+    {
+      "descriptor": {
+        "id": "wrapperguard",
+        "displayName": "WrapperGuard",
+        "version": "0.4.0",
+        "apiVersion": 1
+      },
+      "permissions": {
+        "enabled": true,
+        "actions": [
+          "WARNING",
+          "MAJOR_WARNING",
+          "ALERT",
+          "BLOCK_BUILD",
+          "BLOCK_SYNC"
+        ],
+        "required": true,
+        "timeoutMs": 30000
+      },
+      "status": "COMPLETED",
+      "durationMs": 86,
+      "findingCount": 5,
+      "message": null
+    },
+    {
+      "descriptor": {
+        "id": "acme.supply-chain",
+        "displayName": "Acme Supply Chain",
+        "version": "1.0.0-demo",
+        "apiVersion": 1
+      },
+      "permissions": {
+        "enabled": true,
+        "actions": [
+          "WARNING",
+          "MAJOR_WARNING",
+          "ALERT",
+          "BLOCK_BUILD"
+        ],
+        "required": true,
+        "timeoutMs": 30000
+      },
+      "status": "COMPLETED",
+      "durationMs": 243,
+      "findingCount": 3,
+      "message": null
+    },
+    {
+      "descriptor": {
+        "id": "sentinel.policy",
+        "displayName": "Sentinel Policy",
+        "version": "1.0.0-demo",
+        "apiVersion": 1
+      },
+      "permissions": {
+        "enabled": true,
+        "actions": [
+          "WARNING",
+          "MAJOR_WARNING",
+          "ALERT",
+          "BLOCK_SYNC"
+        ],
+        "required": true,
+        "timeoutMs": 30000
+      },
+      "status": "COMPLETED",
+      "durationMs": 141,
+      "findingCount": 4,
+      "message": null
+    },
+    {
+      "descriptor": {
+        "id": "demo.registry-audit",
+        "displayName": "Registry Audit · demo",
+        "version": "1.0.0-demo",
+        "apiVersion": 1
+      },
+      "permissions": {
+        "enabled": true,
+        "actions": [
+          "WARNING"
+        ],
+        "required": false,
+        "timeoutMs": 1500
+      },
+      "status": "TIMED_OUT",
+      "durationMs": 1500,
+      "findingCount": 0,
+      "message": "DEMO: simulated timeout; no SDK process was started."
+    },
+    {
+      "descriptor": {
+        "id": "demo.license-check",
+        "displayName": "License Check · demo",
+        "version": "1.0.0-demo",
+        "apiVersion": 1
+      },
+      "permissions": {
+        "enabled": true,
+        "actions": [
+          "WARNING"
+        ],
+        "required": false,
+        "timeoutMs": 30000
+      },
+      "status": "FAILED",
+      "durationMs": 96,
+      "findingCount": 0,
+      "message": "DEMO: simulated unavailable adapter; no SDK process was started."
+    },
+    {
+      "descriptor": {
+        "id": "legacy.audit",
+        "displayName": "Legacy Audit · paused demo",
+        "version": "1.0.0-demo",
+        "apiVersion": 1
+      },
+      "permissions": {
+        "enabled": false,
+        "actions": [
+          "WARNING"
+        ],
+        "required": false,
+        "timeoutMs": 30000
+      },
+      "status": "DISABLED",
+      "durationMs": 0,
+      "findingCount": 0,
+      "message": "DEMO: this fictional provider is paused in the user-owned settings."
+    }
+  ]
+}

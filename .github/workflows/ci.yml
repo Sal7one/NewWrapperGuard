@@ -2,13 +2,22 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master, main ]
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   gradle:
     name: Gradle build + tests + parity
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -19,17 +28,18 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Build and test all modules
-        run: ./gradlew build
-      - name: Build plugin zip
-        run: ./gradlew :wrapperguard-intellij:buildPlugin
+      - name: Build, test and package all JVM modules
+        run: ./gradlew build :wrapperguard-cli:installDist :wrapperguard-intellij:buildPlugin
+      - name: Verify IntelliJ binary compatibility
+        run: ./gradlew :wrapperguard-intellij:verifyPlugin
+      - name: Installed CLI and provider protocol smoke
+        run: python3 scripts/provider-smoke.py
       - name: Scanner parity (TS vs Kotlin) + hostile-input checks
         run: |
-          ./gradlew :wrapperguard-cli:installDist -q
           cd vscode-extension
           npm ci
           npm run compile
-          node scripts/parity.js "$GITHUB_WORKSPACE/old_project/test-samples" "$GITHUB_WORKSPACE"
+          node scripts/parity.js "$GITHUB_WORKSPACE/test-fixtures/scanner" "$GITHUB_WORKSPACE"
           node scripts/hardening.js
       - name: VS Code unit tests
         working-directory: vscode-extension
@@ -38,10 +48,16 @@ jobs:
         with:
           name: wrapperguard-plugin
           path: wrapperguard-intellij/build/distributions/*.zip
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jvm-test-results
+          path: '**/build/test-results/test/*.xml'
 
   vscode:
     name: VS Code extension compile + tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: vscode-extension
@@ -52,3 +68,9 @@ jobs:
           node-version: 22
       - run: npm ci
       - run: npm test
+      - run: npm run hardening
+      - run: npm run package
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wrapperguard-vscode
+          path: vscode-extension/*.vsix

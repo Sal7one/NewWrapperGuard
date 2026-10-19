@@ -21,6 +21,9 @@ export interface CallChainLink {
 }
 
 export interface Finding {
+  providerId?: string;
+  actions?: import('./providers/sdk').VettingAction[];
+  mlSignal?: { score: number; modelId: string; labels: string[] };
   fingerprint: string;
   ruleId: string;
   title: string;
@@ -45,6 +48,7 @@ export interface ScriptEdge {
 }
 
 export interface ScanReport {
+  providerRuns?: import('./providers/sdk').ProviderRun[];
   schemaVersion: number;
   projectPath: string;
   verdict: ScanVerdict;

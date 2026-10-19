@@ -4,3 +4,7 @@ tests/**
 scripts/**
 .vscode/**
 **/*.map
+
+tsconfig.json
+package-lock.json
+**/*.vsix

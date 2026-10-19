@@ -25,7 +25,13 @@
       "reachable": true,
       "callChain": [],
       "policyAction": "BLOCK",
-      "status": "ACTIVE"
+      "status": "ACTIVE",
+      "providerId": "wrapperguard",
+      "actions": [
+        "MAJOR_WARNING",
+        "BLOCK_BUILD",
+        "BLOCK_SYNC"
+      ]
     }
   ],
   "edges": [],
@@ -34,5 +40,30 @@
   "complete": true,
   "stale": false,
   "notices": [],
-  "generatedAtEpochMs": 0
+  "generatedAtEpochMs": 0,
+  "providerRuns": [
+    {
+      "descriptor": {
+        "id": "wrapperguard",
+        "displayName": "WrapperGuard",
+        "version": "0.4.0",
+        "apiVersion": 1
+      },
+      "permissions": {
+        "enabled": true,
+        "actions": [
+          "WARNING",
+          "MAJOR_WARNING",
+          "ALERT",
+          "BLOCK_BUILD",
+          "BLOCK_SYNC"
+        ],
+        "required": true,
+        "timeoutMs": 30000
+      },
+      "status": "COMPLETED",
+      "durationMs": 1200,
+      "findingCount": 1
+    }
+  ]
 }

@@ -1,0 +1,157 @@
+{
+  "schemaVersion": 1,
+  "projectPath": "/Users/salehalanazi/Repos/NewWrapperGaurd/demo/project",
+  "verdict": "CLEAN",
+  "policyName": "Atlas Payments · Clean demo",
+  "findings": [],
+  "edges": [],
+  "scannedFiles": 12,
+  "durationMs": 121,
+  "complete": true,
+  "stale": false,
+  "notices": [
+    {
+      "code": "DEMO-SIMULATED",
+      "message": "DEMO: simulated findings and fictional providers. No SDK calls or project code were executed.",
+      "location": null
+    },
+    {
+      "code": "DEMO-CLEAN-SCENARIO",
+      "message": "DEMO: alternate clean UI state; not an actual scan of the illustrative source fixtures.",
+      "location": null
+    }
+  ],
+  "generatedAtEpochMs": 1792407000000,
+  "providerRuns": [
+    {
+      "descriptor": {
+        "id": "wrapperguard",
+        "displayName": "WrapperGuard",
+        "version": "0.4.0",
+        "apiVersion": 1
+      },
+      "permissions": {
+        "enabled": true,
+        "actions": [
+          "WARNING",
+          "MAJOR_WARNING",
+          "ALERT",
+          "BLOCK_BUILD",
+          "BLOCK_SYNC"
+        ],
+        "required": true,
+        "timeoutMs": 30000
+      },
+      "status": "COMPLETED",
+      "durationMs": 0,
+      "findingCount": 0,
+      "message": null
+    },
+    {
+      "descriptor": {
+        "id": "acme.supply-chain",
+        "displayName": "Acme Supply Chain",
+        "version": "1.0.0-demo",
+        "apiVersion": 1
+      },
+      "permissions": {
+        "enabled": true,
+        "actions": [
+          "WARNING",
+          "MAJOR_WARNING",
+          "ALERT",
+          "BLOCK_BUILD"
+        ],
+        "required": true,
+        "timeoutMs": 30000
+      },
+      "status": "COMPLETED",
+      "durationMs": 0,
+      "findingCount": 0,
+      "message": null
+    },
+    {
+      "descriptor": {
+        "id": "sentinel.policy",
+        "displayName": "Sentinel Policy",
+        "version": "1.0.0-demo",
+        "apiVersion": 1
+      },
+      "permissions": {
+        "enabled": true,
+        "actions": [
+          "WARNING",
+          "MAJOR_WARNING",
+          "ALERT",
+          "BLOCK_SYNC"
+        ],
+        "required": true,
+        "timeoutMs": 30000
+      },
+      "status": "COMPLETED",
+      "durationMs": 0,
+      "findingCount": 0,
+      "message": null
+    },
+    {
+      "descriptor": {
+        "id": "demo.registry-audit",
+        "displayName": "Registry Audit · demo",
+        "version": "1.0.0-demo",
+        "apiVersion": 1
+      },
+      "permissions": {
+        "enabled": false,
+        "actions": [
+          "WARNING"
+        ],
+        "required": false,
+        "timeoutMs": 1500
+      },
+      "status": "DISABLED",
+      "durationMs": 0,
+      "findingCount": 0,
+      "message": "DEMO: disabled for the alternate clean UI scenario."
+    },
+    {
+      "descriptor": {
+        "id": "demo.license-check",
+        "displayName": "License Check · demo",
+        "version": "1.0.0-demo",
+        "apiVersion": 1
+      },
+      "permissions": {
+        "enabled": false,
+        "actions": [
+          "WARNING"
+        ],
+        "required": false,
+        "timeoutMs": 30000
+      },
+      "status": "DISABLED",
+      "durationMs": 0,
+      "findingCount": 0,
+      "message": "DEMO: disabled for the alternate clean UI scenario."
+    },
+    {
+      "descriptor": {
+        "id": "legacy.audit",
+        "displayName": "Legacy Audit · paused demo",
+        "version": "1.0.0-demo",
+        "apiVersion": 1
+      },
+      "permissions": {
+        "enabled": false,
+        "actions": [
+          "WARNING"
+        ],
+        "required": false,
+        "timeoutMs": 30000
+      },
+      "status": "DISABLED",
+      "durationMs": 0,
+      "findingCount": 0,
+      "message": "DEMO: disabled for the alternate clean UI scenario."
+    }
+  ]
+}

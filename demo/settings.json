@@ -1,0 +1,25 @@
+{
+  "allowedHosts": [
+    "services.gradle.org",
+    "downloads.gradle.org",
+    "repo.maven.apache.org"
+  ],
+  "allowedUrlPatterns": [
+    "^https://services\\.gradle\\.org/distributions/gradle-[0-9.]+-(bin|all)\\.zip$"
+  ],
+  "blockedCommands": [
+    "certutil",
+    "bitsadmin"
+  ],
+  "maxScriptDepth": 10,
+  "maxFileBytes": 1000000,
+  "requireDistributionSha256": true,
+  "enableRecursiveScanning": true,
+  "knownSafeRepositoryHosts": [
+    "repo.maven.apache.org"
+  ],
+  "trustedWrapperChecksums": {},
+  "maxLineLength": 10000,
+  "maxFilesPerScan": 50000,
+  "maxDirectoryDepth": 64
+}

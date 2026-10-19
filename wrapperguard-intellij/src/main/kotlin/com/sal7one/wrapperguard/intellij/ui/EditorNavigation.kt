@@ -11,11 +11,15 @@ import java.nio.file.Path
  * Platform-boundary helper: navigates the editor to a finding's location. Compose UI calls
  * this through a lambda so the composables stay IDE-agnostic.
  */
-fun openFindingInEditor(project: Project, finding: Finding) {
-    val basePath = project.basePath ?: return
+fun openFindingInEditor(project: Project, finding: Finding, scanRoot: String? = project.basePath) {
+    val basePath = scanRoot ?: return
     ApplicationManager.getApplication().invokeLater {
-        val absolute = Path.of(basePath).resolve(finding.location.path).normalize()
+        val absolute = runCatching {
+            val root = Path.of(basePath).toRealPath()
+            root.resolve(finding.location.path).normalize().toRealPath().also { require(it.startsWith(root)) }
+        }.getOrNull() ?: return@invokeLater
         val file = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(absolute) ?: return@invokeLater
-        OpenFileDescriptor(project, file, (finding.location.line ?: 1) - 1, 0).navigate(true)
+        if (file.isDirectory || project.isDisposed) return@invokeLater
+        OpenFileDescriptor(project, file, ((finding.location.line ?: 1) - 1).coerceAtLeast(0), 0).navigate(true)
     }
 }

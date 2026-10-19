@@ -66,7 +66,7 @@ object CredentialRedaction {
         return out to changed
     }
 
-    /** Masks every quoted assignment inside balanced credentials { } spans (no nesting). */
+    /** Masks every quoted assignment inside balanced credentials { } spans. */
     private fun maskCredentialsBlocks(text: String, onChanged: (Boolean) -> Unit): String {
         var changed = false
         var out = text
@@ -90,7 +90,8 @@ object CredentialRedaction {
                 m.groupValues[1] + m.groupValues[2] + MASK + m.groupValues[2]
             }
             out = out.replaceRange(open + 1, end, masked)
-            searchFrom = end + 1
+            // Replacement may shrink or expand the span; continue after its new closing brace.
+            searchFrom = open + 1 + masked.length + 1
         }
         onChanged(changed)
         return out

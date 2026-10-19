@@ -1,34 +1,78 @@
 {
   "name": "wrapperguard",
   "displayName": "WrapperGuard",
-  "description": "Static wrapper and bootstrap security analysis for Gradle projects. Never executes project code.",
-  "version": "0.3.0",
+  "description": "Local security vetting with a built-in static scanner and user-authorized providers.",
+  "version": "0.4.0",
   "publisher": "sal7one",
-  "repository": { "type": "git", "url": "https://github.com/sal7one/wrapperguard" },
-  "engines": { "vscode": "^1.95.0" },
-  "categories": ["Linters", "Programming Languages"],
-  "activationEvents": ["onStartupFinished", "onView:wrapperGuard.main", "onCommand:wrapperGuard.scanWorkspace"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Sal7one/NewWrapperGaurd"
+  },
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Linters",
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onStartupFinished",
+    "onView:wrapperGuard.main",
+    "onCommand:wrapperGuard.scanWorkspace"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
-      { "command": "wrapperGuard.scanWorkspace", "title": "WrapperGuard: Scan Workspace", "icon": "$(refresh)" },
-      { "command": "wrapperGuard.exportReport", "title": "WrapperGuard: Export Report (JSON)", "icon": "$(export)" },
-      { "command": "wrapperGuard.exportSarif", "title": "WrapperGuard: Export SARIF", "icon": "$(export)" }
+      {
+        "command": "wrapperGuard.scanWorkspace",
+        "title": "WrapperGuard: Scan Workspace",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "wrapperGuard.exportReport",
+        "title": "WrapperGuard: Export Report (JSON)",
+        "icon": "$(export)"
+      },
+      {
+        "command": "wrapperGuard.exportSarif",
+        "title": "WrapperGuard: Export SARIF",
+        "icon": "$(export)"
+      },
+      {
+        "command": "wrapperGuard.evaluate",
+        "title": "WrapperGuard: Evaluate Providers"
+      }
     ],
     "viewsContainers": {
       "activitybar": [
-        { "id": "wrapperGuard", "title": "WrapperGuard", "icon": "resources/shield.svg" }
+        {
+          "id": "wrapperGuard",
+          "title": "WrapperGuard",
+          "icon": "resources/shield.svg"
+        }
       ]
     },
     "views": {
       "wrapperGuard": [
-        { "id": "wrapperGuard.main", "name": "WrapperGuard", "type": "webview" }
+        {
+          "id": "wrapperGuard.main",
+          "name": "WrapperGuard",
+          "type": "webview"
+        }
       ]
     },
     "menus": {
       "view/title": [
-        { "command": "wrapperGuard.scanWorkspace", "when": "view == wrapperGuard.main", "group": "navigation@1" },
-        { "command": "wrapperGuard.exportReport", "when": "view == wrapperGuard.main", "group": "navigation@2" }
+        {
+          "command": "wrapperGuard.scanWorkspace",
+          "when": "view == wrapperGuard.main",
+          "group": "navigation@1"
+        },
+        {
+          "command": "wrapperGuard.exportReport",
+          "when": "view == wrapperGuard.main",
+          "group": "navigation@2"
+        }
       ]
     },
     "configuration": {
@@ -41,20 +85,76 @@
         },
         "wrapperGuard.allowedHosts": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "default": [],
-          "description": "Additional hosts allowed in URLs and repositories (merged with the built-in defaults)."
+          "description": "Additional hosts allowed in URLs and repositories (merged with the built-in defaults).",
+          "scope": "application"
         },
         "wrapperGuard.blockedCommands": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "default": [],
-          "description": "Additional commands blocked in wrapper/script files (merged with the built-in defaults)."
+          "description": "Additional commands blocked in wrapper/script files (merged with the built-in defaults).",
+          "scope": "application"
         },
         "wrapperGuard.requireDistributionSha256": {
           "type": "boolean",
           "default": false,
-          "description": "Require distributionSha256Sum in gradle-wrapper.properties."
+          "description": "Require distributionSha256Sum in gradle-wrapper.properties.",
+          "scope": "application"
+        },
+        "wrapperGuard.providerPermissions": {
+          "type": "object",
+          "scope": "application",
+          "default": {},
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "enabled",
+              "actions",
+              "required",
+              "timeoutMs"
+            ],
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "required": {
+                "type": "boolean"
+              },
+              "timeoutMs": {
+                "type": "integer",
+                "minimum": 100,
+                "maximum": 300000
+              },
+              "actions": {
+                "type": "array",
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "WARNING",
+                    "MAJOR_WARNING",
+                    "ALERT",
+                    "BLOCK_BUILD",
+                    "BLOCK_SYNC"
+                  ]
+                }
+              }
+            }
+          },
+          "description": "User-owned grants for each registered provider. Built-in defaults to enabled/all actions; external SDK providers default to disabled/no actions. Workspace overrides are rejected."
+        },
+        "wrapperGuard.providerConfigPath": {
+          "type": "string",
+          "scope": "application",
+          "default": "",
+          "description": "Absolute JSON provider configuration file outside the workspace. Command providers require Workspace Trust and execute only the explicitly configured command."
         }
       }
     }
@@ -64,11 +164,21 @@
     "watch": "tsc -watch -p ./",
     "parity": "node scripts/parity.js",
     "hardening": "node scripts/hardening.js",
-    "test": "npm run compile && node --test tests/*.test.js"
+    "test": "npm run compile && node --test tests/*.test.js && npm run check:webview",
+    "check:webview": "node scripts/check-webview.js",
+    "package": "npm run compile && vsce package --out wrapperguard-0.4.0.vsix"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/vscode": "^1.95.0",
+    "@vscode/vsce": "4.0.0",
     "typescript": "^5.7.0"
-  }
+  },
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "Built-in static analysis works without trust. Explicit command providers require a trusted workspace."
+    }
+  },
+  "types": "./dist/extension.d.ts"
 }

@@ -231,7 +231,7 @@ class ScriptRules private constructor(
     )
 
     private fun hasSuppressionWithoutReason(line: String): Boolean {
-        val match = Regex("""wrapperguard:ignore(.*)$""", RegexOption.IGNORE_CASE).find(line) ?: return false
+        val match = Regex("""wrapperguard:ignore\b(.*)$""", RegexOption.IGNORE_CASE).find(line) ?: return false
         return match.groupValues[1].trim().isBlank()
     }
 

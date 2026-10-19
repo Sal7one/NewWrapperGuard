@@ -1,19 +1,20 @@
 import * as fs from 'node:fs';
 import * as vscode from 'vscode';
-import { BaselineEntry, ScanReport, ScanSettings } from '../models';
+import { BaselineEntry, ScanPolicy, ScanReport, ScanSettings } from '../models';
+import { userSetting } from '../providers/userSettings';
 import { scanProject } from './repositoryScanner';
 import { DEFAULT_ENFORCE_POLICY, DEFAULT_SETTINGS } from './defaults';
 
 /** Builds the active scan settings from workspace/user configuration, merged over defaults. */
 export function buildSettings(): ScanSettings {
   const cfg = vscode.workspace.getConfiguration('wrapperGuard');
-  const extraHosts = cfg.get<string[]>('allowedHosts') ?? [];
-  const extraCommands = cfg.get<string[]>('blockedCommands') ?? [];
+  const extraHosts = userSetting(cfg.inspect<string[]>('allowedHosts'), []);
+  const extraCommands = userSetting(cfg.inspect<string[]>('blockedCommands'), []);
   return {
     ...DEFAULT_SETTINGS,
     allowedHosts: Array.from(new Set([...DEFAULT_SETTINGS.allowedHosts, ...extraHosts])),
     blockedCommands: Array.from(new Set([...DEFAULT_SETTINGS.blockedCommands, ...extraCommands])),
-    requireDistributionSha256: cfg.get<boolean>('requireDistributionSha256') ?? false
+    requireDistributionSha256: userSetting(cfg.inspect<boolean>('requireDistributionSha256'), false)
   };
 }
 
@@ -24,7 +25,8 @@ export function buildSettings(): ScanSettings {
  */
 export async function scanWorkspaceNative(
   root: vscode.Uri,
-  baselinePath?: string
+  baselinePath?: string,
+  options?: { policy: ScanPolicy; settings: ScanSettings; baseline: BaselineEntry[] }
 ): Promise<{ report: ScanReport; rawJson: string; settings: ScanSettings }> {
   let baseline: BaselineEntry[] = [];
   if (baselinePath) {
@@ -34,7 +36,7 @@ export async function scanWorkspaceNative(
       baseline = [];
     }
   }
-  const settings = buildSettings();
-  const report = scanProject(root.fsPath, DEFAULT_ENFORCE_POLICY, settings, baseline);
+  const settings = options?.settings ?? buildSettings();
+  const report = scanProject(root.fsPath, options?.policy ?? DEFAULT_ENFORCE_POLICY, settings, options?.baseline ?? baseline);
   return { report, rawJson: JSON.stringify(report, null, 2), settings };
 }

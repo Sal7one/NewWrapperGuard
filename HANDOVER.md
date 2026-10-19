@@ -1,7 +1,49 @@
 # WrapperGuard handover
 
-Updated 2026-09-13. Start here for engineering work. This is the single source for
-architecture, project constraints, validation evidence, and remaining work.
+## Current release work — 2026-10-19
+
+Version **0.4.0** is based on remote master `61aed0b`. The owner explicitly authorized
+pushing the implementation and creating a GitHub release on 2026-10-19. The repository
+remains private; Marketplace publication and a visibility change were not requested.
+The September history below is retained as evidence and does not override this authorization.
+The final source, package hashes and release outcome are recorded in
+[docs/release-readiness.md](docs/release-readiness.md).
+The owner authorized keeping the original scanner while opening the host to multiple
+SDKs and scripts. [README.md](README.md) and [docs/providers.md](docs/providers.md)
+describe the current architecture and supersede the detector-only architecture below.
+Kotlin/TypeScript implementations share action grants, operation-specific enforcement,
+namespaced external fingerprints, concurrent execution and visible incomplete coverage.
+The experimental research/ML seam remains inactive and cannot influence enforcement.
+
+Tracked `test-fixtures/scanner` now replaces the dependency on ignored old-project files
+for tests and default parity. Do not edit or recover `old_project/` for these tests.
+Reports remain schemaVersion1 with additive provider fields. CLI incomplete/invalid input
+now exits1; active blockers still exit2. Baseline/provider configs must be outside the root.
+No repository configuration may enable SDKs, execute adapters or grant blocking actions.
+
+Use JDK21 and Node22+. IDE SDK override: `-Pwrapperguard.localIdePath=/path/to/IDE/Contents`.
+This is explicit machine configuration; default/verifier remains IDEA2025.3. The IntelliJ
+test engine is restricted to Vintage because tests use JUnit3/4 and IDE-bundled Jupiter
+may otherwise conflict with the pinned launcher.
+
+The final native and webview designs use compact navigation, a full-width findings table,
+a bottom evidence dock, an aligned provider permission matrix and fitted execution graphs.
+The [Atlas Payments demo](demo/README.md) supplies 12 simulated findings and six fictional
+providers for repeatable UI comparisons, with 13 native/webview screenshots. Demo mode does
+not execute SDKs/scripts or authorize build or sync. The final release rebuild passed
+107 JVM tests (45 core, 25 rules, 3 CLI, 34 IntelliJ), 52 Node tests, emitted-webview checks,
+hostile-input checks, installed CLI smoke, fixture checks and Kotlin/TypeScript fingerprint
+parity. Credential corrections cover TypeScript block recognition and both hosts' cursor
+updates across multiple redacted blocks. Final archives were independently audited against
+current JARs and packaged TypeScript, including the multi-block regression. The final ZIP
+passed binary verification against IU-253.28294.334: compatible, with 6 deprecated and
+32 experimental API usages. See the readiness record for artifact hashes and limits.
+
+## Historical handover — 2026-09-13
+
+Updated 2026-09-13. The sections below describe the September baseline and its then-current
+constraints and validation. Use the current release section and linked provider guide for
+changes to that baseline.
 [README.md](README.md) covers usage; [CHANGELOG.md](CHANGELOG.md) records release history;
 [vscode-extension/README.md](vscode-extension/README.md) is the extension's packaged description.
 

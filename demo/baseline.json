@@ -1,0 +1,7 @@
+[
+  {
+    "fingerprint": "0bb858ed1a04a76d14bfed98",
+    "ruleId": "ACME-LEGACY-004",
+    "reason": "DEMO ONLY: fictional user-approved exception for the legacy bridge; never import as a production baseline."
+  }
+]

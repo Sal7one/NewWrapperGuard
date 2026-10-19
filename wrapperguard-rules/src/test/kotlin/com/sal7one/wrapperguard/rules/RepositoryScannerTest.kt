@@ -16,21 +16,21 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * Regression tests for the deterministic scanner. Driven by the shared `old_project/test-samples`
- * fixtures (read-only reference, per HANDOVER.md) plus focused inline fixtures for the
+ * Regression tests using tracked `test-fixtures/scanner` inputs available in fresh
+ * checkouts, plus focused inline fixtures for the
  * recursion engine.
  */
 class RepositoryScannerTest {
 
-    // Tests run from the module dir; resolve the repo root by walking up to find old_project/.
+    // Tests run from the module dir; locate the tracked shared regression fixtures.
     private val repoRoot: Path = run {
         var dir = Path.of("").toAbsolutePath()
-        while (dir != null && !Files.isDirectory(dir.resolve("old_project/test-samples"))) {
+        while (dir != null && !Files.isDirectory(dir.resolve("test-fixtures/scanner"))) {
             dir = dir.parent
         }
-        dir ?: error("Could not locate repo root (old_project/test-samples) from ${Path.of("").toAbsolutePath()}")
+        dir ?: error("Could not locate test-fixtures/scanner from ${Path.of("").toAbsolutePath()}")
     }
-    private val samples: Path = repoRoot.resolve("old_project/test-samples")
+    private val samples: Path = repoRoot.resolve("test-fixtures/scanner")
     private val scanner = RepositoryScanner()
     private val enforce = ScanPolicy(mode = EnforcementMode.ENFORCE)
     private val warn = ScanPolicy(mode = EnforcementMode.WARN)
@@ -95,6 +95,8 @@ class RepositoryScannerTest {
             violation!!.evidence!!.text.contains("wrapperguard:ignore", ignoreCase = true),
             "Ignore marker must be stripped from evidence"
         )
+        val missingReason = report.findings.single { it.ruleId == RuleIds.CONFIG_SUPPRESS_NO_REASON }
+        assertEquals(PolicyAction.ALLOW, missingReason.policyAction, "Missing reasons are audit evidence, not blockers")
     }
 
     @Test
@@ -142,7 +144,7 @@ class RepositoryScannerTest {
         }
     }
 
-    /** Copies a fixture from old_project/test-samples into a temp dir under [targetName] and returns the temp dir. */
+    /** Copies a tracked fixture into a temp directory. */
     private fun copyToTemp(fixtureName: String, targetName: String = fixtureName): Path {
         val root = createTempDirectory(prefix = "wrapperguard-fixture-")
         root.resolve(targetName).writeText(Files.readString(samples.resolve(fixtureName)))

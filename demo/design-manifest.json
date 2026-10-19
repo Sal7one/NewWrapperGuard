@@ -1,0 +1,100 @@
+{
+  "demo": true,
+  "projectName": "atlas-payments",
+  "reportSchemaVersion": 1,
+  "providerApiVersion": 1,
+  "generatedAt": "2026-10-19T10:50:00Z",
+  "scenarios": {
+    "blocked": "report.json",
+    "clean": "report-clean.json"
+  },
+  "expected": {
+    "findings": 12,
+    "active": 10,
+    "activeBlockers": 3,
+    "activeWarnings": 6,
+    "auditEvidence": 1,
+    "suppressed": 1,
+    "accepted": 1,
+    "buildBlockers": 2,
+    "syncBlockers": 2,
+    "fixtureFiles": 12,
+    "graphFiles": 6,
+    "graphEdges": 7,
+    "providers": 6,
+    "providerStatuses": {
+      "COMPLETED": 3,
+      "TIMED_OUT": 1,
+      "FAILED": 1,
+      "DISABLED": 1
+    }
+  },
+  "inventory": [
+    {
+      "path": ".github/workflows/ci-demo.yml",
+      "sha256": "390eeba94408e3f5825d9223ef3423bdba0feef0e3fbfea77d517437a8cad74d",
+      "lines": 10
+    },
+    {
+      "path": "README.md",
+      "sha256": "430cc76c613a51643d13752f30ee06483bfc417367c5ee728a4158fe1a0c4a6d",
+      "lines": 10
+    },
+    {
+      "path": "build.gradle.kts",
+      "sha256": "0edc6fe508ec98a5462e7262f0e230984cd1087657bbbb6b123fe71e9c36dc3a",
+      "lines": 23
+    },
+    {
+      "path": "gradle/libs.versions.toml",
+      "sha256": "c4caa3f9a16bb8873de3bcce58f6a56f7fd57d02458a61d309743c02740d94e5",
+      "lines": 8
+    },
+    {
+      "path": "gradle/wrapper/gradle-wrapper.properties",
+      "sha256": "ab5d204a64c719c722444532b29ea346d1ab6be7574e890609f4d5c753328e63",
+      "lines": 7
+    },
+    {
+      "path": "scripts/audit.sh",
+      "sha256": "a93f7507126601abe71bfcc805f2ed11b31f0cc4cd417c7dd114a47471fb50aa",
+      "lines": 7
+    },
+    {
+      "path": "scripts/bootstrap.sh",
+      "sha256": "7ce2e54e7ed357286ff3819e880fde7e36d972cb62a06dda605965bfeed4afd0",
+      "lines": 9
+    },
+    {
+      "path": "scripts/fetch-metadata.sh",
+      "sha256": "df1563e3fa34e82d542c3299afe061f555f95d7aa0dbca139ae24b6be20f236e",
+      "lines": 7
+    },
+    {
+      "path": "scripts/install.sh",
+      "sha256": "7abec586a2ba4cd646afc85f1e8459a66f13f7ad4c7634559e1ba4d631d3520b",
+      "lines": 7
+    },
+    {
+      "path": "scripts/publish.sh",
+      "sha256": "3a903ff854c44a5ba3cc84bf322c9347fec0019d2432418207b20ceb1a9296bd",
+      "lines": 7
+    },
+    {
+      "path": "scripts/sync.sh",
+      "sha256": "fe46512a7b47d8b8565e9b8c1a37ab24b48bdffa5d26043b4f6323cb198e575c",
+      "lines": 7
+    },
+    {
+      "path": "settings.gradle.kts",
+      "sha256": "14b5543798e945754c8d052797c27acb13fe8c3ed417e8a18b45a31cfd4441ca",
+      "lines": 3
+    }
+  ],
+  "notes": [
+    "All report findings, statuses, provider identities and timings are simulated UI data.",
+    "scannedFiles counts the 12 checked-in text fixtures, not measured detector coverage.",
+    "Do not execute/import/sync the illustrative project. No real SDK is called.",
+    "No vulnerability score, coverage percentage or vendor integration claim is fabricated."
+  ]
+}

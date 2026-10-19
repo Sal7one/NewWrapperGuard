@@ -63,6 +63,7 @@ class ExecutionBlockedDialog(
             add(JLabel("⛔ Intercepted:"), BorderLayout.WEST)
             add(
                 JBLabel("${configuration.name}  (${configuration.type.displayName})").apply {
+                    putClientProperty("html.disable", true)
                     font = font.deriveFont(Font.BOLD, font.size2D + 1f)
                     setCopyable(true)
                 },
@@ -74,7 +75,7 @@ class ExecutionBlockedDialog(
         add(buildViolationsList(), BorderLayout.CENTER)
 
         // ── Assurance ────────────────────────────────────────────────
-        add(muted("ℹ No project code was executed."), BorderLayout.SOUTH)
+        add(muted("The requested IDE run has not started. Review provider findings before continuing."), BorderLayout.SOUTH)
     }
 
     private fun buildViolationsList(): JPanel = JPanel().apply {
@@ -91,10 +92,14 @@ class ExecutionBlockedDialog(
     private fun violationRow(finding: Finding): JPanel = JBPanel<JBPanel<*>>(BorderLayout(8, 0)).apply {
         add(JLabel("✖"), BorderLayout.WEST)
         add(JBPanel<JBPanel<*>>(BorderLayout(0, 2)).apply {
-            add(JBLabel("${finding.ruleId} — ${finding.title}").apply { font = font.deriveFont(Font.BOLD) }, BorderLayout.NORTH)
+            add(JBLabel("${finding.providerId ?: "wrapperguard"} · ${finding.ruleId} — ${finding.title}").apply {
+                putClientProperty("html.disable", true)
+                font = font.deriveFont(Font.BOLD)
+            }, BorderLayout.NORTH)
             finding.evidence?.let { evidence ->
                 add(
                     JBLabel(evidence.text.take(160)).apply {
+                        putClientProperty("html.disable", true)
                         font = JBUI.Fonts.label()
                         setCopyable(true)
                     },
@@ -108,6 +113,7 @@ class ExecutionBlockedDialog(
     }
 
     private fun muted(text: String): JBLabel = JBLabel(text).apply {
+        putClientProperty("html.disable", true)
         foreground = com.intellij.util.ui.UIUtil.getContextHelpForeground()
     }
 }

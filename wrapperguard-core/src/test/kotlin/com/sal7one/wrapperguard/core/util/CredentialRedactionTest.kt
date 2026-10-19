@@ -56,6 +56,18 @@ class CredentialRedactionTest {
     }
 
     @Test
+    fun shrinkingCredentialsBlockDoesNotSkipNextBlockOrNestedAssignments() {
+        val input = "credentials { username = \"${"a".repeat(100)}\" password = \"FIRST_DEMO_PASSWORD\" }\n" +
+            "credentials { identity { accountName = \"second-demo-user\" } password = \"SECOND_DEMO_PASSWORD\" }"
+        val expected = "credentials { username = \"[redacted]\" password = \"[redacted]\" }\n" +
+            "credentials { identity { accountName = \"[redacted]\" } password = \"[redacted]\" }"
+        val (out, changed) = CredentialRedaction.mask(input)
+        assertEquals(expected, out)
+        assertTrue(changed)
+        assertEquals(expected, CredentialRedaction.mask(out).first)
+    }
+
+    @Test
     fun leavesBenignTextUntouched() {
         val input = "implementation(\"com.android.tools.build:gradle:8.7.0\")"
         val (out, changed) = CredentialRedaction.mask(input)

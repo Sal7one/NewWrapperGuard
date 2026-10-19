@@ -7,6 +7,9 @@ import com.intellij.openapi.components.Storage
 import com.intellij.openapi.project.Project
 import com.intellij.util.xmlb.XmlSerializerUtil
 import com.sal7one.wrapperguard.core.policy.ScanSettings
+import com.sal7one.wrapperguard.core.vetting.BuiltInVettingProvider
+import com.sal7one.wrapperguard.core.vetting.ProviderPermissions
+import com.sal7one.wrapperguard.core.vetting.VettingAction
 
 /**
  * Plugin-wide settings. Only these user-owned inputs feed the scanner:
@@ -23,8 +26,23 @@ class WrapperGuardSettings : PersistentStateComponent<WrapperGuardSettings.State
         var allowedHostsText: String = "",
         var requireDistributionSha256: Boolean = false,
         var scanOnOpen: Boolean = true,
-        var scanOnFileChange: Boolean = true
+        var scanOnFileChange: Boolean = true,
+        var providerConfigurationPath: String = "",
+        var providers: MutableList<ProviderState> = mutableListOf()
     )
+
+    /** Application settings live outside the scanned project and are the SDK grant authority. */
+    data class ProviderState(
+        var id: String = "",
+        var enabled: Boolean = false,
+        var actions: MutableList<String> = mutableListOf(),
+        var required: Boolean = false,
+        var timeoutMs: Long = 30_000
+    ) {
+        fun permissions() = ProviderPermissions(enabled, actions.mapNotNull { name ->
+            VettingAction.entries.firstOrNull { it.name == name }
+        }.toSet(), required, timeoutMs.coerceIn(100, 300_000))
+    }
 
     private var state = State()
 
@@ -37,6 +55,11 @@ class WrapperGuardSettings : PersistentStateComponent<WrapperGuardSettings.State
     /** Additional hosts as a set of trimmed, non-blank lines. */
     val extraAllowedHosts: Set<String>
         get() = state.allowedHostsText.lineSequence().map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+
+    fun permissions(providerId: String): ProviderPermissions =
+        state.providers.firstOrNull { it.id == providerId }?.permissions()
+            ?: if (providerId == "wrapperguard") BuiltInVettingProvider.DEFAULT_PERMISSIONS
+            else ProviderPermissions(enabled = false)
 
     companion object {
         fun getInstance(): WrapperGuardSettings =

@@ -1,0 +1,132 @@
+{
+  "demo": true,
+  "version": "0.4.0",
+  "project": "Atlas Payments",
+  "reportSha256": "2f2e722710493e1ddd9bdc3d6f42fea6c39591d6ce0282d6341f14ea714ec57b",
+  "settingsSha256": "e18341a5eddd43f490c9442f32797ae3a89c3fb28871c225e8b730b900511749",
+  "sourceSha256": {
+    "demo/preview/build-vscode-preview.js": "a554a2712fd3c42912a51c9652ac87177f792b829966732bf05b138be5c657ac",
+    "demo/preview/demo-bridge.js": "a1c215015219b9dfb575c16152d1cd0ed9a7bb3abbabab80acd0c6858b21caba",
+    "vscode-extension/src/webviewUi.ts": "5f354e6625abf3e4d56cea61d440b8b959fda737732a8004dad4731348197d83",
+    "wrapperguard-intellij/src/main/kotlin/com/sal7one/wrapperguard/intellij/demo/WrapperGuardDemo.kt": "f74298d22254eb07128aee562060c38fe127c8dfb8678a6f671d41404a2c6921",
+    "wrapperguard-intellij/src/main/kotlin/com/sal7one/wrapperguard/intellij/ui/EditorNavigation.kt": "9aaa7ec2ab47a5b8e7eaee872bee76e472cde08723d0b6ded5c8013b912305a9",
+    "wrapperguard-intellij/src/main/kotlin/com/sal7one/wrapperguard/intellij/ui/ExecutionGraphTab.kt": "8d9da1e4a2893ee44dfdc98190ccd5749d429a7330afec02d769eed22ba9777e",
+    "wrapperguard-intellij/src/main/kotlin/com/sal7one/wrapperguard/intellij/ui/ExecutionPresentation.kt": "f740ad5fb06caff1c59116b9aeb21eb782e80f3e4cc76b6fab19eb29f75f3d05",
+    "wrapperguard-intellij/src/main/kotlin/com/sal7one/wrapperguard/intellij/ui/FindingsPresentation.kt": "b63ed4674c5a9e0097049d84b37fe0d96c8289f5669638d9d8ad5f2d5d5d608c",
+    "wrapperguard-intellij/src/main/kotlin/com/sal7one/wrapperguard/intellij/ui/FindingsTab.kt": "ecf81475930198e04f366e8a78aefd92da6579d220dd83092e46e74bac7d5218",
+    "wrapperguard-intellij/src/main/kotlin/com/sal7one/wrapperguard/intellij/ui/OverviewTab.kt": "fb2d260fe52f7fda0d0bf03d833c768b28f0d2dd6d281614d3e76ce39a28135e",
+    "wrapperguard-intellij/src/main/kotlin/com/sal7one/wrapperguard/intellij/ui/PolicyTab.kt": "262900fc595f70460bf31229c081696d989467b68758dabb82bdcf64cf50fbc4",
+    "wrapperguard-intellij/src/main/kotlin/com/sal7one/wrapperguard/intellij/ui/ReportExport.kt": "903cf4e16624f783ed2d40f549417ad1a893d0a30a11bf5cc5e6de86c5a93cfe",
+    "wrapperguard-intellij/src/main/kotlin/com/sal7one/wrapperguard/intellij/ui/WgTheme.kt": "5c1e8e68c5900b38e8a2dda80defd2ca087834c5678211878a5cb85d600a1c00",
+    "wrapperguard-intellij/src/main/kotlin/com/sal7one/wrapperguard/intellij/ui/WrapperGuardApp.kt": "9ef73d03a6fa2bfd1d854352e6b4743d1da1daef1f4beb0f8f0ccab3a869dfe1",
+    "wrapperguard-intellij/src/main/kotlin/com/sal7one/wrapperguard/intellij/ui/WrapperGuardToolWindowFactory.kt": "0559cc86bd4aa91f0b141ae904a822d02590aac8c80a667497c4e8ce6a3e575e",
+    "wrapperguard-intellij/src/main/kotlin/com/sal7one/wrapperguard/intellij/ui/components/SharedComponents.kt": "1e8062e2755d3fdc3341f19ffddd244755d821529afe1c4deb0d9d0d022cdfc5",
+    "wrapperguard-intellij/src/main/kotlin/com/sal7one/wrapperguard/intellij/ui/components/WorkspaceComponents.kt": "dec0b1f6bc42b39c6d1a1166111bd172dad5f91478d5b100a2188ca7badc3800"
+  },
+  "screenshots": [
+    {
+      "file": "screenshots/intellij/01-summary-dark.png",
+      "surface": "intellij",
+      "label": "Workspace overview",
+      "width": 2880,
+      "height": 1920,
+      "sha256": "ed1b6b8671fef9877f318a7e503555b220174e0808c665cfa18fac5348f7d808"
+    },
+    {
+      "file": "screenshots/intellij/02-findings-dark.png",
+      "surface": "intellij",
+      "label": "Findings & evidence",
+      "width": 2880,
+      "height": 1920,
+      "sha256": "fa2ff4f3b6d5bbf17f77ea30df0eaaa518ecf96f59e5dfbf056a1d9dacb7e545"
+    },
+    {
+      "file": "screenshots/intellij/03-execution-dark.png",
+      "surface": "intellij",
+      "label": "Execution graph",
+      "width": 2880,
+      "height": 1920,
+      "sha256": "932eee6e23f8f8924d8bee68f09600a222276146c275ffc6eabebc37d000a5ab"
+    },
+    {
+      "file": "screenshots/intellij/04-policy-dark.png",
+      "surface": "intellij",
+      "label": "Provider permissions",
+      "width": 2880,
+      "height": 1920,
+      "sha256": "65d054e5071aa1020b2a3fced4d32f760d66442e4ceb017eea52e4b999c4536f"
+    },
+    {
+      "file": "screenshots/vscode/01-overview-dark.png",
+      "surface": "vscode",
+      "label": "Workspace overview",
+      "width": 2880,
+      "height": 1920,
+      "sha256": "128e8340c22f5d922688a6e0da9041c5867b34f0f19a4fb596dd27bbf70764ae"
+    },
+    {
+      "file": "screenshots/vscode/02-findings-dark.png",
+      "surface": "vscode",
+      "label": "Findings & evidence",
+      "width": 2880,
+      "height": 1920,
+      "sha256": "7ace86bbaf0cda15a9c329ccbe32d9401268b5bca9d1d940055b942b82d2ec6c"
+    },
+    {
+      "file": "screenshots/vscode/03-execution-dark.png",
+      "surface": "vscode",
+      "label": "Execution graph",
+      "width": 2880,
+      "height": 1920,
+      "sha256": "f75e948873e79a5bb50cb3ba3485e564ae75d461fb69953f73527734478e46da"
+    },
+    {
+      "file": "screenshots/vscode/04-policy-dark.png",
+      "surface": "vscode",
+      "label": "Provider permissions",
+      "width": 2880,
+      "height": 2046,
+      "sha256": "71c4055e5542c4df17aa3f61677bbcfd72d62eb0607f5a2dc1ba14bf061289f2"
+    },
+    {
+      "file": "screenshots/vscode/05-findings-light.png",
+      "surface": "vscode",
+      "label": "Light appearance",
+      "width": 2880,
+      "height": 1920,
+      "sha256": "67cca59b4d2a2532991d7e616ce2299a093057bcf2cf4891c84e7d41748ca0b2"
+    },
+    {
+      "file": "screenshots/vscode/06-findings-narrow.png",
+      "surface": "vscode",
+      "label": "Narrow workspace",
+      "width": 860,
+      "height": 2000,
+      "sha256": "bd1596f8d2c57d9f7468728df8044df4fb9775cff58283ae1bbef0e21f220e67"
+    },
+    {
+      "file": "screenshots/vscode/07-approved-baseline.png",
+      "surface": "vscode",
+      "label": "Approved baseline",
+      "width": 2880,
+      "height": 1920,
+      "sha256": "8092169292f91178d305baa22fa1951e02be53b787121034a06ab84c363f4b86"
+    },
+    {
+      "file": "screenshots/vscode/08-demo-permission-controls.png",
+      "surface": "vscode",
+      "label": "Permission controls",
+      "width": 2880,
+      "height": 1920,
+      "sha256": "566597727d98d72c15587b2da0ad181d4df244591bbbf7411305b70615e97cf2"
+    },
+    {
+      "file": "screenshots/vscode/09-execution-expanded.png",
+      "surface": "vscode",
+      "label": "Expanded execution workspace",
+      "width": 3200,
+      "height": 2000,
+      "sha256": "fec0681f7da79eec11c344e2eedbb80dd055f04155a707939ee133eedd002f9b"
+    }
+  ]
+}

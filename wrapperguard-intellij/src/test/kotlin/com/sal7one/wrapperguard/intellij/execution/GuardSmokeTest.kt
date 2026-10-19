@@ -1,6 +1,7 @@
 package com.sal7one.wrapperguard.intellij.execution
 
 import com.intellij.execution.Executor
+import com.intellij.ide.trustedProjects.TrustedProjects
 import com.intellij.execution.RunnerAndConfigurationSettings
 import com.intellij.execution.configurations.ConfigurationFactory
 import com.intellij.execution.configurations.ConfigurationTypeBase
@@ -25,6 +26,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import javax.swing.JComponent
 import javax.swing.JPanel
+import com.sal7one.wrapperguard.intellij.demo.WrapperGuardDemo
 
 /**
  * End-to-end guard smoke tests (headless): a malicious fixture project must produce
@@ -172,6 +174,78 @@ class GuardSmokeTest : HeavyPlatformTestCase() {
             "existing configurations must receive an enabled guard task on project open",
             tasks.any { it.providerId == WrapperGuardBeforeRunTaskProvider.KEY && it.isEnabled }
         )
+    }
+
+    fun testSafeModeRejectsRunWithoutOfferingRunOnce() {
+        withProjectTrustChecks {
+            TrustedProjects.setProjectTrusted(project, false)
+            val configuration = registerConfiguration("untrusted-run").configuration
+            var offeredOverride = false
+            val provider = object : WrapperGuardBeforeRunTaskProvider() {
+                override fun askUserToRunOnce(project: Project, configuration: RunConfiguration, blockers: List<Finding>): Boolean {
+                    offeredOverride = true
+                    return true
+                }
+            }
+            val env = ExecutionEnvironmentBuilder.create(project, DefaultRunExecutor.getRunExecutorInstance(), configuration).build()
+            assertFalse(provider.executeTask(DataContext.EMPTY_CONTEXT, configuration, env, provider.createTask(configuration)!!))
+            assertFalse("project trust must use the IDE's trust controls", offeredOverride)
+            assertTrue(project.getService(WrapperGuardProjectService::class.java).report!!.findings.any {
+                it.ruleId == "WG-PROJECT-UNTRUSTED"
+            })
+        }
+    }
+
+    fun testDemoModeRefusesRunWithoutOfferingRunOnce() {
+        val previous = System.getProperty(WrapperGuardDemo.ENABLED_PROPERTY)
+        try {
+            System.setProperty(WrapperGuardDemo.ENABLED_PROPERTY, "true")
+            val configuration = registerConfiguration("demo-run").configuration
+            var offeredOverride = false
+            val provider = object : WrapperGuardBeforeRunTaskProvider() {
+                override fun askUserToRunOnce(project: Project, configuration: RunConfiguration, blockers: List<Finding>): Boolean {
+                    offeredOverride = true
+                    return true
+                }
+            }
+            val env = ExecutionEnvironmentBuilder.create(project, DefaultRunExecutor.getRunExecutorInstance(), configuration).build()
+            assertFalse(provider.executeTask(DataContext.EMPTY_CONTEXT, configuration, env, provider.createTask(configuration)!!))
+            assertFalse(offeredOverride)
+        } finally {
+            if (previous == null) System.clearProperty(WrapperGuardDemo.ENABLED_PROPERTY)
+            else System.setProperty(WrapperGuardDemo.ENABLED_PROPERTY, previous)
+        }
+    }
+
+    fun testTrustRevocationWhileRunOnceDialogIsOpenPreventsRun() {
+        withProjectTrustChecks {
+            TrustedProjects.setProjectTrusted(project, true)
+            writeFixture(Path.of(project.basePath!!), "gradlew", MALICIOUS_GRADLEW)
+            val configuration = registerConfiguration("trust-revoked-run").configuration
+            var offeredOverride = false
+            val provider = object : WrapperGuardBeforeRunTaskProvider() {
+                override fun askUserToRunOnce(project: Project, configuration: RunConfiguration, blockers: List<Finding>): Boolean {
+                    offeredOverride = true
+                    TrustedProjects.setProjectTrusted(project, false)
+                    return true
+                }
+            }
+            val env = ExecutionEnvironmentBuilder.create(project, DefaultRunExecutor.getRunExecutorInstance(), configuration).build()
+            assertFalse(provider.executeTask(DataContext.EMPTY_CONTEXT, configuration, env, provider.createTask(configuration)!!))
+            assertTrue(offeredOverride)
+        }
+    }
+
+    private fun withProjectTrustChecks(action: () -> Unit) {
+        val keys = listOf("idea.trust.headless.disabled", "idea.trust.all.projects", "idea.trust.disabled")
+        val previous = keys.associateWith { System.getProperty(it) }
+        try {
+            keys.forEach { System.setProperty(it, "false") }
+            action()
+        } finally {
+            TrustedProjects.setProjectTrusted(project, true)
+            previous.forEach { (key, value) -> if (value == null) System.clearProperty(key) else System.setProperty(key, value) }
+        }
     }
 
     companion object {

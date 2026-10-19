@@ -1,8 +1,12 @@
-import { ScanReport } from '../models';
+import { Finding, ScanReport } from '../models';
+import { maskSecretValues } from './redaction';
+
+const mask = (text:string):string => maskSecretValues(text).masked;
+const ruleKey = (finding:Finding):string => mask(!finding.providerId || finding.providerId === 'wrapperguard' ? finding.ruleId : finding.providerId + '/' + finding.ruleId);
 
 /** Faithful port of core/export/SarifExporter — SARIF 2.1.0 for CI integrations. */
 export function toSarif(report: ScanReport): unknown {
-  const rules = Array.from(new Set(report.findings.map((f) => f.ruleId))).map((ruleId) => ({
+  const rules = Array.from(new Set(report.findings.map(ruleKey))).map((ruleId) => ({
     id: ruleId,
     name: ruleId,
     shortDescription: { text: ruleId }
@@ -10,22 +14,24 @@ export function toSarif(report: ScanReport): unknown {
   const results = report.findings.map((f) => {
     const level = f.severity === 'ERROR' ? 'error' : f.severity === 'WARN' ? 'warning' : 'note';
     const result: Record<string, unknown> = {
-      ruleId: f.ruleId,
+      ruleId: ruleKey(f),
       level,
-      message: { text: f.message },
+      message: { text: mask(f.message) },
       locations: [
         {
           physicalLocation: {
-            artifactLocation: { uri: f.location.path },
+            artifactLocation: { uri: mask(f.location.path) },
             ...(f.location.line != null ? { region: { startLine: f.location.line } } : {})
           }
         }
       ],
-      partialFingerprints: { 'wrapperguard/v1': f.fingerprint },
+      partialFingerprints: { 'wrapperguard/v1': mask(f.fingerprint) },
       properties: {
         policyAction: f.policyAction,
         category: f.category,
-        ...(f.evidence ? { evidence: f.evidence.text } : {})
+        ...(f.providerId ? {providerId:mask(f.providerId)} : {}),
+        ...(f.actions?.length ? {actions:f.actions} : {}),
+        ...(f.evidence ? { evidence: mask(f.evidence.text) } : {})
       }
     };
     if (f.status !== 'ACTIVE') {
@@ -41,7 +47,7 @@ export function toSarif(report: ScanReport): unknown {
         tool: {
           driver: {
             name: 'WrapperGuard',
-            version: '0.3.0',
+            version: '0.4.0',
             rules
           }
         },

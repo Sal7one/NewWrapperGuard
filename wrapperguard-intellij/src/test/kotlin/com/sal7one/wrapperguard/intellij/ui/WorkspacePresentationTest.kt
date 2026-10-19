@@ -65,4 +65,25 @@ class WorkspacePresentationTest {
         assertEquals(setOf("entry"), layout.roots)
         assertEquals(layout, ExecutionLayout.build(edges.reversed()))
     }
+
+    @Test fun `risky path finds shortest entry through cycles without depending on edge order`() {
+        val edges = listOf(edge("entry", "a"), edge("a", "b"), edge("b", "a"),
+            edge("entry", "long"), edge("long", "longer"), edge("longer", "b"))
+        val blocker = finding("block").copy(location = SourceLocation("b"))
+        val paths = executionRiskPaths(edges, listOf(blocker))
+        assertEquals(listOf(ExecutionRiskPath("b", listOf("entry", "a", "b"), true, true)), paths)
+        assertEquals(paths, executionRiskPaths(edges.reversed(), listOf(blocker)))
+    }
+
+    @Test fun `risky paths distinguish detached files and rootless cycles and exclude approvals`() {
+        val edges = listOf(edge("a", "b"), edge("b", "a"))
+        val cycle = finding("cycle").copy(location = SourceLocation("b"))
+        val detached = finding("detached").copy(location = SourceLocation("standalone"))
+        val approved = finding("approved", status = FindingStatus.SUPPRESSED).copy(location = SourceLocation("approved"))
+        val review = finding("review", PolicyAction.REVIEW).copy(location = SourceLocation("review"))
+        val paths = executionRiskPaths(edges, listOf(cycle, cycle.copy(fingerprint = "same-file"), detached, approved, review))
+        assertEquals(listOf(
+            ExecutionRiskPath("b", listOf("b"), false, true),
+            ExecutionRiskPath("standalone", listOf("standalone"), false, false)), paths)
+    }
 }

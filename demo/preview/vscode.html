@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Atlas Payments — WrapperGuard demo</title>
+<meta charset="utf-8"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-PKcWJACMp3gIyHcnDCOOW1kMdfWHkWOz';"/>
+<style>
+/* A quiet, dense developer workspace. Tables and evidence carry the hierarchy. */
+:root{--bg:#13121b;--surface:#1f1f28;--surface-low:#1b1b24;--surface-lowest:#101018;--surface-high:#2a2933;--surface-highest:#35343e;--border:#353440;--border-strong:#656473;--text:#e4e1ee;--text-dim:#a8a6b9;--primary:#c3c0ff;--primary-container:#4f46e5;--on-primary-container:#fff;--error:#ffb4ab;--warn:#ffb695;--ok:#8fd7a6;--info:#a9bad3;--mono-bg:#14131b;--mono-bar:#22212b;--tok-kw:#8ab4f8;--tok-str:#e8be95;--tok-com:#8caa88;--tok-op:#d7c8f4;--wg-border:var(--border);--wg-border-strong:#9491ac;--wg-error:var(--error);--wg-text-dim:var(--text-dim);--font:var(--vscode-font-family,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif);--code:var(--vscode-editor-font-family,'SFMono-Regular',Consolas,monospace)}
+body.vscode-light{--bg:#f8f9fc;--surface:#fff;--surface-low:#f0f1f6;--surface-lowest:#e9ebf2;--surface-high:#e8eaf2;--surface-highest:#e1e4ee;--border:#d6d9e3;--border-strong:#969baa;--text:#252737;--text-dim:#60677b;--primary:#4d44c7;--primary-container:#4f46e5;--error:#ae302b;--warn:#9a5c14;--ok:#277344;--info:#38628a;--mono-bg:#f5f6fa;--mono-bar:#edf0f5;--tok-kw:#355aa6;--tok-str:#916028;--tok-com:#597248;--tok-op:#763d92;--wg-border-strong:#737b92}
+*{box-sizing:border-box}body{margin:0;color:var(--text);background:var(--bg);font:13px/1.5 var(--font);display:flex;flex-direction:column;height:100vh;overflow:hidden}button,input,select{font:inherit}button{color:inherit;cursor:pointer}button:disabled{opacity:.5;cursor:default}button:focus-visible,input:focus-visible,select:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--primary);outline-offset:2px}.mono{font-family:var(--code)}h1,h2,h3,p{margin:0}h1{font-size:20px;line-height:28px;letter-spacing:-.4px;font-weight:600}h2{font-size:16px;line-height:1.4;font-weight:600}h3{font-size:13px;font-weight:600}.muted{color:var(--text-dim)}.err{color:var(--error)}.warn{color:var(--warn)}.ok{color:var(--ok)}.info{color:var(--info)}
+.app-bar{height:46px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:var(--surface-low);border-bottom:1px solid var(--border)}.app-title{display:flex;align-items:center;gap:9px;font-weight:600}.app-title .logo{display:flex;width:21px;height:23px;color:var(--primary)}.brand-ver{font-size:10px;font-weight:400;color:var(--text-dim)}.workspace-label{font-size:12px;color:var(--text);font-weight:400;border-left:1px solid var(--border-strong);margin-left:5px;padding-left:14px}.app-actions{display:flex;align-items:center;gap:6px}.icon-btn{width:28px;height:28px;border:1px solid transparent;border-radius:3px;background:transparent;color:var(--text-dim);font-size:18px;display:inline-flex;align-items:center;justify-content:center}.icon-btn:hover{background:var(--surface-high);color:var(--text)}
+.workspace-shell{display:flex;flex:1;min-height:0}.sidebar{width:176px;flex:none;background:var(--surface-low);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:16px 8px 10px;gap:18px}.sidebar-label,.section-label{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text-dim)}.sidebar-label{padding:0 8px;margin-bottom:8px}.tabs{display:flex;flex-direction:column;gap:3px}.tab{display:flex;align-items:center;gap:9px;min-height:34px;padding:6px 9px;background:transparent;border:0;border-left:2px solid transparent;border-radius:2px;text-align:left;font-size:12px;color:var(--text-dim);white-space:nowrap}.tab .ticon{width:16px;height:17px;display:flex;align-items:center;justify-content:center}.ticon svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}.tab:hover{background:var(--surface-high);color:var(--text)}.tab.active{background:color-mix(in srgb,var(--primary) 8%,var(--surface-low));color:var(--primary);border-left-color:var(--primary)}.tcount{margin-left:auto;padding:0 5px;min-width:21px;text-align:center;font:10px/18px var(--code);background:var(--surface-highest);border-radius:3px;color:var(--text-dim)}
+.status-card{border-top:1px solid var(--border);padding:14px 0 0}.status-card>.sidebar-label{margin-bottom:9px}.pill{display:inline-flex;align-items:center;gap:5px;padding:3px 7px;font-size:10px;font-weight:500;border:1px solid var(--border);border-radius:3px;color:var(--text-dim)}.status-card>.pill{margin:0 7px}.pill.err,.badge.err{color:var(--error);border-color:color-mix(in srgb,var(--error) 34%,transparent);background:color-mix(in srgb,var(--error) 8%,transparent)}.pill.warn,.badge.warn{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 32%,transparent);background:color-mix(in srgb,var(--warn) 7%,transparent)}.pill.ok,.badge.ok{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 32%,transparent);background:color-mix(in srgb,var(--ok) 7%,transparent)}.sidebar-summary{padding:8px 8px 0}.srow{display:flex;align-items:center;gap:6px;padding:3px 0;font-size:11px;color:var(--text-dim)}.srow .val{margin-left:auto;font:11px var(--code);color:var(--text)}.sic{width:11px;text-align:center}.sidebar-bottom{margin-top:auto;padding:12px 8px 0;border-top:1px solid var(--border);font-size:10px;color:var(--text-dim)}.sidebar-health{display:flex;align-items:center;gap:6px;margin-bottom:7px}.health-dot{width:5px;height:5px;border-radius:50%;background:var(--ok)}.health-dot.warn{background:var(--warn)}.sidebar-bottom .sidebar-label{padding:0;margin-bottom:9px}.provider-mini{display:flex;justify-content:space-between;padding:2px 0}.sidebar-version{font:10px var(--code);margin-top:12px;color:var(--text-dim)}
+main{flex:1;min-width:0;min-height:0;padding:18px 20px 16px;overflow:hidden}.tab-panel{display:none;height:100%;min-height:0;overflow:auto}.tab-panel.active{display:block}.page-head{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:14px;min-height:32px}.page-head .eyebrow{display:none}.page-head p{font-size:12px;color:var(--text-dim);margin-top:3px}.page-head .btn-row{margin:0}.page-heading{min-width:0}.section-label{margin:14px 0 7px}.panel-card{background:var(--surface-low);border:1px solid var(--border);border-radius:3px;min-width:0;overflow:hidden}.panel-title{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid var(--border);font-size:12px;font-weight:600}.panel-title .subtle{font-size:11px;font-weight:400;color:var(--text-dim)}.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:28px;padding:0 10px;border-radius:3px;font-size:11px;line-height:1.4;font-weight:500;white-space:nowrap;text-decoration:none}.btn-primary{background:var(--primary-container);color:var(--on-primary-container);border:1px solid transparent}.btn-primary:hover:not(:disabled){background:#5e56ee}.btn-ghost{background:transparent;color:var(--text);border:1px solid var(--border-strong)}.btn-ghost:hover:not(:disabled){background:var(--surface-high)}.btn-row{display:flex;gap:7px;flex-wrap:wrap}.link-btn{background:none;border:0;color:var(--primary);font-size:12px;padding:0;text-align:left}.hero{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;height:100%;min-height:250px;text-align:center;color:var(--text-dim)}.hero .big{font-size:19px;font-weight:600;color:var(--text)}.hero>div{max-width:480px}.badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:500;line-height:1.5;padding:2px 6px;border-radius:3px;border:1px solid var(--border-strong);color:var(--text-dim);white-space:nowrap}.badge.info{color:var(--info)}.badge.action{font-size:10px;padding:2px 6px;background:var(--surface-high);border-color:var(--border);color:var(--text-dim)}.empty-note{padding:28px 20px;color:var(--text-dim);font-size:12px;text-align:center;line-height:1.8}
+.overview-status{display:flex;align-items:center;gap:10px;min-height:42px;padding:0 12px;border:1px solid var(--border);border-left:2px solid var(--error);background:var(--surface-low);border-radius:3px}.overview-status.ok{border-left-color:var(--ok)}.overview-status.warn{border-left-color:var(--warn)}.overview-status strong{font-size:13px;font-weight:600}.overview-status .muted{font-size:12px}.overview-status .link-btn{margin-left:auto;font-size:11px}.status-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;border:1px solid var(--border);border-radius:3px;margin:12px 0 18px;background:var(--surface-low)}.metric{padding:11px 14px;display:flex;align-items:center;gap:12px;border-right:1px solid var(--border);min-width:0}.metric:last-child{border-right:0}.metric .top{order:2}.metric .label{font-size:11px;color:var(--text-dim)}.metric .value{font:600 21px/28px var(--code);white-space:nowrap}.overview-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(350px,1fr);gap:16px;align-items:start}.attention-table,.health-table{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}.attention-table th,.health-table th{font-size:10px;font-weight:500;text-align:left;color:var(--text-dim);padding:7px 12px;background:var(--surface)}.attention-table td{padding:10px 12px;border-top:1px solid var(--border);vertical-align:top}.attention-table th:last-child,.attention-table td:last-child{width:78px;text-align:right}.attention-table .link-btn{font-size:12px;color:var(--text);line-height:1.5}.attention-table .link-btn:hover{color:var(--primary)}.review-path{font:11px/1.6 var(--code);color:var(--text-dim);margin-top:4px;overflow-wrap:anywhere}.health-table th:last-child,.health-table td:last-child{text-align:right;width:100px}.health-table td{padding:9px 12px;border-top:1px solid var(--border);font-size:12px}.health-table .run-meta{font:10px var(--code);color:var(--text-dim);margin-top:3px}.scan-info{margin-top:16px}.scan-meta{display:grid;grid-template-columns:1.35fr 1.1fr .7fr .8fr;margin:0;padding:12px;gap:12px}.scan-meta dt{font-size:10px;color:var(--text-dim);margin-bottom:4px}.scan-meta dd{font-size:11px;margin:0;overflow-wrap:anywhere}.notice{font-size:11px;color:var(--text-dim);padding:9px 11px;border:1px solid var(--border);border-left:2px solid var(--warn);border-radius:3px;line-height:1.6;margin-top:12px;background:var(--surface-low)}.notice strong{color:var(--text);font-weight:500}.notice details{margin-top:5px}.notice summary{cursor:pointer;color:var(--text-dim);font-size:10px}.notice ul{padding-left:17px;margin:7px 0 0}.notice li+li{margin-top:5px}.notice .notice-code{font:10px var(--code);color:var(--text)}.scope-note{font-size:10px;color:var(--text-dim);margin-top:10px;line-height:1.6}
+#panel-findings.active{display:flex;flex-direction:column}#panel-findings .page-head{margin-bottom:10px}.findings-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex:none}.search-wrap{display:flex;align-items:center;gap:8px;flex:1;background:var(--surface-low);border:1px solid var(--border);border-radius:3px;padding-left:10px;max-width:450px;color:var(--text-dim)}.findings-toolbar input{width:100%;min-width:0;height:30px;background:transparent;border:0;color:var(--text);font-size:12px;padding:0 8px 0 0;outline:none}.search-wrap:focus-within{border-color:var(--primary)}.clear-btn{background:none;border:0;color:var(--text-dim);padding:4px 10px;font-size:14px}.filter-hint{margin-left:auto;color:var(--text-dim);font-size:11px}.findings-layout{flex:1;min-height:0;display:grid;grid-template-rows:minmax(200px,1fr) 268px;border:1px solid var(--border);border-radius:3px;overflow:hidden;background:var(--bg)}.findings-layout>.list{overflow:auto;background:var(--bg)}.findings-layout>.detail{min-height:0;overflow:auto;border-top:1px solid var(--border);background:var(--surface-low)}.finding-columns{display:grid;grid-template-columns:minmax(250px,2fr) minmax(230px,1.65fr) minmax(140px,1fr) 114px;align-items:center;gap:12px}.list-head{height:30px;padding:0 12px;position:sticky;top:0;z-index:1;background:var(--surface);border-bottom:1px solid var(--border);font-size:10px;color:var(--text-dim);letter-spacing:.04em}.finding-row{height:32px;padding:0 12px;border:0;border-bottom:1px solid var(--border);border-left:2px solid transparent;width:100%;text-align:left;background:transparent;color:var(--text)}.finding-row:nth-child(odd){background:color-mix(in srgb,var(--surface) 25%,var(--bg))}.finding-row:hover{background:var(--surface-high)}.finding-row.selected{border-left-color:var(--primary);background:color-mix(in srgb,var(--primary-container) 14%,var(--bg))}.finding-issue{display:flex;align-items:center;gap:8px;min-width:0}.finding-row .ficon{width:14px;flex:none;font-size:14px;line-height:18px}.finding-row .title{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}.finding-row .where{font:11px var(--code);color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.row-provider{font-size:11px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.row-decision{display:flex;justify-content:flex-start}.row-decision .badge{font-size:10px;padding:1px 6px}.finding-row.suppressed{color:var(--text-dim)}.finding-row.suppressed .where{opacity:.8}
+.detail{min-width:0;overflow-wrap:anywhere}.detail-header{display:flex;align-items:center;gap:10px;height:34px;padding:0 12px;border-bottom:1px solid var(--border);background:var(--surface);font-size:11px;font-weight:600}.detail-header .mono{font-size:10px;color:var(--text-dim);font-weight:400}.detail .back{display:none}.detail-content{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);height:calc(100% - 34px)}.detail-overview{padding:12px 14px;overflow:auto;border-right:1px solid var(--border)}.detail-evidence{padding:10px 14px;overflow:auto;display:flex;flex-direction:column;min-width:0}.detail h2{font-size:15px;line-height:1.45;letter-spacing:-.15px;margin:0 0 7px}.detail-facts{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:11px;color:var(--text-dim);margin-bottom:7px}.detail-description{font-size:13px;color:var(--text-dim);line-height:1.55;margin:8px 0}.provider-line{font-size:11px;color:var(--text-dim);line-height:1.6}.provider-line strong{font-weight:500;color:var(--text)}.provider-id-inline{font:10px var(--code);margin-left:7px}.detail .section-label{font-size:10px;margin:10px 0 5px}.path{display:flex;align-items:center;flex-wrap:wrap;gap:5px}.path-chip{font:11px/1.65 var(--code);color:var(--text-dim)}.path-chip.path-final{color:var(--text)}.path-arrow{color:var(--text-dim)}.action-chips{display:flex;gap:4px;flex-wrap:wrap}.detail .action-chips{margin-top:8px}.snippet{border:1px solid var(--border);border-radius:3px;overflow:hidden;background:var(--mono-bg);flex:none}.snippet-bar{display:flex;align-items:center;justify-content:space-between;background:var(--mono-bar);border-bottom:1px solid var(--border);padding:5px 8px;gap:8px}.snippet-bar .file{font:10px/1.6 var(--code);color:var(--text-dim);overflow-wrap:anywhere}.copy-btn{background:none;border:0;color:var(--text-dim);font-size:10px;padding:1px 3px;white-space:nowrap}.copy-btn:hover{color:var(--primary)}.snippet-line{display:flex;font:12px/1.65 var(--code);padding:6px 0}.snippet-line .ln{flex:none;width:34px;text-align:right;padding-right:9px;color:var(--text-dim);user-select:none}.snippet-line .code{white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;padding-right:9px}.snippet-line.hit{background:color-mix(in srgb,var(--error) 6%,transparent);border-left:2px solid var(--error)}.snippet-note{padding:6px 9px;font-size:10px;color:var(--text-dim);border-top:1px solid var(--border)}.tok-kw{color:var(--tok-kw)}.tok-str{color:var(--tok-str)}.tok-com{color:var(--tok-com)}.tok-op{color:var(--tok-op)}.remediation{padding-top:9px;margin-top:8px;border-top:1px solid var(--border)}.remediation .head{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--primary);font-weight:600;margin-bottom:3px}.remediation p{font-size:12px;line-height:1.6;color:var(--text-dim)}.detail-actions{display:flex;gap:6px;flex-wrap:wrap;padding-top:10px;margin-top:auto}.detail-actions .btn{font-size:10px;padding:0 9px;min-height:26px}
+#panel-graph.active{display:flex;flex-direction:column}.graph-workspace{display:grid;grid-template-columns:minmax(0,1fr) 258px;flex:1;min-height:0;border:1px solid var(--border);border-radius:4px;overflow:hidden}.graph-main{min-width:0;min-height:0;display:flex;flex-direction:column;background:var(--surface-low)}.g-toolbar{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--border);flex:none}.g-tools{display:flex;border:1px solid var(--border-strong);border-radius:4px;overflow:hidden}.g-btn{width:30px;height:28px;border:0;background:var(--surface);color:var(--text-dim);font-size:16px}.g-btn:hover{background:var(--surface-high);color:var(--primary)}.g-btn+.g-btn{border-left:1px solid var(--border)}.g-find{min-width:0;width:190px;max-width:50%;height:30px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);font:11px var(--code);padding:0 10px}.graph-stat{margin-left:auto;font:10px var(--code);color:var(--text-dim)}.graph-wrap{flex:1;min-height:240px;overflow:auto;position:relative;padding:12px;background-color:var(--surface-low);background-image:radial-gradient(var(--border) .6px,transparent .6px);background-size:20px 20px}.graph{position:relative;margin:auto;transform-origin:top left}.g-svg{display:block;overflow:visible}.gnode-card{position:absolute;width:180px;min-height:62px;display:flex;flex-direction:column;justify-content:center;gap:5px;background:var(--surface);border:1px solid var(--border-strong);border-radius:4px;padding:9px 10px;cursor:pointer;text-align:center;transition:opacity .15s}.gnode-card .g-cat{font-size:9px;text-transform:uppercase;color:var(--text-dim);letter-spacing:.06em}.gnode-card.g-entry .g-cat{color:var(--primary)}.gnode-card .g-name{font:11px/1.5 var(--code);color:var(--text);overflow-wrap:anywhere}.gnode-card.g-sus{border:1px solid var(--error);background:color-mix(in srgb,var(--error) 9%,var(--surface))}.gnode-card.g-sus .g-name{color:var(--error)}.gnode-card .g-badge{font-size:9px;color:var(--error);text-transform:uppercase;letter-spacing:.03em}.gnode-card .g-desc{font-size:9px;line-height:1.5;color:var(--text-dim);padding-top:4px;border-top:1px solid var(--border)}.gnode-card:hover,.gnode-card:focus-visible{border-color:var(--primary)}.g-edge path{stroke:var(--wg-border-strong);fill:none;stroke-width:1.8}.g-edge.err path{stroke:var(--error);stroke-dasharray:5 4}.g-edge.active path{stroke-width:2.6}.g-edge.dim{opacity:.14}.g-elabel{fill:var(--text-dim);paint-order:stroke;stroke:var(--surface-low);stroke-width:4px;stroke-linejoin:round}.g-edge.err .g-elabel{fill:var(--error)}.gnode-card.dim-node{opacity:.18}.gnode-card.g-hit,.gnode-card.g-neighbor{outline:1px solid var(--primary);outline-offset:2px}.graph-inspector{overflow:auto;background:var(--surface-low);border-left:1px solid var(--border);padding:0 12px 14px}.graph-inspector>.section-label{padding:13px 0;margin:0 0 12px;border-bottom:1px solid var(--border)}.path-block{border:1px solid var(--border);border-left:2px solid var(--error);border-radius:3px;background:var(--surface);padding:10px 11px;margin-bottom:10px}.path-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:6px}.path-title{font:11px var(--code);color:var(--error)}.path-step{font:10px/1.8 var(--code);overflow-wrap:anywhere;color:var(--text-dim);padding-left:8px;border-left:1px solid var(--border);margin-left:3px}.path-last{color:var(--error);border-color:var(--error)}.path-rule{font-size:10px;color:var(--text-dim);line-height:1.7;margin-top:10px;padding-top:8px;border-top:1px solid var(--border)}.path-link{display:block;margin-top:10px;color:var(--primary);font-size:10px;background:none;border:0;padding:0}.legend{display:flex;gap:10px;flex-wrap:wrap;padding:10px 12px;border-top:1px solid var(--border);flex:none;font-size:10px;color:var(--text-dim)}.legend-key{display:inline-flex;gap:5px;align-items:center}.legend-dot{width:6px;height:6px;border:1px solid var(--border-strong);background:var(--surface)}.legend-dot.err{border-color:var(--error);background:color-mix(in srgb,var(--error) 20%,transparent)}.detached{display:flex;flex-direction:column;gap:5px}.detached-card{font:9px/1.6 var(--code);overflow-wrap:anywhere;padding:7px 8px;border:1px solid var(--border);border-radius:3px;background:var(--surface);cursor:pointer;text-align:left}.detached-card:hover{border-color:var(--primary)}.graph-note{font-size:10px;color:var(--text-dim);margin-top:10px;flex:none}
+
+.policy-intro{max-width:740px}.policy-summary{display:flex;align-items:center;gap:16px;font-size:11px;color:var(--text-dim);margin:0 0 12px}.policy-summary strong{color:var(--text);font-weight:500}.provider-table{width:100%;border-collapse:collapse;font-size:12px}.provider-table th{text-align:left;color:var(--text-dim);font-size:10px;font-weight:500;letter-spacing:.04em;background:var(--surface);padding:8px 12px;border-bottom:1px solid var(--border)}.provider-table td{padding:11px 12px;border-bottom:1px solid var(--border);vertical-align:middle}.provider-table tr:last-child td{border:0}.provider-table .provider-title{font-size:12px;font-weight:500;white-space:nowrap}.provider-id{font:10px/1.6 var(--code);color:var(--text-dim);margin-top:3px}.provider-table .provider-note{font-size:10px;color:var(--text-dim);line-height:1.5;max-width:220px;margin-top:4px}.provider-table .run-meta{font:10px/1.6 var(--code);color:var(--text-dim);margin-top:3px}.grants-column{width:260px}.grants-title{display:block;margin-bottom:5px}.grant-matrix{display:grid;grid-template-columns:repeat(5,minmax(28px,1fr));gap:5px;text-align:center}.grant-heading{font-size:9px;letter-spacing:0}.grant-cell{display:flex;justify-content:center;align-items:center;height:25px;font-size:12px;color:var(--text-dim)}.grant-cell.granted{color:var(--primary)}.provider-table .btn{font-size:10px;min-height:26px;padding:0 9px}.provider-table .muted-run{opacity:.65}.policy-settings{margin-top:16px}.policy-row{display:grid;grid-template-columns:210px 1fr;gap:16px;padding:9px 12px;font-size:11px;border-bottom:1px solid var(--border)}.policy-row:last-child{border:0}.policy-row .k{color:var(--text-dim)}.policy-row .v{font-family:var(--code);font-size:11px;overflow-wrap:anywhere}.app-footer{height:23px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 12px;background:var(--surface-lowest);border-top:1px solid var(--border);font-size:9px;color:var(--text-dim)}.app-footer .chip{margin-left:12px;color:var(--error);padding-left:10px;border-left:1px solid var(--border)}.footer-links{display:flex;gap:14px}.spin{display:inline-block;animation:wgspin 1s linear infinite}@keyframes wgspin{to{transform:rotate(360deg)}}
+@media(max-width:1199px){.sidebar{width:160px}.tab{font-size:11px;gap:7px;padding-left:7px;padding-right:7px}main{padding:16px}.overview-grid{grid-template-columns:1fr 340px;gap:12px}.metric{padding:10px;gap:9px}.metric .label{font-size:10px}.metric .value{font-size:19px}.finding-columns{grid-template-columns:minmax(220px,2fr) minmax(150px,1.4fr) minmax(120px,1fr) 100px;gap:9px}.finding-row .where{font-size:10px}.finding-row .title{font-size:11px}.row-provider{font-size:10px}.findings-layout{grid-template-rows:minmax(200px,1fr) 288px}.provider-table th,.provider-table td{padding-left:9px;padding-right:9px}.provider-table .provider-id{font-size:9px}.grants-column{width:215px}.provider-table .provider-title{white-space:normal}.scan-meta{grid-template-columns:1fr 1fr}}
+@media(max-width:999px){.sidebar{width:150px}.workspace-label{max-width:200px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.overview-grid{grid-template-columns:1fr}.metric{flex-direction:column;gap:0;align-items:flex-start;padding:9px 12px}.metric .top{order:0}.metric .value{font-size:20px}.graph-workspace{grid-template-columns:1fr}.graph-inspector{display:none}.finding-columns{grid-template-columns:minmax(200px,2fr) minmax(140px,1.3fr) 100px;gap:9px}.finding-columns>.row-provider,.list-head>.provider-heading{display:none}.findings-layout{grid-template-rows:minmax(180px,1fr) 310px}.detail-content{grid-template-columns:1fr 1fr}.detail-overview,.detail-evidence{padding:10px}.detail h2{font-size:14px}.provider-id-inline{display:none}.provider-table th:nth-child(3),.provider-table td:nth-child(3){display:none}.grants-column{width:195px}.policy-row{grid-template-columns:180px 1fr}.brand-ver{display:none}.filter-hint{display:none}}
+@media(max-width:767px){.app-bar{height:44px;padding:0 12px}.app-title{font-size:12px}.app-title .logo{width:18px;height:20px}.workspace-label{font-size:11px;max-width:130px;margin-left:0;padding-left:10px}.app-actions{gap:2px}.app-actions .btn{font-size:10px;min-height:27px;padding:0 8px}.app-actions .icon-btn{width:26px;font-size:16px}.workspace-shell{flex-direction:column}.sidebar{width:auto;padding:0;border-right:0;border-bottom:1px solid var(--border);gap:0;flex:none}.sidebar>.sidebar-label,.status-card,.sidebar-bottom{display:none}.tabs{flex-direction:row;gap:0}.tab{justify-content:center;flex:1;border-left:0;border-bottom:2px solid transparent;border-radius:0;padding:9px 3px;font-size:10px;gap:5px}.tab.active{border-bottom-color:var(--primary);border-left-color:transparent}.tab .ticon{display:none}.tcount{margin-left:0;min-width:17px;font-size:9px;padding:0 4px}.tab:nth-child(3){font-size:0}.tab:nth-child(3):after{content:'Graph';font-size:10px}main{padding:14px 12px}.page-head{gap:8px;margin-bottom:12px}h1{font-size:19px}.page-head p{font-size:11px}.page-head .btn-row{gap:5px}.page-head .btn-row .btn{font-size:9px;min-height:27px;padding:0 7px}.metrics{grid-template-columns:repeat(2,minmax(0,1fr));margin:10px 0 14px}.metric{flex-direction:row;gap:9px;padding:9px 12px;align-items:center}.metric .top{order:2}.metric:nth-child(2){border-right:0}.metric:nth-child(-n+2){border-bottom:1px solid var(--border)}.metric .value{font-size:19px}.overview-status{padding:8px 10px;align-items:flex-start;flex-wrap:wrap;gap:7px;min-height:38px}.overview-status .status-dot{margin-top:6px}.overview-status .muted{font-size:11px}.overview-status .link-btn{display:none}.overview-grid{gap:12px}.attention-table td{padding:9px 10px}.attention-table th{padding:7px 10px}.attention-table .link-btn{font-size:11px}.review-path{font-size:10px}.health-table td{font-size:11px}.findings-layout{display:block;overflow:auto}.findings-layout>.list{height:100%;overflow:auto}.finding-columns{display:flex;align-items:flex-start;flex-wrap:wrap;gap:3px 8px}.list-head{display:none}.finding-row{height:auto;min-height:67px;padding:9px 10px;position:relative}.finding-issue{width:100%;padding-right:76px;gap:7px}.finding-row .title{font-size:12px;white-space:normal;line-height:1.5}.finding-row .where{font-size:10px;width:100%;padding-left:21px;margin-top:1px}.finding-row>.row-provider{display:block;font-size:10px;padding-left:21px}.finding-row>.row-decision{position:absolute;right:9px;top:10px;max-width:80px}.row-decision .badge{font-size:9px;padding:1px 4px}.findings-layout>.detail{display:none;border-top:0}.findings-layout.narrow>.detail{display:block;height:100%;overflow-y:auto;padding-bottom:16px}.detail-header{display:none}.detail .back{display:flex;width:max-content;margin-bottom:12px}.detail-content{display:block;height:auto}.detail-overview{border-right:0;padding:14px 14px 4px}.detail-evidence{padding:4px 14px 14px}.detail h2{font-size:17px;margin-top:0}.detail-facts{font-size:11px}.detail-description{font-size:13px;line-height:1.65}.provider-line{font-size:12px}.detail .section-label{font-size:10px;margin:13px 0 6px}.detail .action-chips{margin-top:10px}.detail-actions{margin-top:12px}.remediation p{font-size:12px}.detail-actions .btn{font-size:10px}.snippet-bar .file{font-size:10px}.snippet-line{font-size:12px}.provider-table{display:block}.provider-table thead{display:none}.provider-table tbody{display:block}.provider-table tr{display:grid;grid-template-columns:minmax(0,1fr) auto;border-bottom:1px solid var(--border);padding:12px;gap:9px 12px}.provider-table tr:last-child{border:0}.provider-table td{border:0;padding:0}.provider-table td:first-child{grid-column:1}.provider-table td:nth-child(2){grid-column:2;text-align:right}.provider-table td:nth-child(3){display:none}.provider-table td:nth-child(4){grid-column:1;grid-row:2}.provider-table td:last-child{grid-column:2;grid-row:2;align-self:end}.provider-table .provider-title{font-size:12px}.provider-id{font-size:9px}.grants-column{width:auto}.grant-matrix{min-width:165px}.grant-cell{font-size:10px;gap:4px;flex-direction:column;height:auto;min-height:35px;line-height:1.2;padding:3px 1px}.grant-cell:before{content:attr(data-label);font-size:8px;color:var(--text-dim)}.provider-table .provider-note{max-width:170px}.policy-summary{gap:9px;flex-wrap:wrap;font-size:10px}.policy-row{grid-template-columns:1fr;gap:4px;padding:9px 12px}.graph-workspace{display:flex;flex-direction:column;min-height:380px}.g-toolbar{padding:9px;gap:8px}.graph-stat{display:none}.g-find{max-width:none;flex:1;width:auto}.graph-note{font-size:9px}.app-footer{padding:0 10px;font-size:8px}.footer-links{display:none}.app-footer .chip{margin-left:7px;padding-left:7px}.scope-note{font-size:9px}.policy-settings-button{font-size:9px!important;padding:0 8px}.scan-meta{grid-template-columns:1fr 1fr}}
+@media(max-width:399px){.workspace-label{display:none}.app-actions .icon-btn{width:24px}.app-actions .btn{padding:0 7px}.tab{font-size:9px}.tab:nth-child(3):after{font-size:9px}.finding-row .title{font-size:11px}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+<style>
+:root { --vscode-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; --vscode-editor-font-family: 'SFMono-Regular', Consolas, monospace; }
+#demo-banner { flex:0 0 28px;display:flex;align-items:center;gap:12px;padding:0 16px;border-bottom:1px solid var(--border);background:var(--surface-lowest);font-size:10px; }
+#demo-banner strong { letter-spacing:.07em;color:var(--primary);font-size:9px;font-weight:600; }
+#demo-banner .demo-project { display:none; }
+#demo-banner .demo-copy { color:var(--text-dim);font-size:9px;flex:1; }
+#demo-banner button { min-height:20px;padding:1px 7px;border-radius:3px;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-size:9px;cursor:pointer; }
+#demo-toast { position:fixed;bottom:36px;right:16px;max-width:420px;padding:10px 14px;border:1px solid var(--border-strong);border-radius:5px;background:var(--surface-highest);box-shadow:0 5px 24px #0004;z-index:20;font-size:12px; }
+#demo-dialog { max-width:min(560px,calc(100vw - 32px));max-height:85vh;overflow:auto;color:var(--text);background:var(--surface);border:1px solid var(--border-strong);border-radius:8px;padding:20px;font:13px/1.5 var(--vscode-font-family); }
+#demo-dialog::backdrop { background:#0008; }
+#demo-dialog h2 { margin-top:0;font-size:17px; } #demo-dialog label { display:flex;gap:10px;align-items:center;padding:7px 0; }
+#demo-dialog pre { white-space:pre-wrap;font:12px/1.6 var(--vscode-editor-font-family);background:var(--mono-bg);padding:12px;max-height:45vh;overflow:auto; }
+#demo-dialog .demo-dialog-actions { display:flex;justify-content:flex-end;gap:8px;margin-top:16px; }
+@media(max-width:540px) { #demo-banner { gap:8px;padding:0 12px; } #demo-banner .demo-copy { display:none; } #demo-banner strong { margin-right:auto; } }
+</style></head>
+<body class="vscode-dark"><div id="demo-banner" role="note"><strong>SIMULATED DEMO</strong><span class="demo-project">Atlas Payments</span><span class="demo-copy">Fictional findings and providers · no scripts or SDKs run</span><button id="demo-theme" type="button">Light theme</button><button id="demo-reset" type="button">Reset demo</button></div><div id="demo-toast" role="status" hidden></div><dialog id="demo-dialog" aria-label="Demo action"></dialog><script nonce="PKcWJACMp3gIyHcnDCOOW1kMdfWHkWOz">window.__WRAPPERGUARD_DEMO_DATA__={"report":{"schemaVersion":1,"projectPath":"/Users/salehalanazi/Repos/NewWrapperGaurd/demo/project","verdict":"EXECUTION_BLOCKED","policyName":"Atlas Payments · Enforce demo","findings":[{"fingerprint":"daf02ab1f65c40bfe29b06c5","ruleId":"WG-WRAPPER-003","title":"Wrapper distribution host needs approval","message":"The sample wrapper points to a host outside the approved distribution list. Build and sync are blocked in this demo.","severity":"ERROR","confidence":"HIGH","category":"WRAPPER","kind":"ACTIONABLE","location":{"path":"gradle/wrapper/gradle-wrapper.properties","line":4,"column":1},"evidence":{"text":"https://downloads.atlas-payments.invalid/gradle-9.1.0-bin.zip","redacted":false},"remediation":"Use an approved distribution mirror and verify its published SHA-256 checksum.","reachable":true,"callChain":[],"policyAction":"BLOCK","status":"ACTIVE","mlSignal":null,"providerId":"wrapperguard","actions":["MAJOR_WARNING","BLOCK_BUILD","BLOCK_SYNC"]},{"fingerprint":"464ac94898ab4daf17e19410","ruleId":"ACME-PROVENANCE-001","title":"Payment adapter provenance is unverified","message":"The fictional Acme provider requests a build gate until the adapter's provenance is reviewed. It has no sync-blocking grant.","severity":"ERROR","confidence":"HIGH","category":"SUPPLY_CHAIN","kind":"ACTIONABLE","location":{"path":"build.gradle.kts","line":16,"column":1},"evidence":{"text":"implementation(\"com.atlas.demo:payment-adapter:4.2.0\")","redacted":false},"remediation":"Attach the organization's approved provenance record or choose a verified release.","reachable":true,"callChain":[],"policyAction":"BLOCK","status":"ACTIVE","mlSignal":null,"providerId":"acme.supply-chain","actions":["ALERT","BLOCK_BUILD"]},{"fingerprint":"12ba7b1001afa56dde7190bf","ruleId":"SENTINEL-INIT-001","title":"Remote init script requires sync approval","message":"The fictional Sentinel provider requests a sync gate for this init-script reference. It has no build-blocking grant.","severity":"ERROR","confidence":"HIGH","category":"CONFIGURATION","kind":"ACTIONABLE","location":{"path":"scripts/bootstrap.sh","line":9,"column":1},"evidence":{"text":"https://policy.atlas-payments.invalid/init.gradle.kts","redacted":false},"remediation":"Pin the init script in an approved local policy package before allowing sync.","reachable":true,"callChain":[],"policyAction":"BLOCK","status":"ACTIVE","mlSignal":null,"providerId":"sentinel.policy","actions":["ALERT","BLOCK_SYNC"]},{"fingerprint":"88d7ccc526ea2a3b0ce2c96b","ruleId":"WG-SCRIPT-001","title":"Installer streams remote content into a shell","message":"This unreachable sample demonstrates a remote installer warning. The provider's effective action is a warning for this finding.","severity":"WARN","confidence":"HIGH","category":"EXECUTION","kind":"ACTIONABLE","location":{"path":"scripts/install.sh","line":6,"column":1},"evidence":{"text":"curl -fsSL https://tools.atlas-payments.invalid/install.sh | sh","redacted":false},"remediation":"Download an approved artifact, verify its digest, and review it before execution.","reachable":true,"callChain":[{"source":{"path":"scripts/bootstrap.sh","line":7,"column":1},"viaCommand":"sh scripts/install.sh"}],"policyAction":"REVIEW","status":"ACTIVE","mlSignal":null,"providerId":"wrapperguard","actions":["WARNING"]},{"fingerprint":"f08d50fefddd0393a8488fd7","ruleId":"WG-BUILD-010","title":"Inline credential placeholder detected","message":"The source contains a clearly fake credential placeholder. Exported evidence is redacted to demonstrate the production UI behavior.","severity":"WARN","confidence":"HIGH","category":"CREDENTIALS","kind":"ACTIONABLE","location":{"path":"build.gradle.kts","line":10,"column":1},"evidence":{"text":"password = \"[redacted]\"","redacted":true},"remediation":"Use the user's secret store or a short-lived credential provider.","reachable":true,"callChain":[],"policyAction":"REVIEW","status":"ACTIVE","mlSignal":null,"providerId":"wrapperguard","actions":["WARNING"]},{"fingerprint":"b3341bfe2898b6eba2e3e6d6","ruleId":"ACME-PIN-002","title":"Receipt codec uses a moving version","message":"The fictional Acme adapter reports a dependency that can change without a source revision.","severity":"WARN","confidence":"HIGH","category":"SUPPLY_CHAIN","kind":"ACTIONABLE","location":{"path":"gradle/libs.versions.toml","line":4,"column":1},"evidence":{"text":"receipt-codec = \"2.+\"","redacted":false},"remediation":"Pin the dependency to an approved exact version.","reachable":true,"callChain":[],"policyAction":"REVIEW","status":"ACTIVE","mlSignal":null,"providerId":"acme.supply-chain","actions":["MAJOR_WARNING"]},{"fingerprint":"4464842198e4ff43d809acb9","ruleId":"SENTINEL-CI-002","title":"Workflow token permissions are broader than needed","message":"An alert highlights broad token scope in a non-runnable workflow example. Alert permission does not grant a build block.","severity":"WARN","confidence":"HIGH","category":"CONFIGURATION","kind":"ACTIONABLE","location":{"path":".github/workflows/ci-demo.yml","line":4,"column":1},"evidence":{"text":"permissions: write-all","redacted":false},"remediation":"Grant only the workflow token permissions required by each job.","reachable":true,"callChain":[],"policyAction":"REVIEW","status":"ACTIVE","mlSignal":null,"providerId":"sentinel.policy","actions":["ALERT"]},{"fingerprint":"4125ba34cf3ac3aed237ade1","ruleId":"SENTINEL-CACHE-003","title":"Shared cache path needs a boundary review","message":"The sample sync configuration references a cache outside the project. No file operations occur in this fixture.","severity":"WARN","confidence":"HIGH","category":"FILE_SYSTEM","kind":"ACTIONABLE","location":{"path":"scripts/sync.sh","line":7,"column":1},"evidence":{"text":"export DEMO_SHARED_CACHE=../../shared-cache","redacted":false},"remediation":"Review this simulated observation with the owning team before changing policy.","reachable":true,"callChain":[{"source":{"path":"scripts/bootstrap.sh","line":8,"column":1},"viaCommand":"sh scripts/sync.sh"}],"policyAction":"REVIEW","status":"ACTIVE","mlSignal":null,"providerId":"sentinel.policy","actions":["WARNING"]},{"fingerprint":"29fc1ae8643fff7e32d183f1","ruleId":"WG-WRAPPER-005","title":"Wrapper distribution checksum is missing","message":"The illustrative wrapper properties do not contain a distributionSha256Sum value.","severity":"WARN","confidence":"HIGH","category":"WRAPPER","kind":"ACTIONABLE","location":{"path":"gradle/wrapper/gradle-wrapper.properties","line":4,"column":1},"evidence":{"text":"distributionSha256Sum is not configured","redacted":false},"remediation":"Record the independently verified SHA-256 checksum of the approved distribution.","reachable":true,"callChain":[],"policyAction":"REVIEW","status":"ACTIVE","mlSignal":null,"providerId":"wrapperguard","actions":["WARNING"]},{"fingerprint":"41be4441f8a2bf81099c32b3","ruleId":"WG-SCAN-CIRCULAR","title":"A script call cycle is visible","message":"The audit and sync fixtures form a cycle. This is audit evidence and cannot block execution.","severity":"INFO","confidence":"HIGH","category":"AUDIT","kind":"AUDIT_EVIDENCE","location":{"path":"scripts/audit.sh","line":6,"column":1},"evidence":{"text":"scripts/sync.sh → scripts/audit.sh → scripts/sync.sh","redacted":false},"remediation":"Inspect the cycle when reviewing the script orchestration.","reachable":true,"callChain":[],"policyAction":"ALLOW","status":"ACTIVE","mlSignal":null,"providerId":"wrapperguard","actions":[]},{"fingerprint":"0bb858ed1a04a76d14bfed98","ruleId":"ACME-LEGACY-004","title":"Legacy bridge exception is approved","message":"A simulated user-approved baseline suppresses this build finding. The repository does not grant this approval.","severity":"ERROR","confidence":"HIGH","category":"SUPPLY_CHAIN","kind":"ACTIONABLE","location":{"path":"build.gradle.kts","line":17,"column":1},"evidence":{"text":"implementation(\"com.atlas.demo:legacy-bridge:1.8.2\")","redacted":false},"remediation":"Revisit the approved exception before the next dependency upgrade.","reachable":true,"callChain":[],"policyAction":"BLOCK","status":"SUPPRESSED","mlSignal":null,"providerId":"acme.supply-chain","actions":["MAJOR_WARNING","BLOCK_BUILD"]},{"fingerprint":"51de155a7986585d5ecdfe66","ruleId":"SENTINEL-MIRROR-004","title":"Archive mirror review has been accepted","message":"This historical observation is accepted in the simulated UI state and contributes no active warning or blocker.","severity":"WARN","confidence":"HIGH","category":"NETWORK","kind":"ACTIONABLE","location":{"path":"scripts/publish.sh","line":6,"column":1},"evidence":{"text":"https://archive.atlas-payments.invalid/approved-receipts.tar.gz","redacted":false},"remediation":"Review this simulated observation with the owning team before changing policy.","reachable":true,"callChain":[],"policyAction":"REVIEW","status":"ACCEPTED","mlSignal":null,"providerId":"sentinel.policy","actions":["WARNING"]}],"edges":[{"from":{"path":"scripts/bootstrap.sh","line":7,"column":1},"to":{"path":"scripts/install.sh","line":1,"column":1},"viaCommand":"sh scripts/install.sh"},{"from":{"path":"scripts/bootstrap.sh","line":8,"column":1},"to":{"path":"scripts/sync.sh","line":1,"column":1},"viaCommand":"sh scripts/sync.sh"},{"from":{"path":"scripts/install.sh","line":7,"column":1},"to":{"path":"scripts/fetch-metadata.sh","line":1,"column":1},"viaCommand":"sh scripts/fetch-metadata.sh"},{"from":{"path":"scripts/fetch-metadata.sh","line":7,"column":1},"to":{"path":"scripts/audit.sh","line":1,"column":1},"viaCommand":"sh scripts/audit.sh"},{"from":{"path":"scripts/sync.sh","line":6,"column":1},"to":{"path":"scripts/audit.sh","line":1,"column":1},"viaCommand":"sh scripts/audit.sh"},{"from":{"path":"scripts/audit.sh","line":6,"column":1},"to":{"path":"scripts/sync.sh","line":1,"column":1},"viaCommand":"sh scripts/sync.sh"},{"from":{"path":"scripts/audit.sh","line":7,"column":1},"to":{"path":"scripts/publish.sh","line":1,"column":1},"viaCommand":"sh scripts/publish.sh"}],"scannedFiles":12,"durationMs":1532,"complete":false,"stale":false,"notices":[{"code":"DEMO-SIMULATED","message":"DEMO: simulated findings and fictional providers. No SDK calls or project code were executed.","location":null},{"code":"WG-PROVIDER-TIMEOUT","message":"DEMO: optional Registry Audit timed out; this scenario intentionally has incomplete coverage.","location":null},{"code":"WG-PROVIDER-FAILED","message":"DEMO: optional License Check is unavailable. Other provider results remain visible.","location":null}],"generatedAtEpochMs":1792407000000,"providerRuns":[{"descriptor":{"id":"wrapperguard","displayName":"WrapperGuard","version":"0.4.0","apiVersion":1},"permissions":{"enabled":true,"actions":["WARNING","MAJOR_WARNING","ALERT","BLOCK_BUILD","BLOCK_SYNC"],"required":true,"timeoutMs":30000},"status":"COMPLETED","durationMs":86,"findingCount":5,"message":null},{"descriptor":{"id":"acme.supply-chain","displayName":"Acme Supply Chain","version":"1.0.0-demo","apiVersion":1},"permissions":{"enabled":true,"actions":["WARNING","MAJOR_WARNING","ALERT","BLOCK_BUILD"],"required":true,"timeoutMs":30000},"status":"COMPLETED","durationMs":243,"findingCount":3,"message":null},{"descriptor":{"id":"sentinel.policy","displayName":"Sentinel Policy","version":"1.0.0-demo","apiVersion":1},"permissions":{"enabled":true,"actions":["WARNING","MAJOR_WARNING","ALERT","BLOCK_SYNC"],"required":true,"timeoutMs":30000},"status":"COMPLETED","durationMs":141,"findingCount":4,"message":null},{"descriptor":{"id":"demo.registry-audit","displayName":"Registry Audit · demo","version":"1.0.0-demo","apiVersion":1},"permissions":{"enabled":true,"actions":["WARNING"],"required":false,"timeoutMs":1500},"status":"TIMED_OUT","durationMs":1500,"findingCount":0,"message":"DEMO: simulated timeout; no SDK process was started."},{"descriptor":{"id":"demo.license-check","displayName":"License Check · demo","version":"1.0.0-demo","apiVersion":1},"permissions":{"enabled":true,"actions":["WARNING"],"required":false,"timeoutMs":30000},"status":"FAILED","durationMs":96,"findingCount":0,"message":"DEMO: simulated unavailable adapter; no SDK process was started."},{"descriptor":{"id":"legacy.audit","displayName":"Legacy Audit · paused demo","version":"1.0.0-demo","apiVersion":1},"permissions":{"enabled":false,"actions":["WARNING"],"required":false,"timeoutMs":30000},"status":"DISABLED","durationMs":0,"findingCount":0,"message":"DEMO: this fictional provider is paused in the user-owned settings."}]},"settings":{"allowedHosts":["services.gradle.org","downloads.gradle.org","repo.maven.apache.org"],"allowedUrlPatterns":["^https://services\\.gradle\\.org/distributions/gradle-[0-9.]+-(bin|all)\\.zip$"],"blockedCommands":["certutil","bitsadmin"],"maxScriptDepth":10,"maxFileBytes":1000000,"requireDistributionSha256":true,"enableRecursiveScanning":true,"knownSafeRepositoryHosts":["repo.maven.apache.org"],"trustedWrapperChecksums":{},"maxLineLength":10000,"maxFilesPerScan":50000,"maxDirectoryDepth":64}};
+// Demo-only replacement for the VS Code host. It reads no files, starts no SDKs, and writes no approvals.
+(function () {
+  'use strict';
+  const seed=window.__WRAPPERGUARD_DEMO_DATA__;
+  const clone=value=>JSON.parse(JSON.stringify(value));
+  const initial=clone(seed.report);
+  let current=clone(initial);
+  let baselines=new Set(initial.findings.filter(f=>f.status==='SUPPRESSED').map(f=>f.fingerprint));
+  let permissions=Object.fromEntries(initial.providerRuns.map(run=>[run.descriptor.id,clone(run.permissions)]));
+  let toastTimer;
+  const actions=['WARNING','MAJOR_WARNING','ALERT','BLOCK_BUILD','BLOCK_SYNC'];
+  const actionLabels={WARNING:'Show warnings',MAJOR_WARNING:'Show major warnings',ALERT:'Raise alerts',BLOCK_BUILD:'Stop builds',BLOCK_SYNC:'Stop sync'};
+  function toast(message) {
+    const el=document.getElementById('demo-toast');el.textContent=message;el.hidden=false;
+    clearTimeout(toastTimer);toastTimer=setTimeout(()=>{el.hidden=true;},3500);
+  }
+  function send(state) { window.dispatchEvent(new MessageEvent('message',{data:{type:'state',state}})); }
+  function rebuild() {
+    current=clone(initial);
+    current.providerRuns=current.providerRuns.map(run=>{
+      run.permissions=clone(permissions[run.descriptor.id]);
+      if (!run.permissions.enabled) { run.status='DISABLED';run.findingCount=0;run.durationMs=0; }
+      return run;
+    });
+    current.findings=current.findings.filter(f=>permissions[f.providerId||'wrapperguard']?.enabled!==false).map(f=>{
+      const grants=permissions[f.providerId||'wrapperguard']?.actions||[];
+      const wasSuppressed=f.status==='SUPPRESSED';
+      f.status=baselines.has(f.fingerprint)?'SUPPRESSED':wasSuppressed?'ACTIVE':f.status;
+      const canBlock=f.kind==='ACTIONABLE'&&f.severity!=='INFO'&&f.reachable!==false;
+      const requests=f.actions&&f.actions.length?f.actions:(canBlock&&f.severity==='ERROR'?['MAJOR_WARNING','BLOCK_BUILD','BLOCK_SYNC']:f.severity==='WARN'?['WARNING']:[]);
+      f.actions=requests.filter(action=>grants.includes(action));
+      const blocking=canBlock&&f.actions.some(action=>action==='BLOCK_BUILD'||action==='BLOCK_SYNC');
+      f.policyAction=blocking?'BLOCK':f.kind==='ACTIONABLE'&&f.severity!=='INFO'&&f.actions.length?'REVIEW':'ALLOW';
+      return f;
+    });
+    current.complete=current.providerRuns.every(run=>run.status==='COMPLETED'||run.status==='DISABLED');
+    const active=current.findings.filter(f=>f.status==='ACTIVE');
+    current.verdict=active.some(f=>f.policyAction==='BLOCK')?'EXECUTION_BLOCKED':!current.complete?'INCOMPLETE':active.some(f=>f.policyAction==='REVIEW')?'REVIEW_REQUIRED':'CLEAN';
+    for (const run of current.providerRuns) run.findingCount=current.findings.filter(f=>f.providerId===run.descriptor.id).length;
+    send({kind:'scanned',report:current,settings:seed.settings});
+    return current;
+  }
+  function download(name,value) {
+    const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'}));
+    const anchor=document.createElement('a');anchor.href=url;anchor.download=name;anchor.click();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    toast('Downloaded fictional demo data. No project files were changed.');
+  }
+  function dialog(title,body,buttons) {
+    const el=document.getElementById('demo-dialog');el.replaceChildren();
+    const heading=document.createElement('h2');heading.textContent=title;el.append(heading);
+    const note=document.createElement('p');note.textContent='Simulated demo only. Changes stay in this browser page.';el.append(note);
+    el.append(body);
+    const row=document.createElement('div');row.className='demo-dialog-actions';
+    for (const [label,handler] of buttons) {
+      const button=document.createElement('button');button.className='btn btn-ghost';button.textContent=label;button.type='button';
+      button.addEventListener('click',()=>{handler?.();el.close();});row.append(button);
+    }
+    el.append(row);el.showModal();
+  }
+  function configure(id) {
+    const run=current.providerRuns.find(item=>item.descriptor.id===id);if(!run)return;
+    const form=document.createElement('form');const inputs={};
+    for(const [key,label,checked] of [['enabled','Enabled',permissions[id].enabled],['required','Required',permissions[id].required],...actions.map(action=>[action,actionLabels[action],permissions[id].actions.includes(action)])]) {
+      const row=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.checked=checked;input.name=key;inputs[key]=input;
+      row.append(input,document.createTextNode(label));form.append(row);
+    }
+    dialog(run.descriptor.displayName+' permissions',form,[['Cancel'],['Apply in demo',()=>{
+      permissions[id]={...permissions[id],enabled:inputs.enabled.checked,required:inputs.required.checked,actions:actions.filter(action=>inputs[action].checked)};
+      rebuild();toast('Demo permissions updated. No User Settings or provider configuration files were changed.');
+    }]]);
+  }
+  function onHostMessage(message) {
+    if(message.type==='webview-error') { window.__WRAPPERGUARD_DEMO_ERRORS__.push(message.message);console.error(message.message);return; }
+    if(message.type==='scan') { send({kind:'scanning',settings:seed.settings});setTimeout(()=>{rebuild();toast('Fictional demo result reloaded. No scripts or SDKs were run.');},450);return; }
+    if(message.type==='baseline'||message.type==='suppress') { baselines.add(message.finding.fingerprint);rebuild();toast('Approved in the demo baseline only. No source files or trusted approvals were written.');return; }
+    if(message.type==='unbaseline') { baselines.delete(message.finding.fingerprint);rebuild();toast('Demo approval removed. The finding is active again.');return; }
+    if(message.type==='configure-provider') { configure(message.providerId);return; }
+    if(message.type==='settings') { const content=document.createElement('pre');content.textContent=JSON.stringify(seed.settings,null,2);dialog('Atlas Payments — demo settings',content,[['Close']]);return; }
+    if(message.type==='open') { const content=document.createElement('pre');content.textContent=message.finding.location.path+':'+(message.finding.location.line||1)+'\n\n'+(message.finding.evidence?.text||message.finding.message);dialog('Fictional file preview',content,[['Close']]);return; }
+    if(message.type==='copy') { navigator.clipboard?.writeText(message.finding.evidence?.text||message.finding.message).catch(()=>{});toast('Demo evidence selected for copying.');return; }
+    if(message.type==='export') { download('atlas-payments-demo-report.json',{...current,demo:true});return; }
+    if(message.type==='sarif') { download('atlas-payments-demo.sarif.json',{$schema:'https://json.schemastore.org/sarif-2.1.0.json',version:'2.1.0',runs:[{tool:{driver:{name:'WrapperGuard simulated demo',version:'0.4.0'}},results:current.findings.map(f=>({ruleId:f.ruleId,message:{text:f.message},level:f.severity==='ERROR'?'error':f.severity==='WARN'?'warning':'note',properties:{providerId:f.providerId,demo:true}}))}]}); }
+  }
+  window.__WRAPPERGUARD_DEMO_ERRORS__=[];
+  window.acquireVsCodeApi=()=>({postMessage:onHostMessage,getState:()=>null,setState:()=>{}});
+  function theme(light) {
+    document.body.classList.toggle('vscode-light',light);document.body.classList.toggle('vscode-dark',!light);
+    document.getElementById('demo-theme').textContent=light?'Dark theme':'Light theme';
+  }
+  window.wrapperGuardDemo={getReport:()=>clone(current),getBaseline:()=>[...baselines],setTheme:theme,reset:()=>{
+    baselines=new Set(initial.findings.filter(f=>f.status==='SUPPRESSED').map(f=>f.fingerprint));permissions=Object.fromEntries(initial.providerRuns.map(run=>[run.descriptor.id,clone(run.permissions)]));rebuild();
+  }};
+  document.addEventListener('DOMContentLoaded',()=>{
+    const version=document.querySelector('.brand-ver');if(version)version.textContent+=' · demo';
+    const params=new URLSearchParams(location.search);theme(params.get('theme')==='light');
+    document.getElementById('demo-theme').addEventListener('click',()=>theme(!document.body.classList.contains('vscode-light')));
+    document.getElementById('demo-reset').addEventListener('click',()=>{window.wrapperGuardDemo.reset();toast('Demo restored to its original fictional baseline.');});
+    rebuild();
+    const tab=params.get('tab');if(['overview','findings','graph','policy'].includes(tab))document.querySelector('[data-tab="'+tab+'"]').click();
+    document.documentElement.dataset.demoReady='true';
+  });
+})();
+</script>
+  <header class="app-bar">
+    <div class="app-title"><span class="logo"><svg viewBox="0 0 24 26" fill="none" aria-hidden="true"><path d="M12 2 21 6v7c0 5-5 9-9 11-4-2-9-6-9-11V6l9-4Z" stroke="currentColor" stroke-width="1.7"/><path d="m8 12 3 3 5-6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>WrapperGuard</span><span class="brand-ver mono">v0.4.0</span><span class="workspace-label" id="workspaceName">Workspace security</span></div>
+    <div class="app-actions">
+      <button class="icon-btn" id="exportBtn" title="Export report (JSON)" aria-label="Export report">↓</button>
+      <button class="icon-btn" id="settingsBtn" title="Show policy" aria-label="Show policy">⚙</button>
+      <button class="btn btn-primary" id="rescanBtn" title="Rescan project">↻ Rescan</button>
+    </div>
+  </header>
+  <div class="workspace-shell">
+    <aside class="sidebar" aria-label="WrapperGuard navigation and status">
+      <div class="sidebar-label">Workspace</div>
+      <nav class="tabs" id="tabs" aria-label="Workspace views">
+        <button class="tab active" data-tab="overview" aria-current="page"><span class="ticon"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 3h5v5H3zM12 3h5v5h-5zM3 12h5v5H3zM12 12h5v5h-5z"/></svg></span>Overview</button>
+        <button class="tab" data-tab="findings"><span class="ticon"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m10 2 7 3v5c0 4-4 7-7 8-3-1-7-4-7-8V5zM10 6v5M10 14h.01"/></svg></span>Findings <span class="tcount" id="tabFindingsCount">0</span></button>
+        <button class="tab" data-tab="graph"><span class="ticon"><svg viewBox="0 0 20 20" aria-hidden="true"><rect x="7" y="2" width="6" height="4" rx="1"/><rect x="2" y="14" width="6" height="4" rx="1"/><rect x="12" y="14" width="6" height="4" rx="1"/><path d="M10 6v4M5 14v-4h10v4"/></svg></span>Execution graph</button>
+        <button class="tab" data-tab="policy"><span class="ticon"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m10 2 7 3v5c0 4-4 7-7 8-3-1-7-4-7-8V5z"/><path d="m7 10 2 2 4-4"/></svg></span>Providers</button>
+      </nav>
+      <section class="status-card" aria-label="Current scan summary">
+        <div class="sidebar-label">Report status</div><span class="pill" id="verdictPill">Not scanned</span>
+        <div class="sidebar-summary">
+          <div class="srow"><span class="sic err">×</span><span>Blocking</span><span class="val" id="sumBlockers">0</span></div>
+          <div class="srow"><span class="sic warn">△</span><span>Warnings</span><span class="val" id="sumWarnings">0</span></div>
+          <div class="srow"><span class="sic info">✓</span><span>Baselined</span><span class="val" id="sumSuppressed">0</span></div>
+        </div>
+      </section>
+      <div class="sidebar-bottom"><div class="sidebar-label">Provider health</div><div id="sidebarProviderHealth" aria-live="polite">Run a scan to see coverage.</div></div>
+    </aside>
+    <main>
+      <section class="tab-panel active" id="panel-overview"></section>
+      <section class="tab-panel" id="panel-findings">
+        <div class="page-head"><div class="page-heading"><h1>Findings</h1></div><span class="badge" id="findingsScope">All findings</span></div>
+        <div class="findings-toolbar"><div class="search-wrap"><span aria-hidden="true">⌕</span><input id="filterInput" type="search" aria-label="Search findings" placeholder="Search findings, rules, files or providers…" spellcheck="false"/><button class="clear-btn" id="btnClearFilter" title="Clear filter" aria-label="Clear findings search">×</button></div><span class="filter-hint" id="findingsHint"></span></div>
+        <div class="findings-layout" id="findingsLayout"></div>
+      </section>
+      <section class="tab-panel" id="panel-graph"></section>
+      <section class="tab-panel" id="panel-policy"></section>
+    </main>
+  </div>
+  <footer class="app-footer"><span id="footerLeft">WrapperGuard: Not scanned</span><span class="footer-links"><span>Local workspace analysis</span><span>Provider API v1</span></span></footer>
+
+<script nonce="PKcWJACMp3gIyHcnDCOOW1kMdfWHkWOz">
+const vscode = acquireVsCodeApi();
+let state = { kind: 'not-scanned' };
+let selectedFp = null;
+let filterText = '';
+let wide = window.matchMedia('(min-width: 768px)').matches;
+let zoomScale = 1;
+let nodeSearch = '';
+
+const VERDICT = {
+  NOT_SCANNED: ['dim', 'Not scanned'],
+  CLEAN: ['ok', 'Clean'],
+  REVIEW_REQUIRED: ['warn', 'Review Required'],
+  EXECUTION_BLOCKED: ['err', 'Execution Blocked'],
+  INCOMPLETE: ['warn', 'Scan Incomplete'],
+  STALE: ['warn', 'Scan Stale'],
+  FAILED: ['err', 'Scan Failed']
+};
+const SEV_ICON = { ERROR: ['×', 'err'], WARN: ['△', 'warn'], INFO: ['i', 'info'] };
+const KW_LIST = 'curl|wget|fetch|bash|sh|zsh|powershell|pwsh|echo|printf|set|unset|exec|eval|java|export|cd|rm|cp|mv|chmod|sudo|cat|install|build|git|node|npm|pip|python|if|then|fi|else|elif|for|do|done|while|case|esac|function|return|start|call|bitsadmin|certutil';
+const KEYWORDS = new RegExp('(^|[^A-Za-z0-9_])(' + KW_LIST + ')(?=[^A-Za-z0-9_]|$)', 'g');
+
+function esc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function byId(id) { return document.getElementById(id); }
+function post(type, finding) { vscode.postMessage({ type: type, finding: finding }); }
+
+function hlLine(raw) {
+  let s = esc(raw);
+  s = s.replace(/(&quot;[^&]*?&quot;|'[^']*')/g, '<span class="tok-str">$1</span>');
+  if (/^#/.test(s)) {
+    s = '<span class="tok-com">' + s + '</span>';
+  } else {
+    s = s.replace(/ #.*$/, function (m) { return '<span class="tok-com">' + m + '</span>'; });
+  }
+  s = s.replace(/(&gt;{1,2}|&lt;|[|]{1,2}|&&)/g, '<span class="tok-op">$1</span>');
+  s = s.replace(KEYWORDS, '$1<span class="tok-kw">$2</span>');
+  return s;
+}
+
+window.addEventListener('message', function (e) {
+  const m = e.data;
+  if (m && m.type === 'state') {
+    state = m.state;
+    render();
+  }
+});
+
+window.onerror = function (msg, src, line) {
+  vscode.postMessage({ type: 'webview-error', message: String(msg) + ' (line ' + line + ')' });
+};
+
+window.matchMedia('(min-width: 768px)').addEventListener('change', function (e) {
+  wide = e.matches;
+  renderFindings();
+  fitGraph();
+});
+
+function report() { return state.kind === 'scanned' ? state.report : null; }
+
+function humanAction(action) {
+  return ({WARNING:'Warning',MAJOR_WARNING:'Major warning',ALERT:'Alert',BLOCK_BUILD:'Block build',BLOCK_SYNC:'Block sync'})[action] || action;
+}
+function actionChips(actions) {
+  return (actions || []).map(function(action) { return '<span class="badge action" title="' + esc(action) + '">' + esc(humanAction(action)) + '</span>'; }).join('') || '<span class="muted">No actions granted</span>';
+}
+function grantMatrix(actions, heading) {
+  const labels = [['WARNING','Warn'],['MAJOR_WARNING','Major'],['ALERT','Alert'],['BLOCK_BUILD','Build'],['BLOCK_SYNC','Sync']];
+  return '<div class="grant-matrix' + (heading ? ' grant-heading' : '') + '">' + labels.map(function(item) {
+    if (heading) return '<span title="' + esc(humanAction(item[0])) + '">' + item[1] + '</span>';
+    const granted = (actions || []).indexOf(item[0]) >= 0;
+    return '<span data-label="' + item[1] + '" class="grant-cell' + (granted ? ' granted' : '') + '" title="' + esc(item[0] + ': ' + (granted ? 'Granted' : 'Not granted')) + '" aria-label="' + esc(humanAction(item[0]) + ': ' + (granted ? 'Granted' : 'Not granted')) + '">' + (granted ? '✓' : '—') + '</span>';
+  }).join('') + '</div>';
+}
+function providerName(id) {
+  const r = report();
+  const run = r && (r.providerRuns || []).find(function(item) { return item.descriptor.id === id; });
+  return run ? run.descriptor.displayName : id;
+}
+function runStatus(run) {
+  const status = run.status;
+  const cls = status === 'COMPLETED' ? 'ok' : status === 'DISABLED' ? '' : status === 'FAILED' ? 'err' : 'warn';
+  const label = ({COMPLETED:'Completed',TIMED_OUT:'Timed out',FAILED:'Failed',DISABLED:'Disabled',CANCELLED:'Cancelled'})[status] || status;
+  return '<span class="badge ' + cls + '" title="' + esc(status) + '">' + esc(label) + '</span>';
+}
+function renderPolicy() {
+  const r = report();
+  const panel = byId('panel-policy');
+  const runs = r ? (r.providerRuns || []) : [];
+  let html = '<div class="page-head"><div class="page-heading"><div class="eyebrow">Permission boundaries</div><h1>Policy &amp; providers</h1><p class="policy-intro">Independent vetting. Shared actions. Explicit permissions.</p></div><button class="btn btn-ghost policy-settings-button" id="providerSettings">Open User Settings</button></div>';
+  const enabled = runs.filter(function(run) { return run.permissions.enabled; }).length;
+  const completed = runs.filter(function(run) { return run.status === 'COMPLETED'; }).length;
+  html += '<div class="policy-summary"><span><strong>' + enabled + '</strong> enabled providers</span><span><strong>' + completed + '</strong> completed</span><span>Grants are owned by your User Settings</span></div>';
+  if (!runs.length) html += '<div class="empty-note">Run a scan to see registered providers and their permissions.</div>';
+  else {
+    html += '<div class="panel-card"><table class="provider-table" aria-label="Vetting providers and action grants"><thead><tr><th>Provider</th><th>Latest run</th><th>Execution</th><th class="grants-column"><span class="grants-title">Granted actions</span>' + grantMatrix([],true) + '</th><th></th></tr></thead><tbody>';
+    runs.forEach(function(run,index) {
+      html += '<tr' + (!run.permissions.enabled ? ' class="muted-run"' : '') + '><td><div class="provider-title">' + esc(run.descriptor.displayName) + '</div><div class="provider-id">' + esc(run.descriptor.id) + ' · v' + esc(run.descriptor.version) + ' · API ' + run.descriptor.apiVersion + '</div></td>';
+      html += '<td>' + runStatus(run) + '<div class="run-meta">' + run.durationMs + ' ms · ' + run.findingCount + ' findings</div>' + (run.message ? '<div class="provider-note">' + esc(run.message) + '</div>' : '') + '</td>';
+      html += '<td><span>' + (run.permissions.required ? 'Required' : 'Optional') + '</span><div class="run-meta">' + (run.permissions.enabled ? 'Enabled' : 'Disabled') + ' · ' + run.permissions.timeoutMs / 1000 + 's timeout</div></td>';
+      html += '<td class="grants-column">' + grantMatrix(run.permissions.actions,false) + '</td>';
+      html += '<td><button class="btn btn-ghost provider-permissions" data-provider-index="' + index + '" title="Configure permissions" aria-label="Configure permissions for ' + esc(run.descriptor.displayName) + '">Configure</button></td></tr>';
+    });
+    html += '</tbody></table></div>';
+  }
+  html += '<div class="notice"><strong>How enforcement works</strong> · Only granted actions affect the result. Build and sync gates apply when a cooperating extension calls the API. Arbitrary VS Code tasks are outside this gate.</div>';
+  const settings = state.settings;
+  if (settings) {
+    html += '<div class="policy-settings"><div class="section-label">Built-in scanner policy</div><div class="panel-card">';
+    html += '<div class="policy-row"><span class="k">Allowed distribution hosts</span><span class="v">' + esc(settings.allowedHosts.join(', ') || 'None configured') + '</span></div>';
+    html += '<div class="policy-row"><span class="k">Blocked commands</span><span class="v">' + esc(settings.blockedCommands.join(', ') || 'None configured') + '</span></div>';
+    html += '<div class="policy-row"><span class="k">Distribution SHA-256</span><span class="v">' + (settings.requireDistributionSha256 ? 'Required' : 'Optional') + '</span></div></div></div>';
+  }
+  panel.innerHTML = html;
+  byId('providerSettings').addEventListener('click',function () { post('settings'); });
+  panel.querySelectorAll('.provider-permissions').forEach(function(button) {
+    button.addEventListener('click',function () {
+      const run = runs[Number(button.getAttribute('data-provider-index'))];
+      if (run) vscode.postMessage({type:'configure-provider',providerId:run.descriptor.id});
+    });
+  });
+}
+
+function render() {
+  renderStatusCard();
+  renderOverview();
+  renderFindings();
+  renderGraph();
+  renderPolicy();
+  renderBusy();
+}
+
+function verdictMeta() {
+  if (state.kind === 'scanning') return ['warn', 'Scanning…'];
+  if (state.kind === 'failed') return ['err', 'Scan Failed'];
+  if (state.kind === 'scanned') return VERDICT[state.report.verdict] || ['dim', state.report.verdict];
+  return ['dim', 'Not scanned'];
+}
+
+function renderStatusCard() {
+  const vm = verdictMeta();
+  const pill = byId('verdictPill');
+  pill.className = 'pill ' + vm[0];
+  pill.textContent = vm[1];
+  const r = report();
+  if (r && r.projectPath) byId('workspaceName').textContent = r.policyName ? r.policyName.split(' · ')[0] : r.projectPath.split('/').filter(Boolean).pop();
+  const blockers = r ? r.findings.filter(function (f) { return f.policyAction === 'BLOCK' && f.status === 'ACTIVE'; }).length : 0;
+  const warnings = r ? r.findings.filter(function (f) { return f.severity === 'WARN' && f.status === 'ACTIVE'; }).length : 0;
+  const suppressed = r ? r.findings.filter(function (f) { return f.status === 'SUPPRESSED'; }).length : 0;
+  byId('sumBlockers').textContent = String(blockers);
+  byId('sumWarnings').textContent = String(warnings);
+  byId('sumSuppressed').textContent = String(suppressed);
+  byId('tabFindingsCount').textContent = String(r ? r.findings.length : 0);
+  const runs = r ? (r.providerRuns || []) : [];
+  const enabledRuns = runs.filter(function(run) { return run.permissions.enabled; });
+  const healthyRuns = enabledRuns.filter(function(run) { return run.status === 'COMPLETED'; }).length;
+  const failedRuns = enabledRuns.length - healthyRuns;
+  byId('sidebarProviderHealth').innerHTML = runs.length ? '<div class="sidebar-health"><span class="health-dot' + (failedRuns ? ' warn' : '') + '"></span><span>' + healthyRuns + ' of ' + enabledRuns.length + ' completed</span></div><div class="provider-mini"><span>Need attention</span><span class="mono ' + (failedRuns ? 'warn' : '') + '">' + failedRuns + '</span></div><div class="provider-mini"><span>Disabled</span><span class="mono">' + (runs.length - enabledRuns.length) + '</span></div>' : 'Run a scan to see coverage.';
+
+  const footer = byId('footerLeft');
+  footer.innerHTML = '<span class="mono">WrapperGuard: ' + esc(vm[1]) + '</span>';
+  if (state.kind === 'scanned' && blockers > 0) {
+    footer.innerHTML += '<span class="chip err">✖ ' + blockers + ' blocker' + (blockers === 1 ? '' : 's') + '</span>';
+  }
+}
+
+function renderBusy() {
+  const btn = byId('rescanBtn');
+  if (state.kind === 'scanning') {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spin">↻</span> Scanning';
+  } else {
+    btn.disabled = false;
+    btn.innerHTML = '↻ Rescan';
+  }
+}
+
+function renderOverview() {
+  const panel = byId('panel-overview');
+  if (state.kind === 'not-scanned') {
+    panel.innerHTML = '<div class="hero"><div class="big">No scan yet</div><div>Inspect wrappers, build files and bootstrap scripts before they run.</div><button class="btn btn-primary" id="heroScan">↻ Scan workspace</button></div>';
+    byId('heroScan').addEventListener('click', function () { post('scan'); });return;
+  }
+  if (state.kind === 'scanning') {
+    panel.innerHTML = '<div class="hero"><div class="big"><span class="spin">↻</span> Scanning workspace</div><div>Reading wrappers, build files and provider results.</div></div>';return;
+  }
+  if (state.kind === 'failed') {
+    panel.innerHTML = '<div class="hero"><div class="big">Scan failed</div><div class="mono">' + esc(state.error || '') + '</div><button class="btn btn-primary" id="retryBtn">↻ Retry scan</button></div>';
+    byId('retryBtn').addEventListener('click', function () { post('scan'); });return;
+  }
+  const r = state.report;
+  const active = r.findings.filter(function(f) { return f.status === 'ACTIVE'; });
+  const blockers = active.filter(function(f) { return f.policyAction === 'BLOCK'; }).length;
+  const warnings = active.filter(function(f) { return f.severity === 'WARN'; }).length;
+  const runs = r.providerRuns || [];
+  const completed = runs.filter(function(run) { return run.status === 'COMPLETED'; }).length;
+  const enabled = runs.filter(function(run) { return run.permissions.enabled; }).length;
+  const vm = verdictMeta();
+  const cls = blockers > 0 ? 'err' : (!r.complete || r.stale) ? 'warn' : r.verdict === 'CLEAN' ? 'ok' : 'warn';
+  let html = '<div class="page-head"><div class="page-heading"><h1>Overview</h1></div><div class="btn-row"><button class="btn btn-ghost" id="ovExport">Export JSON</button><button class="btn btn-ghost" id="ovExportSarif">Export SARIF</button></div></div>';
+  html += '<div class="overview-status ' + cls + '"><span class="status-dot"></span><strong>' + esc(vm[1]) + '</strong><span class="muted">' + (blockers ? blockers + ' findings require a decision.' : r.complete ? 'Provider results are ready for review.' : 'Review provider coverage before continuing.') + '</span><button class="link-btn" id="ovReview">Review findings →</button></div>';
+  html += '<div class="metrics">';
+  html += '<div class="metric"><div class="top"><span class="label">Blocking findings</span></div><span class="value err">' + blockers + '</span></div>';
+  html += '<div class="metric"><div class="top"><span class="label">Warnings</span></div><span class="value warn">' + warnings + '</span></div>';
+  html += '<div class="metric"><div class="top"><span class="label">Files scanned</span></div><span class="value">' + r.scannedFiles + '</span></div>';
+  html += '<div class="metric"><div class="top"><span class="label">Providers completed</span></div><span class="value">' + completed + '<span style="font-size:12px;color:var(--text-dim)"> / ' + enabled + '</span></span></div></div>';
+  html += '<div class="overview-grid"><section class="panel-card"><div class="panel-title">Requires attention<span class="subtle">Highest priority first</span></div><table class="attention-table"><thead><tr><th>Finding / location</th><th>Decision</th></tr></thead><tbody>';
+  const priority = active.filter(function(f) { return f.policyAction === 'BLOCK' || f.policyAction === 'REVIEW'; }).sort(function(a,b) { return (a.policyAction === 'BLOCK' ? 0 : 1) - (b.policyAction === 'BLOCK' ? 0 : 1); }).slice(0,5);
+  if (!priority.length) html += '<tr><td colspan="2"><div class="empty-note">No active findings require a decision.</div></td></tr>';
+  priority.forEach(function(f) {
+    const blocking = f.policyAction === 'BLOCK';
+    html += '<tr><td><button class="link-btn review-finding" data-fp="' + esc(f.fingerprint) + '">' + esc(f.title) + '</button><div class="review-path">' + esc(f.location.path) + ':' + (f.location.line || 1) + '</div></td><td><span class="badge ' + (blocking ? 'err' : 'warn') + '">' + (blocking ? 'Block' : 'Review') + '</span></td></tr>';
+  });
+  html += '</tbody></table></section>';
+  html += '<section class="panel-card"><div class="panel-title">Provider runs<button class="link-btn" id="ovProviders">Configure →</button></div><table class="health-table"><thead><tr><th>Provider / run</th><th>Status</th></tr></thead><tbody>';
+  runs.forEach(function(run) { html += '<tr><td>' + esc(run.descriptor.displayName) + '<div class="run-meta">' + run.durationMs + ' ms · ' + run.findingCount + ' findings' + (run.permissions.required ? ' · required' : '') + '</div></td><td>' + runStatus(run) + '</td></tr>'; });
+  if (!runs.length) html += '<tr><td colspan="2"><div class="empty-note">No provider run details.</div></td></tr>';
+  html += '</tbody></table></section></div>';
+  if (!r.complete) {
+    const incompleteRuns = runs.filter(function(run) { return run.permissions.enabled && run.status !== 'COMPLETED' && run.status !== 'DISABLED'; });
+    const labels = {TIMED_OUT:'timed out',FAILED:'failed',CANCELLED:'cancelled'};
+    const summary = incompleteRuns.map(function(run) { return run.descriptor.displayName + ' ' + (labels[run.status] || run.status.toLowerCase()); }).join('; ');
+    html += '<div class="notice"><strong>Incomplete coverage</strong> · ' + esc(summary || 'Some providers did not complete') + '.';
+    if ((r.notices || []).length) html += '<details><summary>View report notices (' + r.notices.length + ')</summary><ul>' + r.notices.map(function(notice) { return '<li>' + (notice.code ? '<span class="notice-code">' + esc(notice.code) + '</span> · ' : '') + esc(notice.message) + '</li>'; }).join('') + '</ul></details>';
+    html += '</div>';
+  }
+  if (r.stale) html += '<div class="notice"><strong>Report is stale</strong> · A watched file changed. Rescan to refresh the result.</div>';
+  html += '<section class="panel-card scan-info"><div class="panel-title">Report details<span class="subtle">Current scan</span></div><dl class="scan-meta">';
+  html += '<div><dt>Active policy</dt><dd>' + esc(r.policyName) + '</dd></div><div><dt>Generated</dt><dd class="mono">' + esc(r.generatedAtEpochMs ? new Date(r.generatedAtEpochMs).toLocaleString() : 'Not available') + '</dd></div><div><dt>Scan duration</dt><dd class="mono">' + r.durationMs + ' ms</dd></div><div><dt>Execution graph</dt><dd class="mono">' + (r.edges || []).length + ' discovered edges</dd></div></dl></section>';
+  html += '<div class="scope-note">Built-in analysis reads project files without running them. External providers run only with your grants.</div>';
+  panel.innerHTML = html;
+  byId('ovExport').addEventListener('click',function() { post('export'); });
+  byId('ovExportSarif').addEventListener('click',function() { post('sarif'); });
+  byId('ovReview').addEventListener('click',function() { switchTab('findings'); });
+  byId('ovProviders').addEventListener('click',function() { switchTab('policy'); });
+  panel.querySelectorAll('.review-finding').forEach(function(button) { button.addEventListener('click',function() { selectedFp=button.getAttribute('data-fp');renderFindings();switchTab('findings'); }); });
+}
+
+function groupFindings() {
+  const r = report();
+  if (!r) return null;
+  const groups = { blockers: [], errors: [], warnings: [], info: [], suppressed: [], accepted: [] };
+  r.findings.forEach(function (f) {
+    if (f.status === 'SUPPRESSED') {
+      groups.suppressed.push(f);
+      return;
+    }
+    if (f.status !== 'ACTIVE') { groups.accepted.push(f);return; }
+    if (f.policyAction === 'BLOCK') groups.blockers.push(f);
+    else if (f.severity === 'ERROR') groups.errors.push(f);
+    else if (f.severity === 'WARN') groups.warnings.push(f);
+    else groups.info.push(f);
+  });
+  return groups;
+}
+
+function matchesFilter(f) {
+  if (!filterText) return true;
+  const q = filterText.toLowerCase();
+  return (f.ruleId + ' ' + f.title + ' ' + f.location.path + ' ' + f.category + ' ' + f.message + ' ' + (f.providerId || 'wrapperguard') + ' ' + providerName(f.providerId || 'wrapperguard') + ' ' + f.status + ' ' + (f.actions || []).join(' ') + ' ' + (f.actions || []).map(humanAction).join(' ')).toLowerCase().indexOf(q) >= 0;
+}
+
+function rowHtml(f) {
+  const sev = SEV_ICON[f.severity] || SEV_ICON.INFO;
+  const suppressed = f.status === 'SUPPRESSED';
+  const decision = suppressed ? ['info','Baselined'] : f.status !== 'ACTIVE' ? ['info','Accepted'] : f.policyAction === 'BLOCK' ? ['err','Block'] : f.policyAction === 'REVIEW' ? ['warn','Review'] : ['info','Allow'];
+  const location = f.location.path + (f.location.line != null ? ':' + f.location.line : '');
+  return '<button type="button" class="finding-row finding-columns' + (suppressed ? ' suppressed' : '') + (f.fingerprint === selectedFp ? ' selected' : '') + '" data-fp="' + esc(f.fingerprint) + '" aria-pressed="' + (f.fingerprint === selectedFp) + '" title="' + esc(f.ruleId + ' · ' + f.title) + '"><span class="finding-issue"><span class="ficon ' + sev[1] + '" aria-label="' + esc(f.severity) + '">' + sev[0] + '</span><span class="title">' + esc(f.title) + '</span></span><span class="where" title="' + esc(location) + '">' + esc(location) + '</span><span class="row-provider" title="' + esc(f.providerId || 'wrapperguard') + '">' + esc(providerName(f.providerId || 'wrapperguard')) + '</span><span class="row-decision"><span class="badge ' + decision[0] + '">' + decision[1] + '</span></span></button>';
+}
+
+function renderFindings() {
+  const layout = byId('findingsLayout');
+  const groups = groupFindings();
+  if (!groups) {
+    layout.className = 'findings-layout';
+    layout.innerHTML = '<div class="empty-note">Run a scan to populate findings.</div>';
+    return;
+  }
+  const r = report();
+  const total = r.findings.length;
+  const visible = r.findings.filter(matchesFilter).length;
+  byId('findingsScope').textContent = filterText ? visible + ' matching findings' : total + ' findings';
+  byId('findingsHint').textContent = visible + ' shown';
+  if (!selectedFp && wide && r.findings.length) selectedFp = r.findings.find(function(f) { return f.status === 'ACTIVE' && f.policyAction === 'BLOCK'; })?.fingerprint || r.findings[0].fingerprint;
+  const showingDetail = selectedFp && !wide;
+  layout.className = 'findings-layout' + (showingDetail ? ' narrow' : '');
+
+  const sel = r.findings.filter(function (f) { return f.fingerprint === selectedFp; })[0] || null;
+
+  let list = '';
+  if (total === 0 && r.complete && !r.stale) {
+    list = '<div class="empty-note">✓ Clean — no findings in ' + r.scannedFiles + ' scanned files.</div>';
+  } else if (visible === 0) {
+    list = '<div class="empty-note">No findings match "' + esc(filterText) + '".</div>';
+  } else {
+    const defs = [
+      ['blockers', 'Execution blockers', 'err'],
+      ['errors', 'Errors', 'err'],
+      ['warnings', 'Warnings', 'warn'],
+      ['info', 'Information', 'info'],
+      ['suppressed', 'Approved baseline', 'info'],
+      ['accepted', 'Accepted / resolved', 'info']
+    ];
+    defs.forEach(function (d) {
+      const items = groups[d[0]].filter(matchesFilter);
+      if (items.length === 0) return;
+      items.forEach(function (f) { list += rowHtml(f); });
+    });
+  }
+  const detailHtml = sel ? detailHtmlFor(sel, true) : '<div class="empty-note">Select a finding to inspect evidence, execution path, and remediation.</div>';
+  layout.innerHTML = '<div class="list" id="findingsList"><div class="list-head finding-columns"><span>Issue</span><span>Location</span><span class="provider-heading">Provider</span><span>Decision</span></div>' + list + '</div><div class="detail" id="findingDetail" tabindex="0" role="region" aria-label="Finding evidence and actions">' + detailHtml + '</div>';
+
+  if (showingDetail && sel) {
+    byId('findingsList').style.display = 'none';
+  }
+  layout.querySelectorAll('.finding-row').forEach(function (row) {
+    row.addEventListener('click', function () {
+      selectedFp = row.getAttribute('data-fp');
+      renderFindings();
+    });
+  });
+  const back = byId('detailBack');
+  if (back) back.addEventListener('click', function () { selectedFp = null; renderFindings(); });
+  const openBtn = byId('detailOpen');
+  if (openBtn) openBtn.addEventListener('click', function () { if (sel) post('open', sel); });
+  const suppressBtn = byId('detailSuppress');
+  if (suppressBtn) suppressBtn.addEventListener('click', function () { if (sel) post('suppress', sel); });
+  const baselineBtn = byId('detailBaseline');
+  if (baselineBtn) baselineBtn.addEventListener('click', function () { if (sel) post('baseline', sel); });
+  const unbaselineBtn = byId('detailUnbaseline');
+  if (unbaselineBtn) unbaselineBtn.addEventListener('click', function () { if (sel) post('unbaseline', sel); });
+  document.querySelectorAll('.js-copy').forEach(function (b) {
+    b.addEventListener('click', function () { if (sel) post('copy', sel); });
+  });
+}
+
+function detailHtmlFor(f, withBack) {
+  const sev = SEV_ICON[f.severity] || SEV_ICON.INFO;
+  const policy = f.status === 'SUPPRESSED' ? ['info', 'Approved baseline'] : f.status !== 'ACTIVE' ? ['info', f.status.toLowerCase()] : f.policyAction === 'BLOCK' ? ['err', 'Blocks execution'] : f.policyAction === 'REVIEW' ? ['warn', 'Review required'] : ['info', 'Informational'];
+  const location = f.location.path + ':' + (f.location.line != null ? f.location.line : '');
+  const chain = (f.callChain || []).map(function (l) { return l.source.path + ':' + (l.source.line != null ? l.source.line : ''); });
+  if (chain[chain.length - 1] !== location) chain.push(location);
+  let pathHtml = '';
+  if (chain.length > 0) {
+    chain.forEach(function (c, i) {
+      pathHtml += '<span class="path-chip' + (i === chain.length - 1 ? ' path-final' : '') + '">' + esc(c) + '</span>';
+      if (i < chain.length - 1) pathHtml += '<span class="path-arrow">→</span>';
+    });
+  } else {
+    pathHtml = '<span class="path-chip">' + esc(location) + '</span>';
+  }
+  const evidence = f.evidence ? f.evidence.text : '';
+  let snippet = '';
+  if (evidence) {
+    const lines = evidence.split(String.fromCharCode(10));
+    const hitIndex = lines.length - 1;
+    lines.forEach(function (line, i) {
+      const ln = i === hitIndex && f.location.line != null ? String(f.location.line).padStart(4, ' ') : '   ·';
+      snippet += '<div class="snippet-line' + (i === hitIndex ? ' hit' : '') + '"><span class="ln">' + ln + '</span><span class="code">' + hlLine(line) + '</span></div>';
+    });
+  } else {
+    snippet = '<div class="snippet-line"><span class="ln">   ·</span><span class="code" style="color:var(--text-dim)">(no snippet available)</span></div>';
+  }
+  if (f.evidence && f.evidence.redacted) {
+    snippet += '<div class="snippet-note">Credential values in this evidence are redacted.</div>';
+  }
+  let html = '<div class="detail-header"><span>Inspector</span><span class="mono">' + esc(f.ruleId) + '</span><span class="badge ' + policy[0] + '" style="margin-left:auto">' + policy[1] + '</span></div>';
+  html += '<div class="detail-content"><div class="detail-overview">';
+  if (withBack) html += '<button class="btn btn-ghost back" id="detailBack">← Back to findings</button>';
+  html += '<h2>' + esc(f.title) + '</h2>';
+  html += '<div class="detail-facts"><span class="' + sev[1] + '">' + esc(f.severity) + '</span><span>·</span><span>' + esc(f.category) + '</span><span>·</span><span>' + esc(f.confidence) + ' confidence</span><span>·</span><span>' + esc(f.status) + '</span></div>';
+  html += '<div class="provider-line"><span>Provider </span><strong>' + esc(providerName(f.providerId || 'wrapperguard')) + '</strong><span class="provider-id-inline">' + esc(f.providerId || 'wrapperguard') + '</span></div>';
+  html += '<p class="detail-description">' + esc(f.message) + '</p>';
+  html += '<div class="section-label">Execution path</div><div class="path">' + pathHtml + '</div>';
+  html += '<div class="action-chips">' + actionChips(f.actions) + '</div></div>';
+  html += '<div class="detail-evidence"><div class="snippet"><div class="snippet-bar"><span class="file">' + esc(f.location.path) + '</span><button class="copy-btn js-copy" title="Copy evidence">Copy</button></div>' + snippet + '</div>';
+  html += '<div class="remediation"><div class="head">Remediation</div><p>' + esc(f.remediation || 'No specific remediation provided.') + '</p></div>';
+  html += '<div class="detail-actions">';
+  if (f.location.path && f.location.path !== '.') html += '<button class="btn btn-primary" id="detailOpen">Open in editor</button>';
+  html += '<button class="btn btn-ghost js-copy">Copy evidence</button>';
+  if (f.status === 'SUPPRESSED') {
+    html += '<button class="btn btn-ghost" id="detailUnbaseline" title="Remove this finding from your trusted baseline and rescan">Restore finding</button>';
+  } else {
+    if (!f.providerId || f.providerId === 'wrapperguard') html += '<button class="btn btn-ghost" id="detailSuppress" title="Add a wrapperguard:ignore marker at this line">Suppress</button>';
+    html += '<button class="btn btn-ghost" id="detailBaseline" title="Add to your trusted baseline (stored outside the repository)">Add to baseline</button>';
+  }
+  html += '</div></div></div>';
+  return html;
+}
+
+function renderGraph() {
+  const panel = byId('panel-graph');
+  const r = report();
+  if (!r) { panel.innerHTML = '<div class="empty-note">Run a scan to see script call chains.</div>'; return; }
+  const edges = r.edges || [];
+  if (edges.length === 0) {
+    panel.innerHTML = '<div class="empty-note">No script call chains detected in this project.</div>';
+    return;
+  }
+
+  const blockerByPath = {};
+  r.findings.forEach(function (f) {
+    if (f.policyAction !== 'BLOCK' || f.status !== 'ACTIVE') return;
+    if (!blockerByPath[f.location.path]) blockerByPath[f.location.path] = f;
+  });
+  const suspLines = {};
+  r.findings.forEach(function (f) {
+    if (f.policyAction === 'BLOCK' && f.status === 'ACTIVE') suspLines[f.location.path + ':' + (f.location.line != null ? f.location.line : '')] = f;
+  });
+
+  const children = {};
+  const parents = {};
+  const nodes = new Set();
+  edges.forEach(function (e) {
+    (children[e.from.path] = children[e.from.path] || []).push(e.to.path);
+    (parents[e.to.path] = parents[e.to.path] || []).push(e.from.path);
+    nodes.add(e.from.path);
+    nodes.add(e.to.path);
+  });
+  const depth = {};
+  const queue = [];
+  Array.from(nodes).sort().forEach(function (n) {
+    if (!parents[n]) {
+      depth[n] = 0;
+      queue.push(n);
+    }
+  });
+  while (queue.length > 0) {
+    const n = queue.shift();
+    (children[n] || []).forEach(function (c) {
+      if (depth[c] === undefined) {
+        depth[c] = (depth[n] || 0) + 1;
+        queue.push(c);
+      }
+    });
+  }
+
+  // Barycenter ordering (two passes) to reduce edge crossings.
+  const layers = {};
+  Array.from(nodes).sort().forEach(function (n) {
+    const d = depth[n] === undefined ? 0 : depth[n];
+    (layers[d] = layers[d] || []).push(n);
+  });
+  const layerKeys = Object.keys(layers).map(Number).sort(function (a, b) { return a - b; });
+  const order = {};
+  layerKeys.forEach(function (d) { order[d] = layers[d].slice().sort(); });
+  function avgParentPos(n) {
+    const ps = parents[n] || [];
+    if (ps.length === 0) return 0;
+    let s = 0;
+    let c = 0;
+    ps.forEach(function (p) {
+      const dd = depth[p];
+      const idx = (order[dd] || []).indexOf(p);
+      if (idx >= 0) {
+        s += idx;
+        c++;
+      }
+    });
+    return c > 0 ? s / c : 0;
+  }
+  function avgChildPos(n) {
+    const cs = children[n] || [];
+    if (cs.length === 0) return 0;
+    let s = 0;
+    let c = 0;
+    cs.forEach(function (ch) {
+      const dd = depth[ch];
+      const idx = (order[dd] || []).indexOf(ch);
+      if (idx >= 0) {
+        s += idx;
+        c++;
+      }
+    });
+    return c > 0 ? s / c : 0;
+  }
+  for (let i = 1; i < layerKeys.length; i++) {
+    const d = layerKeys[i];
+    order[d].sort(function (a, b) { return avgParentPos(a) - avgParentPos(b); });
+  }
+  for (let i = layerKeys.length - 2; i >= 0; i--) {
+    const d = layerKeys[i];
+    order[d].sort(function (a, b) { return avgChildPos(a) - avgChildPos(b); });
+  }
+
+  const maxCol = layerKeys.reduce(function (m, d) { return Math.max(m, order[d].length); }, 1);
+  const maxDepth = layerKeys.length;
+  const colW = 224;
+  const rowH = 136;
+  const W = Math.max(460, maxCol * colW + 70);
+  const H = maxDepth * rowH + 55;
+
+  const pos = {};
+  layerKeys.forEach(function (d, li) {
+    const list = order[d];
+    const layerW = list.length * colW;
+    const startX = (W - layerW) / 2;
+    list.forEach(function (n, i) {
+      pos[n] = { x: Math.round(startX + i * colW), y: 25 + li * rowH };
+    });
+  });
+
+  let svg = '<svg class="g-svg" viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '">';
+  svg += '<defs>';
+  svg += '<pattern id="wgGrid" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="1.5" cy="1.5" r="1.5" fill="var(--wg-border)" opacity="0.35"></circle></pattern>';
+  svg += '<marker id="wgArrow" markerHeight="7" markerWidth="7" orient="auto-start-reverse" refX="9" refY="5" viewBox="0 0 10 10"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--wg-border-strong)"></path></marker>';
+  svg += '<marker id="wgArrowErr" markerHeight="7" markerWidth="7" orient="auto-start-reverse" refX="9" refY="5" viewBox="0 0 10 10"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--error)"></path></marker>';
+  svg += '</defs>';
+
+  edges.forEach(function (e) {
+    const a = pos[e.from.path];
+    const b = pos[e.to.path];
+    if (!a || !b) return;
+    const x1 = a.x + 90;
+    const y1 = a.y + 62;
+    const x2 = b.x + 90;
+    const y2 = b.y + 2;
+    const key = e.to.path + ':' + (e.to.line != null ? e.to.line : '');
+    const err = suspLines[key] || blockerByPath[e.to.path];
+    const marker = err ? 'url(#wgArrowErr)' : 'url(#wgArrow)';
+    svg += '<g class="g-edge' + (err ? ' err' : '') + '" data-from="' + esc(e.from.path) + '" data-to="' + esc(e.to.path) + '">';
+    svg += '<title>' + esc(e.viaCommand) + '</title>';
+    svg += '<path d="M ' + x1 + ' ' + y1 + ' C ' + x1 + ' ' + (y1 + 38) + ', ' + x2 + ' ' + (y2 - 38) + ', ' + x2 + ' ' + y2 + '" marker-end="' + marker + '"></path>';
+    const label = (e.from.line != null ? 'line:' + e.from.line : '') || (e.viaCommand || '').slice(0, 24);
+    if (label) {
+      svg += '<text class="g-elabel" x="' + ((x1 + x2) / 2 + 9) + '" y="' + ((y1 + y2) / 2) + '" font-family="var(--vscode-editor-font-family)" font-size="9">' + esc(label) + '</text>';
+    }
+    svg += '</g>';
+  });
+  svg += '</svg>';
+
+  let cards = '';
+  let cardIndex = 0;
+  Array.from(nodes).sort().forEach(function (n) {
+    const p = pos[n];
+    if (!p) return;
+    const base = n.split('/').pop() || n;
+    const ext = base.indexOf('.') >= 0 ? base.slice(base.lastIndexOf('.') + 1).toUpperCase() : 'SCRIPT';
+    const blocker = blockerByPath[n];
+    const isEntry = !parents[n];
+    let card = '<div class="gnode-card' + (blocker ? ' g-sus' : '') + (isEntry ? ' g-entry' : '') + '" data-node="' + esc(n) + '" role="button" tabindex="0" title="Click to inspect this file" style="left:' + p.x + 'px;top:' + p.y + 'px;animation-delay:' + (cardIndex * 45) + 'ms">';
+    cardIndex++;
+    if (isEntry) {
+      card += '<div class="g-cat">&#9654; Entry point</div>';
+    } else {
+      card += '<div class="g-cat">' + esc(ext) + '</div>';
+    }
+    if (blocker) {
+      card += '<div class="g-badge">Execution blocked</div>';
+    }
+    card += '<div class="g-name mono">' + esc(n) + '</div>';
+    if (blocker) {
+      card += '<div class="g-desc mono">' + esc(blocker.title) + '</div>';
+    }
+    card += '</div>';
+    cards += card;
+  });
+
+  let explorer = '';
+  const blockerFindings = r.findings.filter(function (f) { return f.policyAction === 'BLOCK' && f.status === 'ACTIVE'; });
+  if (blockerFindings.length > 0) {
+    explorer = '<div class="section-label" style="margin-top:12px">Paths to blockers (' + blockerFindings.length + ')</div>';
+    blockerFindings.forEach(function (f, i) {
+      const chain = (f.callChain || []).map(function (l) { return l.source.path + ':' + (l.source.line != null ? l.source.line : ''); });
+      chain.push(f.location.path + ':' + (f.location.line != null ? f.location.line : ''));
+      explorer += '<div class="path-block">';
+      explorer += '<div class="path-head"><span class="path-title mono">Path #' + (i + 1) + '</span><span class="badge err">Blocked</span></div>';
+      chain.forEach(function (step, si) {
+        const last = si === chain.length - 1;
+        explorer += '<div class="path-step mono' + (last ? ' path-last' : '') + '">' + (last ? '&#8618; ' : '&#183; ') + esc(step) + '</div>';
+      });
+      explorer += '<div class="path-rule mono">' + esc(f.ruleId) + ' — ' + esc(f.title) + '</div>';
+      explorer += '<button class="path-link" data-fp="' + esc(f.fingerprint) + '">Inspect finding →</button></div>';
+    });
+  }
+
+  const toolbar =
+    '<div class="g-toolbar">' +
+    '<div class="g-tools">' +
+    '<button class="g-btn" id="gZoomIn" title="Zoom in">+</button>' +
+    '<button class="g-btn" id="gZoomOut" title="Zoom out">-</button>' +
+    '<button class="g-btn" id="gFit" title="Fit to view">&#10534;</button>' +
+    '</div>' +
+    '<input id="gFind" class="g-find" type="search" aria-label="Find graph node" placeholder="Find node…" spellcheck="false"/><span class="graph-stat">' + nodes.size + ' files · ' + edges.length + ' edges</span>' +
+    '</div>';
+
+  // Detached files: findings whose files are not part of any call chain (e.g. build.gradle).
+  const detached = [];
+  r.findings.forEach(function (f) {
+    if (!nodes.has(f.location.path) && detached.indexOf(f.location.path) < 0) detached.push(f.location.path);
+  });
+  let detachedHtml = '';
+  if (detached.length > 0) {
+    detachedHtml = '<div class="section-label" style="margin-top:12px">Detached files (' + detached.length + ')</div><div class="detached">';
+    detached.sort().forEach(function (p) {
+      detachedHtml += '<button class="detached-card mono" data-node="' + esc(p) + '" title="Click to inspect this file">' + esc(p) + '</button>';
+    });
+    detachedHtml += '</div>';
+  }
+
+  const legend = '<div class="legend"><span class="legend-key"><span class="legend-dot"></span>Script or configuration</span><span class="legend-key"><span class="legend-dot err"></span>Execution blocker</span><span>Hover to trace connections</span></div>';
+  panel.innerHTML = '<div class="page-head"><div class="page-heading"><div class="eyebrow">Static execution analysis</div><h1>Execution graph</h1><p>Trace how build files connect to scripts and providers.</p></div><span class="badge">' + nodes.size + ' files · ' + edges.length + ' edges</span></div>' +
+    '<div class="graph-workspace"><div class="graph-main">' + toolbar + '<div class="graph-wrap" id="graphWrap"><div class="graph" id="gInner" style="width:' + W + 'px;height:' + H + 'px">' + svg + cards + '</div></div>' + legend + '</div><aside class="graph-inspector" aria-label="Risky path explorer">' + (explorer || '<div class="section-label">Paths to blockers (0)</div><p class="muted">No active blockers in this graph.</p>') + detachedHtml + '</aside></div>' +
+    '<div class="graph-note">Execution paths are inferred from source. Select a node to inspect its findings.</div>';
+  bindGraphEvents(r);
+  fitGraph();
+}
+
+function openNodeFromGraph(n, r) {
+  const byPath = r.findings.filter(function (f) { return f.location.path === n; });
+  const finding =
+    byPath.filter(function (f) { return f.policyAction === 'BLOCK' && f.status === 'ACTIVE'; })[0] ||
+    byPath.filter(function (f) { return f.severity === 'ERROR'; })[0] ||
+    byPath.filter(function (f) { return f.severity === 'WARN'; })[0] ||
+    byPath[0];
+  if (finding) {
+    selectedFp = finding.fingerprint;
+    switchTab('findings');
+    renderFindings();
+  } else {
+    post('open', {
+      fingerprint: 'node-' + n,
+      ruleId: 'WG-NODE',
+      title: n,
+      message: n,
+      severity: 'INFO',
+      confidence: 'LOW',
+      category: 'AUDIT',
+      kind: 'AUDIT_EVIDENCE',
+      location: { path: n },
+      reachable: true,
+      callChain: [],
+      policyAction: 'ALLOW',
+      status: 'ACTIVE'
+    });
+  }
+}
+
+function applyZoom() {
+  const inner = byId('gInner');
+  if (!inner) return;
+  inner.style.transform = 'scale(' + zoomScale + ')';
+  inner.style.transformOrigin = 'top left';
+  const svg = inner.querySelector('svg');
+  const wrap = byId('graphWrap');
+  if (svg && wrap) {
+    const w = Number(svg.getAttribute('width'));
+    inner.style.marginLeft = Math.max(0,(wrap.clientWidth - 24 - w * zoomScale) / 2) + 'px';
+    inner.style.marginRight = '0';
+  }
+}
+function fitGraph() {
+  const wrap = byId('graphWrap');
+  if (!wrap || !wrap.clientWidth || !wrap.clientHeight) return;
+  const svg = wrap.querySelector('svg');
+  if (!svg) return;
+  zoomScale = Math.min(1.15, Math.max(0.45, Math.min((wrap.clientWidth - 30) / Number(svg.getAttribute('width')), (wrap.clientHeight - 30) / Number(svg.getAttribute('height')))));
+  applyZoom();
+}
+
+function bindGraphEvents(r) {
+  const zIn = byId('gZoomIn');
+  const zOut = byId('gZoomOut');
+  const zFit = byId('gFit');
+  if (zIn) zIn.addEventListener('click', function () { zoomScale = Math.min(2, zoomScale + 0.2); applyZoom(); });
+  if (zOut) zOut.addEventListener('click', function () { zoomScale = Math.max(0.4, zoomScale - 0.2); applyZoom(); });
+  if (zFit) zFit.addEventListener('click', fitGraph);
+  const find = byId('gFind');
+  if (find) find.addEventListener('input', function (e) {
+    nodeSearch = e.target.value.toLowerCase();
+    const cardsAll = document.querySelectorAll('#panel-graph .gnode-card');
+    cardsAll.forEach(function (c) {
+      const n = c.getAttribute('data-node') || '';
+      const hit = !nodeSearch || n.toLowerCase().indexOf(nodeSearch) >= 0;
+      c.classList.toggle('g-hit', !!nodeSearch && hit);
+      c.classList.toggle('dim-node', !!nodeSearch && !hit);
+    });
+  });
+  document.querySelectorAll('#panel-graph .gnode-card').forEach(function (node) {
+    node.addEventListener('mouseenter', function () { setEdgeActive(node.getAttribute('data-node'), true); });
+    node.addEventListener('mouseleave', function () { setEdgeActive(null, false); });
+    node.addEventListener('click', function () { openNodeFromGraph(node.getAttribute('data-node'), r); });
+    node.addEventListener('keydown', function(event) { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault();openNodeFromGraph(node.getAttribute('data-node'),r); } });
+  });
+  document.querySelectorAll('#panel-graph .path-link').forEach(function(button) { button.addEventListener('click',function() { selectedFp=button.getAttribute('data-fp');renderFindings();switchTab('findings'); }); });
+  document.querySelectorAll('#panel-graph .detached-card').forEach(function (card) {
+    card.addEventListener('click', function () {
+      openNodeFromGraph(card.getAttribute('data-node'), r);
+    });
+  });
+}
+
+function setEdgeActive(nodeName, on) {
+  const edgeEls = document.querySelectorAll('#panel-graph .g-edge');
+  const nodeEls = document.querySelectorAll('#panel-graph .gnode-card');
+  const neighbors = new Set();
+  if (on && nodeName) {
+    edgeEls.forEach(function (g) {
+      const f = g.getAttribute('data-from');
+      const t = g.getAttribute('data-to');
+      if (f === nodeName) neighbors.add(t);
+      if (t === nodeName) neighbors.add(f);
+    });
+  }
+  edgeEls.forEach(function (g) {
+    const f = g.getAttribute('data-from');
+    const t = g.getAttribute('data-to');
+    const active = on && nodeName && (f === nodeName || t === nodeName);
+    g.classList.toggle('dim', on && !active);
+    g.classList.toggle('active', !!active);
+  });
+  nodeEls.forEach(function (c) {
+    const n = c.getAttribute('data-node');
+    const isSelf = n === nodeName;
+    const isNeighbor = on && neighbors.has(n);
+    c.classList.toggle('dim-node', on && !isSelf && !isNeighbor);
+    c.classList.toggle('g-neighbor', isNeighbor);
+  });
+}
+
+
+/* tabs */
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(function (t) { const active=t.getAttribute('data-tab') === name;t.classList.toggle('active',active);if(active)t.setAttribute('aria-current','page');else t.removeAttribute('aria-current'); });
+  document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.remove('active'); });
+  byId('panel-' + name).classList.add('active');
+  if (name === 'graph') fitGraph();
+}
+
+byId('tabs').addEventListener('click', function (e) {
+  const tab = e.target.closest('.tab');
+  if (!tab) return;
+  switchTab(tab.getAttribute('data-tab'));
+});
+
+byId('rescanBtn').addEventListener('click', function () { post('scan'); });
+byId('exportBtn').addEventListener('click', function () { post('export'); });
+byId('settingsBtn').addEventListener('click', function () {
+  switchTab('policy');
+});
+byId('filterInput').addEventListener('input', function (e) {
+  filterText = e.target.value;
+  renderFindings();
+});
+byId('btnClearFilter').addEventListener('click', function () {
+  filterText = '';
+  byId('filterInput').value = '';
+  renderFindings();
+});
+
+render();
+</script>
+</body>
+</html>

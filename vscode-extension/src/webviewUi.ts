@@ -1,5 +1,8 @@
 import * as vscode from 'vscode';
 import { Finding, ScanSettings, ScanState } from './models';
+import { realpath } from 'node:fs/promises';
+import * as path from 'node:path';
+const EXTENSION_VERSION = (require('../package.json') as {version:string}).version;
 
 /** Actions the webview UI can request; wired to real commands by the extension host. */
 export interface UiHandlers {
@@ -11,6 +14,17 @@ export interface UiHandlers {
   baseline(finding: Finding): void;
   unbaseline(finding: Finding): void;
   exportSarif(): void;
+  configureProvider(id: string): void;
+  openSettings(): void;
+}
+
+export async function findingFileUri(finding: Finding): Promise<vscode.Uri> {
+  const root = vscode.workspace.workspaceFolders?.[0]?.uri;
+  if (!root || !finding.location.path || path.isAbsolute(finding.location.path) || finding.location.path.split(/[\\/]/).includes('..')) throw new Error('Finding has no safe workspace file.');
+  const [base,target] = await Promise.all([realpath(root.fsPath),realpath(path.resolve(root.fsPath,finding.location.path))]);
+  const relative = path.relative(base,target);
+  if (!relative || relative === '..' || relative.startsWith('..' + path.sep) || path.isAbsolute(relative)) throw new Error('Finding file is outside the workspace.');
+  return vscode.Uri.file(target);
 }
 
 export async function openFindingInEditor(finding: Finding): Promise<void> {
@@ -19,7 +33,7 @@ export async function openFindingInEditor(finding: Finding): Promise<void> {
     void vscode.window.showWarningMessage('Open a workspace folder first.');
     return;
   }
-  const document = await vscode.workspace.openTextDocument(vscode.Uri.joinPath(root, finding.location.path));
+  const document = await vscode.workspace.openTextDocument(await findingFileUri(finding));
   const editor = await vscode.window.showTextDocument(document);
   const line = Math.max(0, (finding.location.line ?? 1) - 1);
   editor.selection = new vscode.Selection(line, 0, line, 0);
@@ -36,10 +50,8 @@ function getNonce(): string {
 }
 
 /**
- * The WrapperGuard sidebar as a web app: app bar, editor-style tabs,
- * verdict pill + summary card, searchable grouped findings with a syntax-highlighted
- * evidence snippet and full finding detail, execution graph, policy pane, and a
- * status footer with blocker chip.
+ * The WrapperGuard workspace: compact navigation, aligned findings table,
+ * docked evidence inspector, execution graph and explicit provider permissions.
  */
 export class WrapperGuardWebviewProvider implements vscode.WebviewViewProvider {
   static readonly viewType = 'wrapperGuard.main';
@@ -52,7 +64,9 @@ export class WrapperGuardWebviewProvider implements vscode.WebviewViewProvider {
     suppress: () => undefined,
     baseline: () => undefined,
     unbaseline: () => undefined,
-    exportSarif: () => undefined
+    exportSarif: () => undefined,
+    configureProvider: () => undefined,
+    openSettings: () => undefined
   };
 
   private view?: vscode.WebviewView;
@@ -67,8 +81,21 @@ export class WrapperGuardWebviewProvider implements vscode.WebviewViewProvider {
     webviewView.webview.html = this.buildHtml();
     // Re-sync: the webview starts from its own default state, so push the latest one.
     this.setState(this.lastState);
-    webviewView.webview.onDidReceiveMessage((msg: { type: string; finding?: Finding }) => {
+    webviewView.webview.onDidReceiveMessage((msg: { type: string; finding?: Finding; providerId?: string }) => {
+      if (!msg || typeof msg.type !== 'string') return;
+      // Resolve actions against host state; a webview cannot submit forged paths or fingerprints.
+      if (msg.finding) {
+        const resolved = this.lastState.kind === 'scanned' ? this.lastState.report.findings.find(f => f.fingerprint === msg.finding?.fingerprint) : undefined;
+        if (!resolved) return;
+        msg.finding = resolved;
+      }
       switch (msg.type) {
+        case 'configure-provider':
+          if (typeof msg.providerId === 'string') this.handlers.configureProvider(msg.providerId);
+          break;
+        case 'settings':
+          this.handlers.openSettings();
+          break;
         case 'scan':
           this.handlers.scan();
           break;
@@ -134,358 +161,74 @@ export class WrapperGuardWebviewProvider implements vscode.WebviewViewProvider {
 <meta charset="utf-8"/>
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}';"/>
 <style>
-:root {
-  --bg: #13121b; --surface: #1f1f28; --surface-low: #1b1b24; --surface-lowest: #0e0d16;
-  --surface-high: #2a2933; --surface-highest: #35343e;
-  --border: #464555; --border-strong: #918fa1;
-  --text: #e4e1ee; --text-dim: #c7c4d8;
-  --primary: #c3c0ff; --primary-container: #4f46e5; --on-primary-container: #dad7ff;
-  --error: #ffb4ab; --warn: #ffb695; --ok: #7ee787; --info: #8ab4f8;
-  --mono-bg: #1e1e1e; --mono-bar: #2d2d2d;
-  --tok-kw: #569cd6; --tok-str: #ce9178; --tok-com: #6a9955; --tok-op: #d4d4d4;
-  /* graph aliases (SVG/CSS used these names before the tokens were unified) */
-  --wg-border: var(--border); --wg-border-strong: var(--border-strong);
-  --wg-error: var(--error); --wg-text-dim: var(--text-dim);
-}
-body.vscode-light {
-  --bg: #fbfbfd; --surface: #ffffff; --surface-low: #f6f6f8; --surface-lowest: #f1f1f4;
-  --surface-high: #f3f3f7; --surface-highest: #ececf1;
-  --border: #d8d8e0; --border-strong: #a5a5b0;
-  --text: #1f1f23; --text-dim: #6b6b76;
-  --primary: #3d34c4; --primary-container: #4f46e5; --on-primary-container: #ffffff;
-  --error: #b3261e; --warn: #9a6700; --ok: #22863a; --info: #005fb8;
-  --mono-bg: #f3f3f7; --mono-bar: #e4e4ea;
-  --tok-kw: #0000ff; --tok-str: #a31515; --tok-com: #008000; --tok-op: #333333;
-}
-* { box-sizing: border-box; }
-body {
-  margin: 0; padding: 0; color: var(--text); background: var(--bg);
-  font-family: var(--vscode-font-family); font-size: 13px; line-height: 18px;
-  display: flex; flex-direction: column; height: 100vh;
-}
-button { font-family: var(--vscode-font-family); }
-.mono { font-family: var(--vscode-editor-font-family); }
-/* ── app bar ───────────────────────────── */
-.app-bar {
-  display: flex; align-items: center; justify-content: space-between; flex: 0 0 auto;
-  padding: 5px 10px; background: var(--surface-low); border-bottom: 1px solid var(--border);
-}
-.brand { display: flex; align-items: center; gap: 8px; }
-.logo {
-  width: 24px; height: 24px; border-radius: 6px; display: flex; align-items: center; justify-content: center;
-  background: color-mix(in srgb, var(--primary-container) 30%, transparent);
-  border: 1px solid color-mix(in srgb, var(--primary) 35%, transparent);
-  color: var(--primary); font-size: 13px;
-}
-.brand-name { font-size: 13px; font-weight: 700; color: var(--primary); line-height: 15px; }
-.brand-ver { font-size: 10px; color: var(--text-dim); }
-.app-actions { display: flex; gap: 2px; }
-.icon-btn {
-  background: transparent; border: none; color: var(--text-dim); cursor: pointer;
-  width: 24px; height: 24px; border-radius: 4px; font-size: 13px; display: flex; align-items: center; justify-content: center;
-}
-.icon-btn:hover:not(:disabled) { color: var(--primary); background: var(--surface-high); }
-.icon-btn:disabled { opacity: 0.5; cursor: default; }
-.spin { animation: wgspin 1s linear infinite; display: inline-block; }
-@keyframes wgspin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-/* ── tabs ───────────────────────────────── */
-.tabs { display: flex; flex: 0 0 auto; border-bottom: 1px solid var(--border); background: var(--surface-low); }
-.tab {
-  flex: 1; background: transparent; border: none; color: var(--text-dim);
-  padding: 6px 2px 5px; font-size: 10px; font-weight: 700; letter-spacing: 0.05em;
-  text-transform: uppercase; cursor: pointer; border-bottom: 2px solid transparent;
-  display: flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap;
-}
-.tab .ticon { font-size: 12px; }
-.tab:hover { color: var(--primary); }
-.tab.active { color: var(--primary); border-bottom-color: var(--primary); }
-.tcount {
-  font-size: 9px; padding: 0 5px; border-radius: 999px; background: var(--surface-highest);
-  color: var(--text-dim); font-weight: 700;
-}
-/* ── status + summary card ─────────────── */
-.status-card {
-  flex: 0 0 auto; margin: 8px 10px 0; padding: 8px 10px; border: 1px solid var(--border);
-  border-radius: 4px; background: var(--surface); display: flex; flex-direction: column; gap: 6px;
-}
-.pill {
-  align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px;
-  border-radius: 999px; font-size: 10px; font-weight: 700; letter-spacing: 0.05em;
-  text-transform: uppercase; border: 1px solid var(--border-strong); color: var(--text-dim);
-}
-.pill.err { color: var(--error); border-color: color-mix(in srgb, var(--error) 50%, transparent); background: color-mix(in srgb, var(--error) 12%, transparent); }
-.pill.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 50%, transparent); background: color-mix(in srgb, var(--warn) 12%, transparent); }
-.pill.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 50%, transparent); background: color-mix(in srgb, var(--ok) 12%, transparent); }
-.srow { display: flex; align-items: center; gap: 6px; font-size: 11px; }
-.srow .sic { font-size: 11px; }
-.srow .sic.err { color: var(--error); }
-.srow .sic.warn { color: var(--warn); }
-.srow .sic.info { color: var(--info); }
-.srow .val { margin-left: auto; font-weight: 700; font-family: var(--vscode-editor-font-family); font-size: 11px; }
-/* ── panes ─────────────────────────────── */
-main { flex: 1 1 auto; padding: 4px 10px 12px; overflow-y: auto; }
-.tab-panel { display: none; }
-.tab-panel.active { display: block; }
-.section-label {
-  font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
-  color: var(--text-dim); margin: 12px 0 5px;
-}
-/* overview */
-.hero { text-align: center; padding: 26px 10px; color: var(--text-dim); }
-.hero .big { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
-.hero .btn { margin-top: 12px; }
-.banner {
-  display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 4px;
-  border: 1px solid var(--border); background: var(--surface); font-size: 12px; font-weight: 600;
-}
-.banner.err { color: var(--error); border-color: color-mix(in srgb, var(--error) 45%, transparent); background: color-mix(in srgb, var(--error) 10%, var(--surface)); }
-.banner.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, transparent); background: color-mix(in srgb, var(--warn) 10%, var(--surface)); }
-.banner.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, transparent); background: color-mix(in srgb, var(--ok) 10%, var(--surface)); }
-.alert-card {
-  margin-top: 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface-highest);
-  padding: 6px 10px; display: flex; flex-direction: column; gap: 3px; font-size: 11px;
-}
-.alert-card .row { display: flex; justify-content: space-between; gap: 8px; }
-.alert-card .k { color: var(--text-dim); }
-.alert-card .v { font-weight: 600; text-align: right; }
-.metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 8px; }
-.metric {
-  background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px;
-  display: flex; flex-direction: column; gap: 2px;
-}
-.metric .top { display: flex; align-items: center; gap: 6px; }
-.metric .mic { font-size: 12px; }
-.metric .mic.err { color: var(--error); }
-.metric .mic.warn { color: var(--warn); }
-.metric .mic.ok { color: var(--ok); }
-.metric .mic.info { color: var(--info); }
-.metric .label { font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-dim); }
-.metric .value { font-size: 18px; font-weight: 700; line-height: 22px; }
-.metric .value.err { color: var(--error); }
-.metric .value.warn { color: var(--warn); }
-.metric .value.ok { color: var(--ok); }
-.btn-row { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
-.btn {
-  display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 12px;
-  border-radius: 4px; font-size: 11px; font-weight: 500; cursor: pointer; white-space: nowrap;
-}
-.btn:disabled { opacity: 0.5; cursor: default; }
-.btn-primary { background: var(--primary-container); color: var(--on-primary-container); border: 1px solid transparent; }
-.btn-primary:hover:not(:disabled) { background: color-mix(in srgb, var(--primary-container) 85%, var(--text)); }
-.btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border-strong); }
-.btn-ghost:hover:not(:disabled) { background: var(--surface-high); }
-.notice { font-size: 11px; color: var(--text-dim); border-left: 2px solid var(--border-strong); padding-left: 8px; margin-top: 10px; }
-/* findings */
-.findings-toolbar { display: flex; gap: 4px; margin: 8px 0 4px; }
-.findings-toolbar input {
-  flex: 1; min-width: 0; height: 24px; background: var(--surface-high); border: 1px solid var(--border);
-  border-radius: 4px; color: var(--text); font-size: 11px; padding: 0 8px; outline: none;
-}
-.findings-toolbar input:focus { border-color: var(--primary); }
-.findings-toolbar .clear-btn { background: transparent; border: none; color: var(--text-dim); cursor: pointer; padding: 0 6px; border-radius: 4px; }
-.findings-toolbar .clear-btn:hover { color: var(--primary); background: var(--surface-high); }
-.findings-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr); align-items: start; gap: 0 12px; }
-.findings-layout .detail { border-left: 1px solid var(--border); padding-left: 10px; position: sticky; top: 0; max-height: calc(100vh - 190px); overflow-y: auto; }
-.findings-layout.narrow { display: block; }
-.findings-layout.narrow .detail { border-left: none; padding-left: 0; position: static; max-height: none; }
-.group-head {
-  display: flex; align-items: center; gap: 6px; margin-top: 10px; padding: 3px 6px;
-  font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
-  color: var(--text-dim); border-bottom: 1px solid var(--border);
-}
-.group-head .err { color: var(--error); }
-.group-head .warn { color: var(--warn); }
-.group-head .info { color: var(--info); }
-.finding-row {
-  display: flex; align-items: flex-start; gap: 7px; padding: 5px 6px; cursor: pointer;
-  border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent); border-radius: 2px;
-}
-.finding-row:nth-child(even) { background: color-mix(in srgb, var(--surface-high) 45%, transparent); }
-.finding-row:hover { background: var(--surface-high); }
-.finding-row.selected { background: color-mix(in srgb, var(--primary-container) 22%, transparent); border-left: 2px solid var(--primary); }
-.finding-row .ficon { font-size: 12px; line-height: 16px; padding-top: 1px; }
-.finding-row .ficon.err { color: var(--error); }
-.finding-row .ficon.warn { color: var(--warn); }
-.finding-row .ficon.info { color: var(--info); }
-.finding-row .body { flex: 1; min-width: 0; }
-.finding-row .title { font-size: 12px; font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.finding-row .where { font-size: 10px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.finding-row.suppressed { opacity: 0.55; }
-.finding-row.suppressed:hover { opacity: 0.9; }
-.finding-row .badges { display: flex; gap: 4px; margin-top: 3px; flex-wrap: wrap; }
-.badge {
-  font-size: 9px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
-  padding: 1px 6px; border-radius: 999px; border: 1px solid var(--border-strong); color: var(--text-dim);
-}
-.badge.err { color: var(--error); border-color: color-mix(in srgb, var(--error) 50%, transparent); background: color-mix(in srgb, var(--error) 12%, transparent); }
-.badge.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 50%, transparent); background: color-mix(in srgb, var(--warn) 12%, transparent); }
-.badge.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 50%, transparent); background: color-mix(in srgb, var(--ok) 12%, transparent); }
-.empty-note { padding: 14px 6px; color: var(--text-dim); font-size: 12px; text-align: center; }
-/* detail */
-.detail { padding: 8px 2px 2px; }
-.detail .back { display: none; }
-.narrow .detail .back { display: inline-flex; }
-.detail h2 { margin: 6px 0 2px; font-size: 15px; line-height: 20px; font-weight: 600; }
-.detail .sub { color: var(--text-dim); font-size: 11px; margin-bottom: 8px; }
-.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-.cell { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; display: flex; flex-direction: column; gap: 2px; }
-.cell .label { font-size: 9px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-dim); }
-.cell .value { display: flex; align-items: center; gap: 5px; font-size: 11px; }
-.value.err { color: var(--error); }
-.value.warn { color: var(--warn); }
-.value.info { color: var(--info); }
-.path { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; background: var(--surface-highest); border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; }
-.path-chip { font-family: var(--vscode-editor-font-family); font-size: 10px; color: var(--text-dim); }
-.path-chip.path-final { color: var(--error); font-weight: 700; border-bottom: 1px dashed var(--error); }
-.path-arrow { color: var(--border-strong); }
-.snippet { border: 1px solid var(--border); border-radius: 4px; overflow: hidden; background: var(--mono-bg); }
-.snippet-bar { display: flex; align-items: center; justify-content: space-between; background: var(--mono-bar); border-bottom: 1px solid var(--border); padding: 3px 8px; }
-.snippet-bar .file { font-family: var(--vscode-editor-font-family); font-size: 10px; color: var(--text-dim); }
-.copy-btn { background: transparent; border: none; color: var(--text-dim); cursor: pointer; font-size: 11px; padding: 1px 6px; border-radius: 4px; }
-.copy-btn:hover { color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, transparent); }
-.snippet-line { display: flex; font-family: var(--vscode-editor-font-family); font-size: 10px; line-height: 15px; }
-.snippet-line .ln { flex: 0 0 40px; text-align: right; padding-right: 8px; color: var(--border-strong); user-select: none; }
-.snippet-line .code { white-space: pre-wrap; word-break: break-all; color: var(--text); padding: 1px 4px; }
-.snippet-line.hit { background: color-mix(in srgb, var(--error) 12%, transparent); border-left: 2px solid var(--error); }
-.snippet-note { padding: 3px 8px; font-size: 10px; color: var(--text-dim); border-top: 1px solid var(--border); }
-.tok-kw { color: var(--tok-kw); }
-.tok-str { color: var(--tok-str); }
-.tok-com { color: var(--tok-com); font-style: italic; }
-.tok-op { color: var(--tok-op); font-weight: 700; }
-.remediation { background: var(--surface-low); border-left: 2px solid var(--primary); border-radius: 0 4px 4px 0; padding: 8px 10px; display: flex; flex-direction: column; gap: 5px; }
-.remediation .head { color: var(--primary); font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
-.remediation p { margin: 0; font-size: 11px; line-height: 15px; }
-.detail-actions { display: flex; gap: 6px; padding-top: 10px; flex-wrap: wrap; }
-/* execution graph */
-.graph-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 4px; background: #1a1924; padding: 6px; }
-body.vscode-light .graph-wrap { background: var(--surface); }
-.graph { position: relative; }
-.g-svg { display: block; }
-.gnode-card { position: absolute; width: 180px; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; display: flex; flex-direction: column; gap: 3px; box-shadow: 0 2px 8px rgba(0,0,0,0.35); }
-.gnode-card .g-cat { font-size: 8px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-dim); display: flex; align-items: center; gap: 4px; }
-.gnode-card.g-entry { background: var(--surface-highest); }
-.gnode-card.g-entry .g-cat { color: var(--primary); }
-.gnode-card .g-name { font-family: var(--vscode-editor-font-family); font-size: 10px; color: var(--text); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.gnode-card .g-badge { align-self: flex-start; font-size: 8px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; padding: 1px 6px; border-radius: 2px; background: color-mix(in srgb, var(--error) 22%, transparent); border: 1px solid color-mix(in srgb, var(--error) 55%, transparent); color: var(--error); }
-.gnode-card.g-sus { border: 2px solid var(--error); background: color-mix(in srgb, var(--error) 12%, var(--surface)); box-shadow: 0 0 14px color-mix(in srgb, var(--error) 18%, transparent); animation: wgpulse 3s ease-in-out infinite; }
-.gnode-card.g-sus .g-name { color: var(--error); font-weight: 700; }
-.gnode-card .g-desc { font-size: 9px; color: var(--text-dim); border-top: 1px solid color-mix(in srgb, var(--error) 35%, transparent); padding-top: 3px; text-align: center; }
-@keyframes wgpulse { 0%, 100% { box-shadow: 0 0 6px color-mix(in srgb, var(--error) 12%, transparent); } 50% { box-shadow: 0 0 16px color-mix(in srgb, var(--error) 30%, transparent); } }
-.path-block { background: var(--surface-high); border: 1px solid var(--border); border-left: 2px solid var(--error); border-radius: 4px; padding: 6px 8px; margin-bottom: 6px; }
-.path-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
-.path-title { font-family: var(--vscode-editor-font-family); font-size: 10px; font-weight: 700; color: var(--error); }
-.path-step { font-family: var(--vscode-editor-font-family); font-size: 9px; color: var(--text-dim); padding-left: 10px; border-left: 1px solid var(--border); margin-left: 4px; }
-.path-step.path-last { color: var(--error); font-weight: 700; border-left-color: var(--error); }
-.path-rule { font-family: var(--vscode-editor-font-family); font-size: 9px; color: var(--text-dim); padding-left: 14px; margin-top: 3px; }
-.g-toolbar { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
-.g-tools { display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; box-shadow: 0 3px 10px rgba(0,0,0,0.35); }
-.g-btn { background: transparent; border: none; color: var(--text-dim); width: 26px; height: 24px; cursor: pointer; font-size: 13px; }
-.g-btn:hover { color: var(--primary); background: var(--surface-high); }
-.g-btn + .g-btn { border-left: 1px solid var(--border); }
-.g-find { flex: 1; min-width: 0; height: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 11px; padding: 0 8px; outline: none; }
-.g-find:focus { border-color: var(--primary); }
-.g-edge { transition: opacity 0.15s ease; }
-.g-edge.dim { opacity: 0.1; }
-.g-edge path { stroke: var(--wg-border-strong); fill: none; stroke-width: 1.6; }
-.g-edge.active path { stroke-width: 2.6; }
-.g-edge.err path { stroke: var(--wg-error); stroke-dasharray: 5 4; animation: wgdash 1.1s linear infinite; }
-.g-elabel { fill: var(--wg-text-dim); }
-.g-edge.err .g-elabel { fill: var(--wg-error); }
-@keyframes wgdash { to { stroke-dashoffset: -18; } }
-.gnode-card { transition: opacity 0.15s ease; animation: wgenter 0.28s ease both; cursor: pointer; }
-.gnode-card:hover { border-color: var(--primary); }
-.gnode-card.dim-node { opacity: 0.15; }
-.gnode-card.g-neighbor { outline: 1px solid var(--primary); outline-offset: 1px; }
-.gnode-card.g-hit { outline: 1px solid var(--primary); outline-offset: 1px; }
-@keyframes wgenter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-#gInner { transition: transform 0.18s ease; }
-.detached { display: flex; flex-wrap: wrap; gap: 6px; }
-.detached-card { padding: 4px 10px; border-radius: 4px; background: var(--surface); border: 1px solid var(--border); font-size: 10px; cursor: pointer; transition: border-color 0.15s ease; }
-.detached-card:hover { border-color: var(--primary); }
-.edge-row { display: flex; align-items: center; gap: 6px; padding: 5px 6px; border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent); }
-.edge-row:nth-child(even) { background: color-mix(in srgb, var(--surface-high) 45%, transparent); }
-.edge-row .via { font-size: 10px; color: var(--text-dim); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.edge-row .arrow { color: var(--border-strong); }
-/* policy */
-.policy-row { display: flex; justify-content: space-between; gap: 8px; padding: 6px 4px; border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent); font-size: 11px; }
-.policy-row .k { color: var(--text-dim); }
-.policy-row .v { text-align: right; font-weight: 500; }
-.legend { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
-/* footer */
-.app-footer {
-  flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between;
-  padding: 3px 10px; border-top: 1px solid var(--border); background: var(--surface-lowest);
-  font-size: 10px; color: var(--text-dim);
-}
-.app-footer .chip {
-  display: inline-flex; align-items: center; gap: 4px; margin-left: 8px; padding: 1px 8px;
-  border-radius: 999px; font-weight: 700;
-}
-.app-footer .chip.err { color: var(--error); background: color-mix(in srgb, var(--error) 15%, transparent); }
-.footer-links { display: flex; gap: 12px; }
-.flink { cursor: pointer; }
-.flink:hover { color: var(--primary); }
+/* A quiet, dense developer workspace. Tables and evidence carry the hierarchy. */
+:root{--bg:#13121b;--surface:#1f1f28;--surface-low:#1b1b24;--surface-lowest:#101018;--surface-high:#2a2933;--surface-highest:#35343e;--border:#353440;--border-strong:#656473;--text:#e4e1ee;--text-dim:#a8a6b9;--primary:#c3c0ff;--primary-container:#4f46e5;--on-primary-container:#fff;--error:#ffb4ab;--warn:#ffb695;--ok:#8fd7a6;--info:#a9bad3;--mono-bg:#14131b;--mono-bar:#22212b;--tok-kw:#8ab4f8;--tok-str:#e8be95;--tok-com:#8caa88;--tok-op:#d7c8f4;--wg-border:var(--border);--wg-border-strong:#9491ac;--wg-error:var(--error);--wg-text-dim:var(--text-dim);--font:var(--vscode-font-family,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif);--code:var(--vscode-editor-font-family,'SFMono-Regular',Consolas,monospace)}
+body.vscode-light{--bg:#f8f9fc;--surface:#fff;--surface-low:#f0f1f6;--surface-lowest:#e9ebf2;--surface-high:#e8eaf2;--surface-highest:#e1e4ee;--border:#d6d9e3;--border-strong:#969baa;--text:#252737;--text-dim:#60677b;--primary:#4d44c7;--primary-container:#4f46e5;--error:#ae302b;--warn:#9a5c14;--ok:#277344;--info:#38628a;--mono-bg:#f5f6fa;--mono-bar:#edf0f5;--tok-kw:#355aa6;--tok-str:#916028;--tok-com:#597248;--tok-op:#763d92;--wg-border-strong:#737b92}
+*{box-sizing:border-box}body{margin:0;color:var(--text);background:var(--bg);font:13px/1.5 var(--font);display:flex;flex-direction:column;height:100vh;overflow:hidden}button,input,select{font:inherit}button{color:inherit;cursor:pointer}button:disabled{opacity:.5;cursor:default}button:focus-visible,input:focus-visible,select:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--primary);outline-offset:2px}.mono{font-family:var(--code)}h1,h2,h3,p{margin:0}h1{font-size:20px;line-height:28px;letter-spacing:-.4px;font-weight:600}h2{font-size:16px;line-height:1.4;font-weight:600}h3{font-size:13px;font-weight:600}.muted{color:var(--text-dim)}.err{color:var(--error)}.warn{color:var(--warn)}.ok{color:var(--ok)}.info{color:var(--info)}
+.app-bar{height:46px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:var(--surface-low);border-bottom:1px solid var(--border)}.app-title{display:flex;align-items:center;gap:9px;font-weight:600}.app-title .logo{display:flex;width:21px;height:23px;color:var(--primary)}.brand-ver{font-size:10px;font-weight:400;color:var(--text-dim)}.workspace-label{font-size:12px;color:var(--text);font-weight:400;border-left:1px solid var(--border-strong);margin-left:5px;padding-left:14px}.app-actions{display:flex;align-items:center;gap:6px}.icon-btn{width:28px;height:28px;border:1px solid transparent;border-radius:3px;background:transparent;color:var(--text-dim);font-size:18px;display:inline-flex;align-items:center;justify-content:center}.icon-btn:hover{background:var(--surface-high);color:var(--text)}
+.workspace-shell{display:flex;flex:1;min-height:0}.sidebar{width:176px;flex:none;background:var(--surface-low);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:16px 8px 10px;gap:18px}.sidebar-label,.section-label{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text-dim)}.sidebar-label{padding:0 8px;margin-bottom:8px}.tabs{display:flex;flex-direction:column;gap:3px}.tab{display:flex;align-items:center;gap:9px;min-height:34px;padding:6px 9px;background:transparent;border:0;border-left:2px solid transparent;border-radius:2px;text-align:left;font-size:12px;color:var(--text-dim);white-space:nowrap}.tab .ticon{width:16px;height:17px;display:flex;align-items:center;justify-content:center}.ticon svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}.tab:hover{background:var(--surface-high);color:var(--text)}.tab.active{background:color-mix(in srgb,var(--primary) 8%,var(--surface-low));color:var(--primary);border-left-color:var(--primary)}.tcount{margin-left:auto;padding:0 5px;min-width:21px;text-align:center;font:10px/18px var(--code);background:var(--surface-highest);border-radius:3px;color:var(--text-dim)}
+.status-card{border-top:1px solid var(--border);padding:14px 0 0}.status-card>.sidebar-label{margin-bottom:9px}.pill{display:inline-flex;align-items:center;gap:5px;padding:3px 7px;font-size:10px;font-weight:500;border:1px solid var(--border);border-radius:3px;color:var(--text-dim)}.status-card>.pill{margin:0 7px}.pill.err,.badge.err{color:var(--error);border-color:color-mix(in srgb,var(--error) 34%,transparent);background:color-mix(in srgb,var(--error) 8%,transparent)}.pill.warn,.badge.warn{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 32%,transparent);background:color-mix(in srgb,var(--warn) 7%,transparent)}.pill.ok,.badge.ok{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 32%,transparent);background:color-mix(in srgb,var(--ok) 7%,transparent)}.sidebar-summary{padding:8px 8px 0}.srow{display:flex;align-items:center;gap:6px;padding:3px 0;font-size:11px;color:var(--text-dim)}.srow .val{margin-left:auto;font:11px var(--code);color:var(--text)}.sic{width:11px;text-align:center}.sidebar-bottom{margin-top:auto;padding:12px 8px 0;border-top:1px solid var(--border);font-size:10px;color:var(--text-dim)}.sidebar-health{display:flex;align-items:center;gap:6px;margin-bottom:7px}.health-dot{width:5px;height:5px;border-radius:50%;background:var(--ok)}.health-dot.warn{background:var(--warn)}.sidebar-bottom .sidebar-label{padding:0;margin-bottom:9px}.provider-mini{display:flex;justify-content:space-between;padding:2px 0}.sidebar-version{font:10px var(--code);margin-top:12px;color:var(--text-dim)}
+main{flex:1;min-width:0;min-height:0;padding:18px 20px 16px;overflow:hidden}.tab-panel{display:none;height:100%;min-height:0;overflow:auto}.tab-panel.active{display:block}.page-head{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:14px;min-height:32px}.page-head .eyebrow{display:none}.page-head p{font-size:12px;color:var(--text-dim);margin-top:3px}.page-head .btn-row{margin:0}.page-heading{min-width:0}.section-label{margin:14px 0 7px}.panel-card{background:var(--surface-low);border:1px solid var(--border);border-radius:3px;min-width:0;overflow:hidden}.panel-title{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid var(--border);font-size:12px;font-weight:600}.panel-title .subtle{font-size:11px;font-weight:400;color:var(--text-dim)}.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:28px;padding:0 10px;border-radius:3px;font-size:11px;line-height:1.4;font-weight:500;white-space:nowrap;text-decoration:none}.btn-primary{background:var(--primary-container);color:var(--on-primary-container);border:1px solid transparent}.btn-primary:hover:not(:disabled){background:#5e56ee}.btn-ghost{background:transparent;color:var(--text);border:1px solid var(--border-strong)}.btn-ghost:hover:not(:disabled){background:var(--surface-high)}.btn-row{display:flex;gap:7px;flex-wrap:wrap}.link-btn{background:none;border:0;color:var(--primary);font-size:12px;padding:0;text-align:left}.hero{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;height:100%;min-height:250px;text-align:center;color:var(--text-dim)}.hero .big{font-size:19px;font-weight:600;color:var(--text)}.hero>div{max-width:480px}.badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:500;line-height:1.5;padding:2px 6px;border-radius:3px;border:1px solid var(--border-strong);color:var(--text-dim);white-space:nowrap}.badge.info{color:var(--info)}.badge.action{font-size:10px;padding:2px 6px;background:var(--surface-high);border-color:var(--border);color:var(--text-dim)}.empty-note{padding:28px 20px;color:var(--text-dim);font-size:12px;text-align:center;line-height:1.8}
+.overview-status{display:flex;align-items:center;gap:10px;min-height:42px;padding:0 12px;border:1px solid var(--border);border-left:2px solid var(--error);background:var(--surface-low);border-radius:3px}.overview-status.ok{border-left-color:var(--ok)}.overview-status.warn{border-left-color:var(--warn)}.overview-status strong{font-size:13px;font-weight:600}.overview-status .muted{font-size:12px}.overview-status .link-btn{margin-left:auto;font-size:11px}.status-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;border:1px solid var(--border);border-radius:3px;margin:12px 0 18px;background:var(--surface-low)}.metric{padding:11px 14px;display:flex;align-items:center;gap:12px;border-right:1px solid var(--border);min-width:0}.metric:last-child{border-right:0}.metric .top{order:2}.metric .label{font-size:11px;color:var(--text-dim)}.metric .value{font:600 21px/28px var(--code);white-space:nowrap}.overview-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(350px,1fr);gap:16px;align-items:start}.attention-table,.health-table{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}.attention-table th,.health-table th{font-size:10px;font-weight:500;text-align:left;color:var(--text-dim);padding:7px 12px;background:var(--surface)}.attention-table td{padding:10px 12px;border-top:1px solid var(--border);vertical-align:top}.attention-table th:last-child,.attention-table td:last-child{width:78px;text-align:right}.attention-table .link-btn{font-size:12px;color:var(--text);line-height:1.5}.attention-table .link-btn:hover{color:var(--primary)}.review-path{font:11px/1.6 var(--code);color:var(--text-dim);margin-top:4px;overflow-wrap:anywhere}.health-table th:last-child,.health-table td:last-child{text-align:right;width:100px}.health-table td{padding:9px 12px;border-top:1px solid var(--border);font-size:12px}.health-table .run-meta{font:10px var(--code);color:var(--text-dim);margin-top:3px}.scan-info{margin-top:16px}.scan-meta{display:grid;grid-template-columns:1.35fr 1.1fr .7fr .8fr;margin:0;padding:12px;gap:12px}.scan-meta dt{font-size:10px;color:var(--text-dim);margin-bottom:4px}.scan-meta dd{font-size:11px;margin:0;overflow-wrap:anywhere}.notice{font-size:11px;color:var(--text-dim);padding:9px 11px;border:1px solid var(--border);border-left:2px solid var(--warn);border-radius:3px;line-height:1.6;margin-top:12px;background:var(--surface-low)}.notice strong{color:var(--text);font-weight:500}.notice details{margin-top:5px}.notice summary{cursor:pointer;color:var(--text-dim);font-size:10px}.notice ul{padding-left:17px;margin:7px 0 0}.notice li+li{margin-top:5px}.notice .notice-code{font:10px var(--code);color:var(--text)}.scope-note{font-size:10px;color:var(--text-dim);margin-top:10px;line-height:1.6}
+#panel-findings.active{display:flex;flex-direction:column}#panel-findings .page-head{margin-bottom:10px}.findings-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex:none}.search-wrap{display:flex;align-items:center;gap:8px;flex:1;background:var(--surface-low);border:1px solid var(--border);border-radius:3px;padding-left:10px;max-width:450px;color:var(--text-dim)}.findings-toolbar input{width:100%;min-width:0;height:30px;background:transparent;border:0;color:var(--text);font-size:12px;padding:0 8px 0 0;outline:none}.search-wrap:focus-within{border-color:var(--primary)}.clear-btn{background:none;border:0;color:var(--text-dim);padding:4px 10px;font-size:14px}.filter-hint{margin-left:auto;color:var(--text-dim);font-size:11px}.findings-layout{flex:1;min-height:0;display:grid;grid-template-rows:minmax(200px,1fr) 268px;border:1px solid var(--border);border-radius:3px;overflow:hidden;background:var(--bg)}.findings-layout>.list{overflow:auto;background:var(--bg)}.findings-layout>.detail{min-height:0;overflow:auto;border-top:1px solid var(--border);background:var(--surface-low)}.finding-columns{display:grid;grid-template-columns:minmax(250px,2fr) minmax(230px,1.65fr) minmax(140px,1fr) 114px;align-items:center;gap:12px}.list-head{height:30px;padding:0 12px;position:sticky;top:0;z-index:1;background:var(--surface);border-bottom:1px solid var(--border);font-size:10px;color:var(--text-dim);letter-spacing:.04em}.finding-row{height:32px;padding:0 12px;border:0;border-bottom:1px solid var(--border);border-left:2px solid transparent;width:100%;text-align:left;background:transparent;color:var(--text)}.finding-row:nth-child(odd){background:color-mix(in srgb,var(--surface) 25%,var(--bg))}.finding-row:hover{background:var(--surface-high)}.finding-row.selected{border-left-color:var(--primary);background:color-mix(in srgb,var(--primary-container) 14%,var(--bg))}.finding-issue{display:flex;align-items:center;gap:8px;min-width:0}.finding-row .ficon{width:14px;flex:none;font-size:14px;line-height:18px}.finding-row .title{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}.finding-row .where{font:11px var(--code);color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.row-provider{font-size:11px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.row-decision{display:flex;justify-content:flex-start}.row-decision .badge{font-size:10px;padding:1px 6px}.finding-row.suppressed{color:var(--text-dim)}.finding-row.suppressed .where{opacity:.8}
+.detail{min-width:0;overflow-wrap:anywhere}.detail-header{display:flex;align-items:center;gap:10px;height:34px;padding:0 12px;border-bottom:1px solid var(--border);background:var(--surface);font-size:11px;font-weight:600}.detail-header .mono{font-size:10px;color:var(--text-dim);font-weight:400}.detail .back{display:none}.detail-content{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);height:calc(100% - 34px)}.detail-overview{padding:12px 14px;overflow:auto;border-right:1px solid var(--border)}.detail-evidence{padding:10px 14px;overflow:auto;display:flex;flex-direction:column;min-width:0}.detail h2{font-size:15px;line-height:1.45;letter-spacing:-.15px;margin:0 0 7px}.detail-facts{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:11px;color:var(--text-dim);margin-bottom:7px}.detail-description{font-size:13px;color:var(--text-dim);line-height:1.55;margin:8px 0}.provider-line{font-size:11px;color:var(--text-dim);line-height:1.6}.provider-line strong{font-weight:500;color:var(--text)}.provider-id-inline{font:10px var(--code);margin-left:7px}.detail .section-label{font-size:10px;margin:10px 0 5px}.path{display:flex;align-items:center;flex-wrap:wrap;gap:5px}.path-chip{font:11px/1.65 var(--code);color:var(--text-dim)}.path-chip.path-final{color:var(--text)}.path-arrow{color:var(--text-dim)}.action-chips{display:flex;gap:4px;flex-wrap:wrap}.detail .action-chips{margin-top:8px}.snippet{border:1px solid var(--border);border-radius:3px;overflow:hidden;background:var(--mono-bg);flex:none}.snippet-bar{display:flex;align-items:center;justify-content:space-between;background:var(--mono-bar);border-bottom:1px solid var(--border);padding:5px 8px;gap:8px}.snippet-bar .file{font:10px/1.6 var(--code);color:var(--text-dim);overflow-wrap:anywhere}.copy-btn{background:none;border:0;color:var(--text-dim);font-size:10px;padding:1px 3px;white-space:nowrap}.copy-btn:hover{color:var(--primary)}.snippet-line{display:flex;font:12px/1.65 var(--code);padding:6px 0}.snippet-line .ln{flex:none;width:34px;text-align:right;padding-right:9px;color:var(--text-dim);user-select:none}.snippet-line .code{white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;padding-right:9px}.snippet-line.hit{background:color-mix(in srgb,var(--error) 6%,transparent);border-left:2px solid var(--error)}.snippet-note{padding:6px 9px;font-size:10px;color:var(--text-dim);border-top:1px solid var(--border)}.tok-kw{color:var(--tok-kw)}.tok-str{color:var(--tok-str)}.tok-com{color:var(--tok-com)}.tok-op{color:var(--tok-op)}.remediation{padding-top:9px;margin-top:8px;border-top:1px solid var(--border)}.remediation .head{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--primary);font-weight:600;margin-bottom:3px}.remediation p{font-size:12px;line-height:1.6;color:var(--text-dim)}.detail-actions{display:flex;gap:6px;flex-wrap:wrap;padding-top:10px;margin-top:auto}.detail-actions .btn{font-size:10px;padding:0 9px;min-height:26px}
+#panel-graph.active{display:flex;flex-direction:column}.graph-workspace{display:grid;grid-template-columns:minmax(0,1fr) 258px;flex:1;min-height:0;border:1px solid var(--border);border-radius:4px;overflow:hidden}.graph-main{min-width:0;min-height:0;display:flex;flex-direction:column;background:var(--surface-low)}.g-toolbar{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--border);flex:none}.g-tools{display:flex;border:1px solid var(--border-strong);border-radius:4px;overflow:hidden}.g-btn{width:30px;height:28px;border:0;background:var(--surface);color:var(--text-dim);font-size:16px}.g-btn:hover{background:var(--surface-high);color:var(--primary)}.g-btn+.g-btn{border-left:1px solid var(--border)}.g-find{min-width:0;width:190px;max-width:50%;height:30px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);font:11px var(--code);padding:0 10px}.graph-stat{margin-left:auto;font:10px var(--code);color:var(--text-dim)}.graph-wrap{flex:1;min-height:240px;overflow:auto;position:relative;padding:12px;background-color:var(--surface-low);background-image:radial-gradient(var(--border) .6px,transparent .6px);background-size:20px 20px}.graph{position:relative;margin:auto;transform-origin:top left}.g-svg{display:block;overflow:visible}.gnode-card{position:absolute;width:180px;min-height:62px;display:flex;flex-direction:column;justify-content:center;gap:5px;background:var(--surface);border:1px solid var(--border-strong);border-radius:4px;padding:9px 10px;cursor:pointer;text-align:center;transition:opacity .15s}.gnode-card .g-cat{font-size:9px;text-transform:uppercase;color:var(--text-dim);letter-spacing:.06em}.gnode-card.g-entry .g-cat{color:var(--primary)}.gnode-card .g-name{font:11px/1.5 var(--code);color:var(--text);overflow-wrap:anywhere}.gnode-card.g-sus{border:1px solid var(--error);background:color-mix(in srgb,var(--error) 9%,var(--surface))}.gnode-card.g-sus .g-name{color:var(--error)}.gnode-card .g-badge{font-size:9px;color:var(--error);text-transform:uppercase;letter-spacing:.03em}.gnode-card .g-desc{font-size:9px;line-height:1.5;color:var(--text-dim);padding-top:4px;border-top:1px solid var(--border)}.gnode-card:hover,.gnode-card:focus-visible{border-color:var(--primary)}.g-edge path{stroke:var(--wg-border-strong);fill:none;stroke-width:1.8}.g-edge.err path{stroke:var(--error);stroke-dasharray:5 4}.g-edge.active path{stroke-width:2.6}.g-edge.dim{opacity:.14}.g-elabel{fill:var(--text-dim);paint-order:stroke;stroke:var(--surface-low);stroke-width:4px;stroke-linejoin:round}.g-edge.err .g-elabel{fill:var(--error)}.gnode-card.dim-node{opacity:.18}.gnode-card.g-hit,.gnode-card.g-neighbor{outline:1px solid var(--primary);outline-offset:2px}.graph-inspector{overflow:auto;background:var(--surface-low);border-left:1px solid var(--border);padding:0 12px 14px}.graph-inspector>.section-label{padding:13px 0;margin:0 0 12px;border-bottom:1px solid var(--border)}.path-block{border:1px solid var(--border);border-left:2px solid var(--error);border-radius:3px;background:var(--surface);padding:10px 11px;margin-bottom:10px}.path-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:6px}.path-title{font:11px var(--code);color:var(--error)}.path-step{font:10px/1.8 var(--code);overflow-wrap:anywhere;color:var(--text-dim);padding-left:8px;border-left:1px solid var(--border);margin-left:3px}.path-last{color:var(--error);border-color:var(--error)}.path-rule{font-size:10px;color:var(--text-dim);line-height:1.7;margin-top:10px;padding-top:8px;border-top:1px solid var(--border)}.path-link{display:block;margin-top:10px;color:var(--primary);font-size:10px;background:none;border:0;padding:0}.legend{display:flex;gap:10px;flex-wrap:wrap;padding:10px 12px;border-top:1px solid var(--border);flex:none;font-size:10px;color:var(--text-dim)}.legend-key{display:inline-flex;gap:5px;align-items:center}.legend-dot{width:6px;height:6px;border:1px solid var(--border-strong);background:var(--surface)}.legend-dot.err{border-color:var(--error);background:color-mix(in srgb,var(--error) 20%,transparent)}.detached{display:flex;flex-direction:column;gap:5px}.detached-card{font:9px/1.6 var(--code);overflow-wrap:anywhere;padding:7px 8px;border:1px solid var(--border);border-radius:3px;background:var(--surface);cursor:pointer;text-align:left}.detached-card:hover{border-color:var(--primary)}.graph-note{font-size:10px;color:var(--text-dim);margin-top:10px;flex:none}
+
+.policy-intro{max-width:740px}.policy-summary{display:flex;align-items:center;gap:16px;font-size:11px;color:var(--text-dim);margin:0 0 12px}.policy-summary strong{color:var(--text);font-weight:500}.provider-table{width:100%;border-collapse:collapse;font-size:12px}.provider-table th{text-align:left;color:var(--text-dim);font-size:10px;font-weight:500;letter-spacing:.04em;background:var(--surface);padding:8px 12px;border-bottom:1px solid var(--border)}.provider-table td{padding:11px 12px;border-bottom:1px solid var(--border);vertical-align:middle}.provider-table tr:last-child td{border:0}.provider-table .provider-title{font-size:12px;font-weight:500;white-space:nowrap}.provider-id{font:10px/1.6 var(--code);color:var(--text-dim);margin-top:3px}.provider-table .provider-note{font-size:10px;color:var(--text-dim);line-height:1.5;max-width:220px;margin-top:4px}.provider-table .run-meta{font:10px/1.6 var(--code);color:var(--text-dim);margin-top:3px}.grants-column{width:260px}.grants-title{display:block;margin-bottom:5px}.grant-matrix{display:grid;grid-template-columns:repeat(5,minmax(28px,1fr));gap:5px;text-align:center}.grant-heading{font-size:9px;letter-spacing:0}.grant-cell{display:flex;justify-content:center;align-items:center;height:25px;font-size:12px;color:var(--text-dim)}.grant-cell.granted{color:var(--primary)}.provider-table .btn{font-size:10px;min-height:26px;padding:0 9px}.provider-table .muted-run{opacity:.65}.policy-settings{margin-top:16px}.policy-row{display:grid;grid-template-columns:210px 1fr;gap:16px;padding:9px 12px;font-size:11px;border-bottom:1px solid var(--border)}.policy-row:last-child{border:0}.policy-row .k{color:var(--text-dim)}.policy-row .v{font-family:var(--code);font-size:11px;overflow-wrap:anywhere}.app-footer{height:23px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 12px;background:var(--surface-lowest);border-top:1px solid var(--border);font-size:9px;color:var(--text-dim)}.app-footer .chip{margin-left:12px;color:var(--error);padding-left:10px;border-left:1px solid var(--border)}.footer-links{display:flex;gap:14px}.spin{display:inline-block;animation:wgspin 1s linear infinite}@keyframes wgspin{to{transform:rotate(360deg)}}
+@media(max-width:1199px){.sidebar{width:160px}.tab{font-size:11px;gap:7px;padding-left:7px;padding-right:7px}main{padding:16px}.overview-grid{grid-template-columns:1fr 340px;gap:12px}.metric{padding:10px;gap:9px}.metric .label{font-size:10px}.metric .value{font-size:19px}.finding-columns{grid-template-columns:minmax(220px,2fr) minmax(150px,1.4fr) minmax(120px,1fr) 100px;gap:9px}.finding-row .where{font-size:10px}.finding-row .title{font-size:11px}.row-provider{font-size:10px}.findings-layout{grid-template-rows:minmax(200px,1fr) 288px}.provider-table th,.provider-table td{padding-left:9px;padding-right:9px}.provider-table .provider-id{font-size:9px}.grants-column{width:215px}.provider-table .provider-title{white-space:normal}.scan-meta{grid-template-columns:1fr 1fr}}
+@media(max-width:999px){.sidebar{width:150px}.workspace-label{max-width:200px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.overview-grid{grid-template-columns:1fr}.metric{flex-direction:column;gap:0;align-items:flex-start;padding:9px 12px}.metric .top{order:0}.metric .value{font-size:20px}.graph-workspace{grid-template-columns:1fr}.graph-inspector{display:none}.finding-columns{grid-template-columns:minmax(200px,2fr) minmax(140px,1.3fr) 100px;gap:9px}.finding-columns>.row-provider,.list-head>.provider-heading{display:none}.findings-layout{grid-template-rows:minmax(180px,1fr) 310px}.detail-content{grid-template-columns:1fr 1fr}.detail-overview,.detail-evidence{padding:10px}.detail h2{font-size:14px}.provider-id-inline{display:none}.provider-table th:nth-child(3),.provider-table td:nth-child(3){display:none}.grants-column{width:195px}.policy-row{grid-template-columns:180px 1fr}.brand-ver{display:none}.filter-hint{display:none}}
+@media(max-width:767px){.app-bar{height:44px;padding:0 12px}.app-title{font-size:12px}.app-title .logo{width:18px;height:20px}.workspace-label{font-size:11px;max-width:130px;margin-left:0;padding-left:10px}.app-actions{gap:2px}.app-actions .btn{font-size:10px;min-height:27px;padding:0 8px}.app-actions .icon-btn{width:26px;font-size:16px}.workspace-shell{flex-direction:column}.sidebar{width:auto;padding:0;border-right:0;border-bottom:1px solid var(--border);gap:0;flex:none}.sidebar>.sidebar-label,.status-card,.sidebar-bottom{display:none}.tabs{flex-direction:row;gap:0}.tab{justify-content:center;flex:1;border-left:0;border-bottom:2px solid transparent;border-radius:0;padding:9px 3px;font-size:10px;gap:5px}.tab.active{border-bottom-color:var(--primary);border-left-color:transparent}.tab .ticon{display:none}.tcount{margin-left:0;min-width:17px;font-size:9px;padding:0 4px}.tab:nth-child(3){font-size:0}.tab:nth-child(3):after{content:'Graph';font-size:10px}main{padding:14px 12px}.page-head{gap:8px;margin-bottom:12px}h1{font-size:19px}.page-head p{font-size:11px}.page-head .btn-row{gap:5px}.page-head .btn-row .btn{font-size:9px;min-height:27px;padding:0 7px}.metrics{grid-template-columns:repeat(2,minmax(0,1fr));margin:10px 0 14px}.metric{flex-direction:row;gap:9px;padding:9px 12px;align-items:center}.metric .top{order:2}.metric:nth-child(2){border-right:0}.metric:nth-child(-n+2){border-bottom:1px solid var(--border)}.metric .value{font-size:19px}.overview-status{padding:8px 10px;align-items:flex-start;flex-wrap:wrap;gap:7px;min-height:38px}.overview-status .status-dot{margin-top:6px}.overview-status .muted{font-size:11px}.overview-status .link-btn{display:none}.overview-grid{gap:12px}.attention-table td{padding:9px 10px}.attention-table th{padding:7px 10px}.attention-table .link-btn{font-size:11px}.review-path{font-size:10px}.health-table td{font-size:11px}.findings-layout{display:block;overflow:auto}.findings-layout>.list{height:100%;overflow:auto}.finding-columns{display:flex;align-items:flex-start;flex-wrap:wrap;gap:3px 8px}.list-head{display:none}.finding-row{height:auto;min-height:67px;padding:9px 10px;position:relative}.finding-issue{width:100%;padding-right:76px;gap:7px}.finding-row .title{font-size:12px;white-space:normal;line-height:1.5}.finding-row .where{font-size:10px;width:100%;padding-left:21px;margin-top:1px}.finding-row>.row-provider{display:block;font-size:10px;padding-left:21px}.finding-row>.row-decision{position:absolute;right:9px;top:10px;max-width:80px}.row-decision .badge{font-size:9px;padding:1px 4px}.findings-layout>.detail{display:none;border-top:0}.findings-layout.narrow>.detail{display:block;height:100%;overflow-y:auto;padding-bottom:16px}.detail-header{display:none}.detail .back{display:flex;width:max-content;margin-bottom:12px}.detail-content{display:block;height:auto}.detail-overview{border-right:0;padding:14px 14px 4px}.detail-evidence{padding:4px 14px 14px}.detail h2{font-size:17px;margin-top:0}.detail-facts{font-size:11px}.detail-description{font-size:13px;line-height:1.65}.provider-line{font-size:12px}.detail .section-label{font-size:10px;margin:13px 0 6px}.detail .action-chips{margin-top:10px}.detail-actions{margin-top:12px}.remediation p{font-size:12px}.detail-actions .btn{font-size:10px}.snippet-bar .file{font-size:10px}.snippet-line{font-size:12px}.provider-table{display:block}.provider-table thead{display:none}.provider-table tbody{display:block}.provider-table tr{display:grid;grid-template-columns:minmax(0,1fr) auto;border-bottom:1px solid var(--border);padding:12px;gap:9px 12px}.provider-table tr:last-child{border:0}.provider-table td{border:0;padding:0}.provider-table td:first-child{grid-column:1}.provider-table td:nth-child(2){grid-column:2;text-align:right}.provider-table td:nth-child(3){display:none}.provider-table td:nth-child(4){grid-column:1;grid-row:2}.provider-table td:last-child{grid-column:2;grid-row:2;align-self:end}.provider-table .provider-title{font-size:12px}.provider-id{font-size:9px}.grants-column{width:auto}.grant-matrix{min-width:165px}.grant-cell{font-size:10px;gap:4px;flex-direction:column;height:auto;min-height:35px;line-height:1.2;padding:3px 1px}.grant-cell:before{content:attr(data-label);font-size:8px;color:var(--text-dim)}.provider-table .provider-note{max-width:170px}.policy-summary{gap:9px;flex-wrap:wrap;font-size:10px}.policy-row{grid-template-columns:1fr;gap:4px;padding:9px 12px}.graph-workspace{display:flex;flex-direction:column;min-height:380px}.g-toolbar{padding:9px;gap:8px}.graph-stat{display:none}.g-find{max-width:none;flex:1;width:auto}.graph-note{font-size:9px}.app-footer{padding:0 10px;font-size:8px}.footer-links{display:none}.app-footer .chip{margin-left:7px;padding-left:7px}.scope-note{font-size:9px}.policy-settings-button{font-size:9px!important;padding:0 8px}.scan-meta{grid-template-columns:1fr 1fr}}
+@media(max-width:399px){.workspace-label{display:none}.app-actions .icon-btn{width:24px}.app-actions .btn{padding:0 7px}.tab{font-size:9px}.tab:nth-child(3):after{font-size:9px}.finding-row .title{font-size:11px}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
   <header class="app-bar">
-    <div class="brand">
-      <span class="logo">🛡</span>
-      <div>
-        <div class="brand-name">WrapperGuard</div>
-        <div class="brand-ver mono">v0.3.0</div>
-      </div>
-    </div>
+    <div class="app-title"><span class="logo"><svg viewBox="0 0 24 26" fill="none" aria-hidden="true"><path d="M12 2 21 6v7c0 5-5 9-9 11-4-2-9-6-9-11V6l9-4Z" stroke="currentColor" stroke-width="1.7"/><path d="m8 12 3 3 5-6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>WrapperGuard</span><span class="brand-ver mono">v${EXTENSION_VERSION}</span><span class="workspace-label" id="workspaceName">Workspace security</span></div>
     <div class="app-actions">
-      <button class="icon-btn" id="exportBtn" title="Export report (JSON)">⤓</button>
-      <button class="icon-btn" id="settingsBtn" title="Show policy">⚙</button>
-      <button class="icon-btn" id="rescanBtn" title="Rescan project">⟳</button>
+      <button class="icon-btn" id="exportBtn" title="Export report (JSON)" aria-label="Export report">↓</button>
+      <button class="icon-btn" id="settingsBtn" title="Show policy" aria-label="Show policy">⚙</button>
+      <button class="btn btn-primary" id="rescanBtn" title="Rescan project">↻ Rescan</button>
     </div>
   </header>
-
-  <nav class="tabs" id="tabs">
-    <button class="tab active" data-tab="overview"><span class="ticon">◧</span>Overview</button>
-    <button class="tab" data-tab="findings"><span class="ticon">⚠</span>Findings <span class="tcount" id="tabFindingsCount">0</span></button>
-    <button class="tab" data-tab="graph"><span class="ticon">⎇</span>Graph</button>
-    <button class="tab" data-tab="policy"><span class="ticon">⚙</span>Policy</button>
-  </nav>
-
-  <section class="status-card">
-    <span class="pill" id="verdictPill">Not scanned</span>
-    <div class="srow"><span class="sic err">✖</span><span>Blockers</span><span class="val" id="sumBlockers">0</span></div>
-    <div class="srow"><span class="sic err">✖</span><span>Errors</span><span class="val" id="sumErrors">0</span></div>
-    <div class="srow"><span class="sic warn">▲</span><span>Warnings</span><span class="val" id="sumWarnings">0</span></div>
-    <div class="srow"><span class="sic info">◌</span><span>Suppressed</span><span class="val" id="sumSuppressed">0</span></div>
-  </section>
-
-  <main>
-    <section class="tab-panel active" id="panel-overview"></section>
-    <section class="tab-panel" id="panel-findings">
-      <div class="findings-toolbar">
-        <input id="filterInput" type="text" placeholder="Search rules, files…" spellcheck="false"/>
-        <button class="clear-btn" id="btnClearFilter" title="Clear filter">✕</button>
-      </div>
-      <div class="findings-layout" id="findingsLayout"></div>
-    </section>
-    <section class="tab-panel" id="panel-graph"></section>
-    <section class="tab-panel" id="panel-policy"></section>
-  </main>
-
-  <footer class="app-footer">
-    <span id="footerLeft">WrapperGuard: Not scanned</span>
-    <span class="footer-links">
-      <span class="flink" title="Documentation — coming in v0.3">Docs</span>
-      <span class="flink" title="Logs — coming in v0.3">Logs</span>
-      <span class="flink" title="Support — coming in v0.3">Support</span>
-    </span>
-  </footer>
+  <div class="workspace-shell">
+    <aside class="sidebar" aria-label="WrapperGuard navigation and status">
+      <div class="sidebar-label">Workspace</div>
+      <nav class="tabs" id="tabs" aria-label="Workspace views">
+        <button class="tab active" data-tab="overview" aria-current="page"><span class="ticon"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 3h5v5H3zM12 3h5v5h-5zM3 12h5v5H3zM12 12h5v5h-5z"/></svg></span>Overview</button>
+        <button class="tab" data-tab="findings"><span class="ticon"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m10 2 7 3v5c0 4-4 7-7 8-3-1-7-4-7-8V5zM10 6v5M10 14h.01"/></svg></span>Findings <span class="tcount" id="tabFindingsCount">0</span></button>
+        <button class="tab" data-tab="graph"><span class="ticon"><svg viewBox="0 0 20 20" aria-hidden="true"><rect x="7" y="2" width="6" height="4" rx="1"/><rect x="2" y="14" width="6" height="4" rx="1"/><rect x="12" y="14" width="6" height="4" rx="1"/><path d="M10 6v4M5 14v-4h10v4"/></svg></span>Execution graph</button>
+        <button class="tab" data-tab="policy"><span class="ticon"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m10 2 7 3v5c0 4-4 7-7 8-3-1-7-4-7-8V5z"/><path d="m7 10 2 2 4-4"/></svg></span>Providers</button>
+      </nav>
+      <section class="status-card" aria-label="Current scan summary">
+        <div class="sidebar-label">Report status</div><span class="pill" id="verdictPill">Not scanned</span>
+        <div class="sidebar-summary">
+          <div class="srow"><span class="sic err">×</span><span>Blocking</span><span class="val" id="sumBlockers">0</span></div>
+          <div class="srow"><span class="sic warn">△</span><span>Warnings</span><span class="val" id="sumWarnings">0</span></div>
+          <div class="srow"><span class="sic info">✓</span><span>Baselined</span><span class="val" id="sumSuppressed">0</span></div>
+        </div>
+      </section>
+      <div class="sidebar-bottom"><div class="sidebar-label">Provider health</div><div id="sidebarProviderHealth" aria-live="polite">Run a scan to see coverage.</div></div>
+    </aside>
+    <main>
+      <section class="tab-panel active" id="panel-overview"></section>
+      <section class="tab-panel" id="panel-findings">
+        <div class="page-head"><div class="page-heading"><h1>Findings</h1></div><span class="badge" id="findingsScope">All findings</span></div>
+        <div class="findings-toolbar"><div class="search-wrap"><span aria-hidden="true">⌕</span><input id="filterInput" type="search" aria-label="Search findings" placeholder="Search findings, rules, files or providers…" spellcheck="false"/><button class="clear-btn" id="btnClearFilter" title="Clear filter" aria-label="Clear findings search">×</button></div><span class="filter-hint" id="findingsHint"></span></div>
+        <div class="findings-layout" id="findingsLayout"></div>
+      </section>
+      <section class="tab-panel" id="panel-graph"></section>
+      <section class="tab-panel" id="panel-policy"></section>
+    </main>
+  </div>
+  <footer class="app-footer"><span id="footerLeft">WrapperGuard: Not scanned</span><span class="footer-links"><span>Local workspace analysis</span><span>Provider API v1</span></span></footer>
 
 <script nonce="${nonce}">
 const vscode = acquireVsCodeApi();
 let state = { kind: 'not-scanned' };
 let selectedFp = null;
 let filterText = '';
-let wide = window.matchMedia('(min-width: 540px)').matches;
+let wide = window.matchMedia('(min-width: 768px)').matches;
 let zoomScale = 1;
 let nodeSearch = '';
 
@@ -498,7 +241,7 @@ const VERDICT = {
   STALE: ['warn', 'Scan Stale'],
   FAILED: ['err', 'Scan Failed']
 };
-const SEV_ICON = { ERROR: ['✖', 'err'], WARN: ['▲', 'warn'], INFO: ['ℹ', 'info'] };
+const SEV_ICON = { ERROR: ['×', 'err'], WARN: ['△', 'warn'], INFO: ['i', 'info'] };
 const KW_LIST = 'curl|wget|fetch|bash|sh|zsh|powershell|pwsh|echo|printf|set|unset|exec|eval|java|export|cd|rm|cp|mv|chmod|sudo|cat|install|build|git|node|npm|pip|python|if|then|fi|else|elif|for|do|done|while|case|esac|function|return|start|call|bitsadmin|certutil';
 const KEYWORDS = new RegExp('(^|[^A-Za-z0-9_])(' + KW_LIST + ')(?=[^A-Za-z0-9_]|$)', 'g');
 
@@ -533,12 +276,76 @@ window.onerror = function (msg, src, line) {
   vscode.postMessage({ type: 'webview-error', message: String(msg) + ' (line ' + line + ')' });
 };
 
-window.matchMedia('(min-width: 540px)').addEventListener('change', function (e) {
+window.matchMedia('(min-width: 768px)').addEventListener('change', function (e) {
   wide = e.matches;
   renderFindings();
+  fitGraph();
 });
 
 function report() { return state.kind === 'scanned' ? state.report : null; }
+
+function humanAction(action) {
+  return ({WARNING:'Warning',MAJOR_WARNING:'Major warning',ALERT:'Alert',BLOCK_BUILD:'Block build',BLOCK_SYNC:'Block sync'})[action] || action;
+}
+function actionChips(actions) {
+  return (actions || []).map(function(action) { return '<span class="badge action" title="' + esc(action) + '">' + esc(humanAction(action)) + '</span>'; }).join('') || '<span class="muted">No actions granted</span>';
+}
+function grantMatrix(actions, heading) {
+  const labels = [['WARNING','Warn'],['MAJOR_WARNING','Major'],['ALERT','Alert'],['BLOCK_BUILD','Build'],['BLOCK_SYNC','Sync']];
+  return '<div class="grant-matrix' + (heading ? ' grant-heading' : '') + '">' + labels.map(function(item) {
+    if (heading) return '<span title="' + esc(humanAction(item[0])) + '">' + item[1] + '</span>';
+    const granted = (actions || []).indexOf(item[0]) >= 0;
+    return '<span data-label="' + item[1] + '" class="grant-cell' + (granted ? ' granted' : '') + '" title="' + esc(item[0] + ': ' + (granted ? 'Granted' : 'Not granted')) + '" aria-label="' + esc(humanAction(item[0]) + ': ' + (granted ? 'Granted' : 'Not granted')) + '">' + (granted ? '✓' : '—') + '</span>';
+  }).join('') + '</div>';
+}
+function providerName(id) {
+  const r = report();
+  const run = r && (r.providerRuns || []).find(function(item) { return item.descriptor.id === id; });
+  return run ? run.descriptor.displayName : id;
+}
+function runStatus(run) {
+  const status = run.status;
+  const cls = status === 'COMPLETED' ? 'ok' : status === 'DISABLED' ? '' : status === 'FAILED' ? 'err' : 'warn';
+  const label = ({COMPLETED:'Completed',TIMED_OUT:'Timed out',FAILED:'Failed',DISABLED:'Disabled',CANCELLED:'Cancelled'})[status] || status;
+  return '<span class="badge ' + cls + '" title="' + esc(status) + '">' + esc(label) + '</span>';
+}
+function renderPolicy() {
+  const r = report();
+  const panel = byId('panel-policy');
+  const runs = r ? (r.providerRuns || []) : [];
+  let html = '<div class="page-head"><div class="page-heading"><div class="eyebrow">Permission boundaries</div><h1>Policy &amp; providers</h1><p class="policy-intro">Independent vetting. Shared actions. Explicit permissions.</p></div><button class="btn btn-ghost policy-settings-button" id="providerSettings">Open User Settings</button></div>';
+  const enabled = runs.filter(function(run) { return run.permissions.enabled; }).length;
+  const completed = runs.filter(function(run) { return run.status === 'COMPLETED'; }).length;
+  html += '<div class="policy-summary"><span><strong>' + enabled + '</strong> enabled providers</span><span><strong>' + completed + '</strong> completed</span><span>Grants are owned by your User Settings</span></div>';
+  if (!runs.length) html += '<div class="empty-note">Run a scan to see registered providers and their permissions.</div>';
+  else {
+    html += '<div class="panel-card"><table class="provider-table" aria-label="Vetting providers and action grants"><thead><tr><th>Provider</th><th>Latest run</th><th>Execution</th><th class="grants-column"><span class="grants-title">Granted actions</span>' + grantMatrix([],true) + '</th><th></th></tr></thead><tbody>';
+    runs.forEach(function(run,index) {
+      html += '<tr' + (!run.permissions.enabled ? ' class="muted-run"' : '') + '><td><div class="provider-title">' + esc(run.descriptor.displayName) + '</div><div class="provider-id">' + esc(run.descriptor.id) + ' · v' + esc(run.descriptor.version) + ' · API ' + run.descriptor.apiVersion + '</div></td>';
+      html += '<td>' + runStatus(run) + '<div class="run-meta">' + run.durationMs + ' ms · ' + run.findingCount + ' findings</div>' + (run.message ? '<div class="provider-note">' + esc(run.message) + '</div>' : '') + '</td>';
+      html += '<td><span>' + (run.permissions.required ? 'Required' : 'Optional') + '</span><div class="run-meta">' + (run.permissions.enabled ? 'Enabled' : 'Disabled') + ' · ' + run.permissions.timeoutMs / 1000 + 's timeout</div></td>';
+      html += '<td class="grants-column">' + grantMatrix(run.permissions.actions,false) + '</td>';
+      html += '<td><button class="btn btn-ghost provider-permissions" data-provider-index="' + index + '" title="Configure permissions" aria-label="Configure permissions for ' + esc(run.descriptor.displayName) + '">Configure</button></td></tr>';
+    });
+    html += '</tbody></table></div>';
+  }
+  html += '<div class="notice"><strong>How enforcement works</strong> · Only granted actions affect the result. Build and sync gates apply when a cooperating extension calls the API. Arbitrary VS Code tasks are outside this gate.</div>';
+  const settings = state.settings;
+  if (settings) {
+    html += '<div class="policy-settings"><div class="section-label">Built-in scanner policy</div><div class="panel-card">';
+    html += '<div class="policy-row"><span class="k">Allowed distribution hosts</span><span class="v">' + esc(settings.allowedHosts.join(', ') || 'None configured') + '</span></div>';
+    html += '<div class="policy-row"><span class="k">Blocked commands</span><span class="v">' + esc(settings.blockedCommands.join(', ') || 'None configured') + '</span></div>';
+    html += '<div class="policy-row"><span class="k">Distribution SHA-256</span><span class="v">' + (settings.requireDistributionSha256 ? 'Required' : 'Optional') + '</span></div></div></div>';
+  }
+  panel.innerHTML = html;
+  byId('providerSettings').addEventListener('click',function () { post('settings'); });
+  panel.querySelectorAll('.provider-permissions').forEach(function(button) {
+    button.addEventListener('click',function () {
+      const run = runs[Number(button.getAttribute('data-provider-index'))];
+      if (run) vscode.postMessage({type:'configure-provider',providerId:run.descriptor.id});
+    });
+  });
+}
 
 function render() {
   renderStatusCard();
@@ -560,17 +367,22 @@ function renderStatusCard() {
   const vm = verdictMeta();
   const pill = byId('verdictPill');
   pill.className = 'pill ' + vm[0];
-  pill.textContent = '◉ ' + vm[1];
+  pill.textContent = vm[1];
   const r = report();
+  if (r && r.projectPath) byId('workspaceName').textContent = r.policyName ? r.policyName.split(' · ')[0] : r.projectPath.split('/').filter(Boolean).pop();
   const blockers = r ? r.findings.filter(function (f) { return f.policyAction === 'BLOCK' && f.status === 'ACTIVE'; }).length : 0;
-  const errors = r ? r.findings.filter(function (f) { return f.severity === 'ERROR' && f.status === 'ACTIVE'; }).length : 0;
   const warnings = r ? r.findings.filter(function (f) { return f.severity === 'WARN' && f.status === 'ACTIVE'; }).length : 0;
   const suppressed = r ? r.findings.filter(function (f) { return f.status === 'SUPPRESSED'; }).length : 0;
   byId('sumBlockers').textContent = String(blockers);
-  byId('sumErrors').textContent = String(errors);
   byId('sumWarnings').textContent = String(warnings);
   byId('sumSuppressed').textContent = String(suppressed);
   byId('tabFindingsCount').textContent = String(r ? r.findings.length : 0);
+  const runs = r ? (r.providerRuns || []) : [];
+  const enabledRuns = runs.filter(function(run) { return run.permissions.enabled; });
+  const healthyRuns = enabledRuns.filter(function(run) { return run.status === 'COMPLETED'; }).length;
+  const failedRuns = enabledRuns.length - healthyRuns;
+  byId('sidebarProviderHealth').innerHTML = runs.length ? '<div class="sidebar-health"><span class="health-dot' + (failedRuns ? ' warn' : '') + '"></span><span>' + healthyRuns + ' of ' + enabledRuns.length + ' completed</span></div><div class="provider-mini"><span>Need attention</span><span class="mono ' + (failedRuns ? 'warn' : '') + '">' + failedRuns + '</span></div><div class="provider-mini"><span>Disabled</span><span class="mono">' + (runs.length - enabledRuns.length) + '</span></div>' : 'Run a scan to see coverage.';
+
   const footer = byId('footerLeft');
   footer.innerHTML = '<span class="mono">WrapperGuard: ' + esc(vm[1]) + '</span>';
   if (state.kind === 'scanned' && blockers > 0) {
@@ -582,84 +394,84 @@ function renderBusy() {
   const btn = byId('rescanBtn');
   if (state.kind === 'scanning') {
     btn.disabled = true;
-    btn.innerHTML = '<span class="spin">⟳</span>';
+    btn.innerHTML = '<span class="spin">↻</span> Scanning';
   } else {
     btn.disabled = false;
-    btn.innerHTML = '⟳';
+    btn.innerHTML = '↻ Rescan';
   }
 }
 
 function renderOverview() {
   const panel = byId('panel-overview');
   if (state.kind === 'not-scanned') {
-    panel.innerHTML = '<div class="hero"><div class="big">No scan yet</div><div>Wrappers, build files, and bootstrap scripts are unprotected until scanned.</div><button class="btn btn-primary" id="heroScan">⟳ Scan Workspace</button></div>';
-    byId('heroScan').addEventListener('click', function () { post('scan'); });
-    return;
+    panel.innerHTML = '<div class="hero"><div class="big">No scan yet</div><div>Inspect wrappers, build files and bootstrap scripts before they run.</div><button class="btn btn-primary" id="heroScan">↻ Scan workspace</button></div>';
+    byId('heroScan').addEventListener('click', function () { post('scan'); });return;
   }
   if (state.kind === 'scanning') {
-    panel.innerHTML = '<div class="hero"><div class="big"><span class="spin">⟳</span> Scanning project…</div><div>Reading wrappers, build files, and bootstrap scripts.</div></div>';
-    return;
+    panel.innerHTML = '<div class="hero"><div class="big"><span class="spin">↻</span> Scanning workspace</div><div>Reading wrappers, build files and provider results.</div></div>';return;
   }
   if (state.kind === 'failed') {
-    panel.innerHTML = '<div class="hero"><div class="big">Scan failed</div><div class="mono" style="font-size:11px">' + esc(state.error || '') + '</div><button class="btn btn-primary" id="retryBtn">⟳ Retry</button></div>';
-    byId('retryBtn').addEventListener('click', function () { post('scan'); });
-    return;
+    panel.innerHTML = '<div class="hero"><div class="big">Scan failed</div><div class="mono">' + esc(state.error || '') + '</div><button class="btn btn-primary" id="retryBtn">↻ Retry scan</button></div>';
+    byId('retryBtn').addEventListener('click', function () { post('scan'); });return;
   }
   const r = state.report;
-  const blockers = r.findings.filter(function (f) { return f.policyAction === 'BLOCK'; }).length;
-  const warnings = r.findings.filter(function (f) { return f.severity === 'WARN'; }).length;
-  const edges = (r.edges || []).length;
+  const active = r.findings.filter(function(f) { return f.status === 'ACTIVE'; });
+  const blockers = active.filter(function(f) { return f.policyAction === 'BLOCK'; }).length;
+  const warnings = active.filter(function(f) { return f.severity === 'WARN'; }).length;
+  const runs = r.providerRuns || [];
+  const completed = runs.filter(function(run) { return run.status === 'COMPLETED'; }).length;
+  const enabled = runs.filter(function(run) { return run.permissions.enabled; }).length;
   const vm = verdictMeta();
   const cls = blockers > 0 ? 'err' : (!r.complete || r.stale) ? 'warn' : r.verdict === 'CLEAN' ? 'ok' : 'warn';
-  const icon = cls === 'err' ? '⛔' : cls === 'warn' ? '▲' : '✓';
-  let html = '<div class="banner ' + cls + '">' + icon + ' ' + esc(vm[1]);
-  if (blockers > 0) html += ' — ' + blockers + ' blocker' + (blockers === 1 ? '' : 's');
-  html += '</div>';
-
-  const ts = r.generatedAtEpochMs ? new Date(r.generatedAtEpochMs).toLocaleString() : '—';
-  html += '<div class="alert-card">';
-  html += '<div class="row"><span class="k">Last scan</span><span class="v mono">' + esc(ts) + '</span></div>';
-  html += '<div class="row"><span class="k">Active policy</span><span class="v">' + esc(r.policyName) + '</span></div>';
-  html += '<div class="row"><span class="k">Scan duration</span><span class="v mono">' + r.durationMs + ' ms</span></div>';
-  html += '</div>';
-
+  let html = '<div class="page-head"><div class="page-heading"><h1>Overview</h1></div><div class="btn-row"><button class="btn btn-ghost" id="ovExport">Export JSON</button><button class="btn btn-ghost" id="ovExportSarif">Export SARIF</button></div></div>';
+  html += '<div class="overview-status ' + cls + '"><span class="status-dot"></span><strong>' + esc(vm[1]) + '</strong><span class="muted">' + (blockers ? blockers + ' findings require a decision.' : r.complete ? 'Provider results are ready for review.' : 'Review provider coverage before continuing.') + '</span><button class="link-btn" id="ovReview">Review findings →</button></div>';
   html += '<div class="metrics">';
-  html += '<div class="metric"><div class="top"><span class="mic err">⛔</span><span class="label">Blocking findings</span></div><span class="value err">' + blockers + '</span></div>';
-  html += '<div class="metric"><div class="top"><span class="mic warn">▲</span><span class="label">Warnings</span></div><span class="value warn">' + warnings + '</span></div>';
-  html += '<div class="metric"><div class="top"><span class="mic info">▤</span><span class="label">Files scanned</span></div><span class="value">' + r.scannedFiles + '</span></div>';
-  html += '<div class="metric"><div class="top"><span class="mic ok">⎇</span><span class="label">Call-chain edges</span></div><span class="value">' + edges + '</span></div>';
-  html += '</div>';
-
-  html += '<div class="btn-row">';
-  html += '<button class="btn btn-primary" id="ovRescan">⟳ Rescan Project</button>';
-  html += '<button class="btn btn-ghost" id="ovExport">⤓ Export JSON</button>';
-  html += '<button class="btn btn-ghost" id="ovExportSarif">⤓ Export SARIF</button>';
-  html += '</div>';
-
+  html += '<div class="metric"><div class="top"><span class="label">Blocking findings</span></div><span class="value err">' + blockers + '</span></div>';
+  html += '<div class="metric"><div class="top"><span class="label">Warnings</span></div><span class="value warn">' + warnings + '</span></div>';
+  html += '<div class="metric"><div class="top"><span class="label">Files scanned</span></div><span class="value">' + r.scannedFiles + '</span></div>';
+  html += '<div class="metric"><div class="top"><span class="label">Providers completed</span></div><span class="value">' + completed + '<span style="font-size:12px;color:var(--text-dim)"> / ' + enabled + '</span></span></div></div>';
+  html += '<div class="overview-grid"><section class="panel-card"><div class="panel-title">Requires attention<span class="subtle">Highest priority first</span></div><table class="attention-table"><thead><tr><th>Finding / location</th><th>Decision</th></tr></thead><tbody>';
+  const priority = active.filter(function(f) { return f.policyAction === 'BLOCK' || f.policyAction === 'REVIEW'; }).sort(function(a,b) { return (a.policyAction === 'BLOCK' ? 0 : 1) - (b.policyAction === 'BLOCK' ? 0 : 1); }).slice(0,5);
+  if (!priority.length) html += '<tr><td colspan="2"><div class="empty-note">No active findings require a decision.</div></td></tr>';
+  priority.forEach(function(f) {
+    const blocking = f.policyAction === 'BLOCK';
+    html += '<tr><td><button class="link-btn review-finding" data-fp="' + esc(f.fingerprint) + '">' + esc(f.title) + '</button><div class="review-path">' + esc(f.location.path) + ':' + (f.location.line || 1) + '</div></td><td><span class="badge ' + (blocking ? 'err' : 'warn') + '">' + (blocking ? 'Block' : 'Review') + '</span></td></tr>';
+  });
+  html += '</tbody></table></section>';
+  html += '<section class="panel-card"><div class="panel-title">Provider runs<button class="link-btn" id="ovProviders">Configure →</button></div><table class="health-table"><thead><tr><th>Provider / run</th><th>Status</th></tr></thead><tbody>';
+  runs.forEach(function(run) { html += '<tr><td>' + esc(run.descriptor.displayName) + '<div class="run-meta">' + run.durationMs + ' ms · ' + run.findingCount + ' findings' + (run.permissions.required ? ' · required' : '') + '</div></td><td>' + runStatus(run) + '</td></tr>'; });
+  if (!runs.length) html += '<tr><td colspan="2"><div class="empty-note">No provider run details.</div></td></tr>';
+  html += '</tbody></table></section></div>';
   if (!r.complete) {
-    html += '<div class="notice">⚠ Scan incomplete: ' + esc((r.notices || []).map(function (n) { return n.message; }).join('; ') || 'some files were skipped.') + '</div>';
+    const incompleteRuns = runs.filter(function(run) { return run.permissions.enabled && run.status !== 'COMPLETED' && run.status !== 'DISABLED'; });
+    const labels = {TIMED_OUT:'timed out',FAILED:'failed',CANCELLED:'cancelled'};
+    const summary = incompleteRuns.map(function(run) { return run.descriptor.displayName + ' ' + (labels[run.status] || run.status.toLowerCase()); }).join('; ');
+    html += '<div class="notice"><strong>Incomplete coverage</strong> · ' + esc(summary || 'Some providers did not complete') + '.';
+    if ((r.notices || []).length) html += '<details><summary>View report notices (' + r.notices.length + ')</summary><ul>' + r.notices.map(function(notice) { return '<li>' + (notice.code ? '<span class="notice-code">' + esc(notice.code) + '</span> · ' : '') + esc(notice.message) + '</li>'; }).join('') + '</ul></details>';
+    html += '</div>';
   }
-  if (r.stale) {
-    html += '<div class="notice">⚠ Report is stale — a watched file changed after the scan. Rescan to refresh.</div>';
-  }
-  html += '<div class="notice">Scope: this report covers the scanned workspace. Run-time enforcement lives in the IntelliJ/Android Studio plugin; terminal and CI protection comes from the CLI.</div>';
-
+  if (r.stale) html += '<div class="notice"><strong>Report is stale</strong> · A watched file changed. Rescan to refresh the result.</div>';
+  html += '<section class="panel-card scan-info"><div class="panel-title">Report details<span class="subtle">Current scan</span></div><dl class="scan-meta">';
+  html += '<div><dt>Active policy</dt><dd>' + esc(r.policyName) + '</dd></div><div><dt>Generated</dt><dd class="mono">' + esc(r.generatedAtEpochMs ? new Date(r.generatedAtEpochMs).toLocaleString() : 'Not available') + '</dd></div><div><dt>Scan duration</dt><dd class="mono">' + r.durationMs + ' ms</dd></div><div><dt>Execution graph</dt><dd class="mono">' + (r.edges || []).length + ' discovered edges</dd></div></dl></section>';
+  html += '<div class="scope-note">Built-in analysis reads project files without running them. External providers run only with your grants.</div>';
   panel.innerHTML = html;
-  byId('ovRescan').addEventListener('click', function () { post('scan'); });
-  byId('ovExport').addEventListener('click', function () { post('export'); });
-  byId('ovExportSarif').addEventListener('click', function () { post('sarif'); });
+  byId('ovExport').addEventListener('click',function() { post('export'); });
+  byId('ovExportSarif').addEventListener('click',function() { post('sarif'); });
+  byId('ovReview').addEventListener('click',function() { switchTab('findings'); });
+  byId('ovProviders').addEventListener('click',function() { switchTab('policy'); });
+  panel.querySelectorAll('.review-finding').forEach(function(button) { button.addEventListener('click',function() { selectedFp=button.getAttribute('data-fp');renderFindings();switchTab('findings'); }); });
 }
 
 function groupFindings() {
   const r = report();
   if (!r) return null;
-  const groups = { blockers: [], errors: [], warnings: [], info: [], suppressed: [] };
+  const groups = { blockers: [], errors: [], warnings: [], info: [], suppressed: [], accepted: [] };
   r.findings.forEach(function (f) {
     if (f.status === 'SUPPRESSED') {
       groups.suppressed.push(f);
       return;
     }
-    if (f.status !== 'ACTIVE') return; // fixed findings are not actionable
+    if (f.status !== 'ACTIVE') { groups.accepted.push(f);return; }
     if (f.policyAction === 'BLOCK') groups.blockers.push(f);
     else if (f.severity === 'ERROR') groups.errors.push(f);
     else if (f.severity === 'WARN') groups.warnings.push(f);
@@ -671,22 +483,15 @@ function groupFindings() {
 function matchesFilter(f) {
   if (!filterText) return true;
   const q = filterText.toLowerCase();
-  return (f.ruleId + ' ' + f.title + ' ' + f.location.path + ' ' + f.category + ' ' + f.message).toLowerCase().indexOf(q) >= 0;
+  return (f.ruleId + ' ' + f.title + ' ' + f.location.path + ' ' + f.category + ' ' + f.message + ' ' + (f.providerId || 'wrapperguard') + ' ' + providerName(f.providerId || 'wrapperguard') + ' ' + f.status + ' ' + (f.actions || []).join(' ') + ' ' + (f.actions || []).map(humanAction).join(' ')).toLowerCase().indexOf(q) >= 0;
 }
 
 function rowHtml(f) {
   const sev = SEV_ICON[f.severity] || SEV_ICON.INFO;
   const suppressed = f.status === 'SUPPRESSED';
-  const badges = '<span class="badge ' + sev[1] + '">' + esc(f.ruleId) + '</span>' +
-    '<span class="badge">' + esc(f.category) + '</span>' +
-    (suppressed ? '<span class="badge">BASELINED</span>' : (f.policyAction === 'BLOCK' ? '<span class="badge err">BLOCK</span>' : ''));
-  return '<div class="finding-row' + (suppressed ? ' suppressed' : '') + (f.fingerprint === selectedFp ? ' selected' : '') + '" data-fp="' + esc(f.fingerprint) + '">' +
-    '<span class="ficon ' + sev[1] + '">' + sev[0] + '</span>' +
-    '<div class="body">' +
-    '<div class="title">' + esc(f.title) + '</div>' +
-    '<div class="where mono">' + esc(f.location.path) + ':' + (f.location.line != null ? f.location.line : '') + '</div>' +
-    '<div class="badges">' + badges + '</div>' +
-    '</div></div>';
+  const decision = suppressed ? ['info','Baselined'] : f.status !== 'ACTIVE' ? ['info','Accepted'] : f.policyAction === 'BLOCK' ? ['err','Block'] : f.policyAction === 'REVIEW' ? ['warn','Review'] : ['info','Allow'];
+  const location = f.location.path + (f.location.line != null ? ':' + f.location.line : '');
+  return '<button type="button" class="finding-row finding-columns' + (suppressed ? ' suppressed' : '') + (f.fingerprint === selectedFp ? ' selected' : '') + '" data-fp="' + esc(f.fingerprint) + '" aria-pressed="' + (f.fingerprint === selectedFp) + '" title="' + esc(f.ruleId + ' · ' + f.title) + '"><span class="finding-issue"><span class="ficon ' + sev[1] + '" aria-label="' + esc(f.severity) + '">' + sev[0] + '</span><span class="title">' + esc(f.title) + '</span></span><span class="where" title="' + esc(location) + '">' + esc(location) + '</span><span class="row-provider" title="' + esc(f.providerId || 'wrapperguard') + '">' + esc(providerName(f.providerId || 'wrapperguard')) + '</span><span class="row-decision"><span class="badge ' + decision[0] + '">' + decision[1] + '</span></span></button>';
 }
 
 function renderFindings() {
@@ -700,6 +505,9 @@ function renderFindings() {
   const r = report();
   const total = r.findings.length;
   const visible = r.findings.filter(matchesFilter).length;
+  byId('findingsScope').textContent = filterText ? visible + ' matching findings' : total + ' findings';
+  byId('findingsHint').textContent = visible + ' shown';
+  if (!selectedFp && wide && r.findings.length) selectedFp = r.findings.find(function(f) { return f.status === 'ACTIVE' && f.policyAction === 'BLOCK'; })?.fingerprint || r.findings[0].fingerprint;
   const showingDetail = selectedFp && !wide;
   layout.className = 'findings-layout' + (showingDetail ? ' narrow' : '');
 
@@ -712,21 +520,21 @@ function renderFindings() {
     list = '<div class="empty-note">No findings match "' + esc(filterText) + '".</div>';
   } else {
     const defs = [
-      ['blockers', '⛔ Execution Blockers', 'err'],
-      ['errors', '✖ Errors', 'err'],
-      ['warnings', '▲ Warnings', 'warn'],
-      ['info', 'ℹ Info', 'info'],
-      ['suppressed', '◌ Suppressed (baseline)', 'info']
+      ['blockers', 'Execution blockers', 'err'],
+      ['errors', 'Errors', 'err'],
+      ['warnings', 'Warnings', 'warn'],
+      ['info', 'Information', 'info'],
+      ['suppressed', 'Approved baseline', 'info'],
+      ['accepted', 'Accepted / resolved', 'info']
     ];
     defs.forEach(function (d) {
       const items = groups[d[0]].filter(matchesFilter);
       if (items.length === 0) return;
-      list += '<div class="group-head"><span class="' + d[2] + '">' + d[1] + '</span><span>(' + items.length + ')</span></div>';
       items.forEach(function (f) { list += rowHtml(f); });
     });
   }
   const detailHtml = sel ? detailHtmlFor(sel, true) : '<div class="empty-note">Select a finding to inspect evidence, execution path, and remediation.</div>';
-  layout.innerHTML = '<div class="list" id="findingsList">' + list + '</div><div class="detail" id="findingDetail">' + detailHtml + '</div>';
+  layout.innerHTML = '<div class="list" id="findingsList"><div class="list-head finding-columns"><span>Issue</span><span>Location</span><span class="provider-heading">Provider</span><span>Decision</span></div>' + list + '</div><div class="detail" id="findingDetail" tabindex="0" role="region" aria-label="Finding evidence and actions">' + detailHtml + '</div>';
 
   if (showingDetail && sel) {
     byId('findingsList').style.display = 'none';
@@ -754,7 +562,7 @@ function renderFindings() {
 
 function detailHtmlFor(f, withBack) {
   const sev = SEV_ICON[f.severity] || SEV_ICON.INFO;
-  const policy = f.policyAction === 'BLOCK' ? ['err', '⛔ Blocks execution'] : f.policyAction === 'REVIEW' ? ['warn', '▲ Review required'] : ['info', 'ℹ Informational'];
+  const policy = f.status === 'SUPPRESSED' ? ['info', 'Approved baseline'] : f.status !== 'ACTIVE' ? ['info', f.status.toLowerCase()] : f.policyAction === 'BLOCK' ? ['err', 'Blocks execution'] : f.policyAction === 'REVIEW' ? ['warn', 'Review required'] : ['info', 'Informational'];
   const location = f.location.path + ':' + (f.location.line != null ? f.location.line : '');
   const chain = (f.callChain || []).map(function (l) { return l.source.path + ':' + (l.source.line != null ? l.source.line : ''); });
   if (chain[chain.length - 1] !== location) chain.push(location);
@@ -780,33 +588,29 @@ function detailHtmlFor(f, withBack) {
     snippet = '<div class="snippet-line"><span class="ln">   ·</span><span class="code" style="color:var(--text-dim)">(no snippet available)</span></div>';
   }
   if (f.evidence && f.evidence.redacted) {
-    snippet += '<div class="snippet-note">🔒 Credential values in this evidence are redacted.</div>';
+    snippet += '<div class="snippet-note">Credential values in this evidence are redacted.</div>';
   }
-  let html = '';
-  if (withBack) html += '<button class="btn btn-ghost back" id="detailBack" style="height:24px;font-size:10px;padding:0 8px">← Back to list</button>';
-  html += '<span class="badge ' + sev[1] + '" style="display:inline-block">' + esc(f.ruleId) + '</span>';
+  let html = '<div class="detail-header"><span>Inspector</span><span class="mono">' + esc(f.ruleId) + '</span><span class="badge ' + policy[0] + '" style="margin-left:auto">' + policy[1] + '</span></div>';
+  html += '<div class="detail-content"><div class="detail-overview">';
+  if (withBack) html += '<button class="btn btn-ghost back" id="detailBack">← Back to findings</button>';
   html += '<h2>' + esc(f.title) + '</h2>';
-  html += '<div class="sub mono">' + esc(f.category) + ' · confidence ' + esc(f.confidence) + ' · status ' + esc(f.status) + '</div>';
-  html += '<div class="grid3">';
-  html += '<div class="cell"><span class="label">Severity</span><span class="value ' + sev[1] + '">' + sev[0] + ' ' + esc(f.severity) + '</span></div>';
-  html += '<div class="cell"><span class="label">Confidence</span><span class="value info">✓ ' + esc(f.confidence) + '</span></div>';
-  html += '<div class="cell"><span class="label">Policy impact</span><span class="value ' + policy[0] + '">' + policy[1] + '</span></div>';
-  html += '</div>';
-  html += '<div class="section-label">Execution Path</div><div class="path">' + pathHtml + '</div>';
-  html += '<div class="section-label">Snippet</div>';
-  html += '<div class="snippet"><div class="snippet-bar"><span class="file">' + esc(f.location.path) + '</span><button class="copy-btn js-copy" title="Copy evidence">⧉ copy</button></div>' + snippet + '</div>';
-  html += '<div class="section-label">Remediation</div>';
-  html += '<div class="remediation"><div class="head">⚙ Remediation</div><p>' + esc(f.remediation || 'No specific remediation provided.') + '</p></div>';
+  html += '<div class="detail-facts"><span class="' + sev[1] + '">' + esc(f.severity) + '</span><span>·</span><span>' + esc(f.category) + '</span><span>·</span><span>' + esc(f.confidence) + ' confidence</span><span>·</span><span>' + esc(f.status) + '</span></div>';
+  html += '<div class="provider-line"><span>Provider </span><strong>' + esc(providerName(f.providerId || 'wrapperguard')) + '</strong><span class="provider-id-inline">' + esc(f.providerId || 'wrapperguard') + '</span></div>';
+  html += '<p class="detail-description">' + esc(f.message) + '</p>';
+  html += '<div class="section-label">Execution path</div><div class="path">' + pathHtml + '</div>';
+  html += '<div class="action-chips">' + actionChips(f.actions) + '</div></div>';
+  html += '<div class="detail-evidence"><div class="snippet"><div class="snippet-bar"><span class="file">' + esc(f.location.path) + '</span><button class="copy-btn js-copy" title="Copy evidence">Copy</button></div>' + snippet + '</div>';
+  html += '<div class="remediation"><div class="head">Remediation</div><p>' + esc(f.remediation || 'No specific remediation provided.') + '</p></div>';
   html += '<div class="detail-actions">';
-  html += '<button class="btn btn-primary" id="detailOpen" style="height:26px;font-size:11px">⌨ Open in Editor</button>';
-  html += '<button class="btn btn-ghost js-copy" style="height:26px;font-size:11px">⧉ Copy Evidence</button>';
+  if (f.location.path && f.location.path !== '.') html += '<button class="btn btn-primary" id="detailOpen">Open in editor</button>';
+  html += '<button class="btn btn-ghost js-copy">Copy evidence</button>';
   if (f.status === 'SUPPRESSED') {
-    html += '<button class="btn btn-ghost" id="detailUnbaseline" style="height:26px;font-size:11px" title="Remove this finding from your trusted baseline and rescan">↩ Restore (remove from baseline)</button>';
+    html += '<button class="btn btn-ghost" id="detailUnbaseline" title="Remove this finding from your trusted baseline and rescan">Restore finding</button>';
   } else {
-    html += '<button class="btn btn-ghost" id="detailSuppress" style="height:26px;font-size:11px" title="Add a wrapperguard:ignore marker at this line">◌ Suppress finding</button>';
-    html += '<button class="btn btn-ghost" id="detailBaseline" style="height:26px;font-size:11px" title="Add to your trusted baseline (stored outside the repository)">◈ Add to Baseline</button>';
+    if (!f.providerId || f.providerId === 'wrapperguard') html += '<button class="btn btn-ghost" id="detailSuppress" title="Add a wrapperguard:ignore marker at this line">Suppress</button>';
+    html += '<button class="btn btn-ghost" id="detailBaseline" title="Add to your trusted baseline (stored outside the repository)">Add to baseline</button>';
   }
-  html += '</div>';
+  html += '</div></div></div>';
   return html;
 }
 
@@ -822,12 +626,12 @@ function renderGraph() {
 
   const blockerByPath = {};
   r.findings.forEach(function (f) {
-    if (f.policyAction !== 'BLOCK') return;
+    if (f.policyAction !== 'BLOCK' || f.status !== 'ACTIVE') return;
     if (!blockerByPath[f.location.path]) blockerByPath[f.location.path] = f;
   });
   const suspLines = {};
   r.findings.forEach(function (f) {
-    if (f.policyAction === 'BLOCK') suspLines[f.location.path + ':' + (f.location.line != null ? f.location.line : '')] = f;
+    if (f.policyAction === 'BLOCK' && f.status === 'ACTIVE') suspLines[f.location.path + ':' + (f.location.line != null ? f.location.line : '')] = f;
   });
 
   const children = {};
@@ -908,9 +712,9 @@ function renderGraph() {
   const maxCol = layerKeys.reduce(function (m, d) { return Math.max(m, order[d].length); }, 1);
   const maxDepth = layerKeys.length;
   const colW = 224;
-  const rowH = 152;
+  const rowH = 136;
   const W = Math.max(460, maxCol * colW + 70);
-  const H = maxDepth * rowH + 90;
+  const H = maxDepth * rowH + 55;
 
   const pos = {};
   layerKeys.forEach(function (d, li) {
@@ -918,17 +722,17 @@ function renderGraph() {
     const layerW = list.length * colW;
     const startX = (W - layerW) / 2;
     list.forEach(function (n, i) {
-      pos[n] = { x: Math.round(startX + i * colW), y: 46 + li * rowH };
+      pos[n] = { x: Math.round(startX + i * colW), y: 25 + li * rowH };
     });
   });
 
   let svg = '<svg class="g-svg" viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '">';
   svg += '<defs>';
   svg += '<pattern id="wgGrid" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="1.5" cy="1.5" r="1.5" fill="var(--wg-border)" opacity="0.35"></circle></pattern>';
-  svg += '<marker id="wgArrow" markerHeight="7" markerWidth="7" orient="auto-start-reverse" refX="9" refY="5" viewBox="0 0 10 10"><path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke"></path></marker>';
-  svg += '<marker id="wgArrowErr" markerHeight="7" markerWidth="7" orient="auto-start-reverse" refX="9" refY="5" viewBox="0 0 10 10"><path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke"></path></marker>';
+  svg += '<marker id="wgArrow" markerHeight="7" markerWidth="7" orient="auto-start-reverse" refX="9" refY="5" viewBox="0 0 10 10"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--wg-border-strong)"></path></marker>';
+  svg += '<marker id="wgArrowErr" markerHeight="7" markerWidth="7" orient="auto-start-reverse" refX="9" refY="5" viewBox="0 0 10 10"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--error)"></path></marker>';
   svg += '</defs>';
-  svg += '<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="url(#wgGrid)"></rect>';
+
   edges.forEach(function (e) {
     const a = pos[e.from.path];
     const b = pos[e.to.path];
@@ -938,7 +742,7 @@ function renderGraph() {
     const x2 = b.x + 90;
     const y2 = b.y + 2;
     const key = e.to.path + ':' + (e.to.line != null ? e.to.line : '');
-    const err = suspLines[key];
+    const err = suspLines[key] || blockerByPath[e.to.path];
     const marker = err ? 'url(#wgArrowErr)' : 'url(#wgArrow)';
     svg += '<g class="g-edge' + (err ? ' err' : '') + '" data-from="' + esc(e.from.path) + '" data-to="' + esc(e.to.path) + '">';
     svg += '<title>' + esc(e.viaCommand) + '</title>';
@@ -960,7 +764,7 @@ function renderGraph() {
     const ext = base.indexOf('.') >= 0 ? base.slice(base.lastIndexOf('.') + 1).toUpperCase() : 'SCRIPT';
     const blocker = blockerByPath[n];
     const isEntry = !parents[n];
-    let card = '<div class="gnode-card' + (blocker ? ' g-sus' : '') + (isEntry ? ' g-entry' : '') + '" data-node="' + esc(n) + '" title="Click to open findings, or the file" style="left:' + p.x + 'px;top:' + p.y + 'px;animation-delay:' + (cardIndex * 45) + 'ms">';
+    let card = '<div class="gnode-card' + (blocker ? ' g-sus' : '') + (isEntry ? ' g-entry' : '') + '" data-node="' + esc(n) + '" role="button" tabindex="0" title="Click to inspect this file" style="left:' + p.x + 'px;top:' + p.y + 'px;animation-delay:' + (cardIndex * 45) + 'ms">';
     cardIndex++;
     if (isEntry) {
       card += '<div class="g-cat">&#9654; Entry point</div>';
@@ -968,7 +772,7 @@ function renderGraph() {
       card += '<div class="g-cat">' + esc(ext) + '</div>';
     }
     if (blocker) {
-      card += '<div class="g-badge">&#9940; Suspicious execution</div>';
+      card += '<div class="g-badge">Execution blocked</div>';
     }
     card += '<div class="g-name mono">' + esc(n) + '</div>';
     if (blocker) {
@@ -979,20 +783,20 @@ function renderGraph() {
   });
 
   let explorer = '';
-  const blockerFindings = r.findings.filter(function (f) { return f.policyAction === 'BLOCK'; });
+  const blockerFindings = r.findings.filter(function (f) { return f.policyAction === 'BLOCK' && f.status === 'ACTIVE'; });
   if (blockerFindings.length > 0) {
     explorer = '<div class="section-label" style="margin-top:12px">Paths to blockers (' + blockerFindings.length + ')</div>';
     blockerFindings.forEach(function (f, i) {
       const chain = (f.callChain || []).map(function (l) { return l.source.path + ':' + (l.source.line != null ? l.source.line : ''); });
       chain.push(f.location.path + ':' + (f.location.line != null ? f.location.line : ''));
       explorer += '<div class="path-block">';
-      explorer += '<div class="path-head"><span class="path-title mono">Path #' + (i + 1) + '</span><span class="badge err">Critical</span></div>';
+      explorer += '<div class="path-head"><span class="path-title mono">Path #' + (i + 1) + '</span><span class="badge err">Blocked</span></div>';
       chain.forEach(function (step, si) {
         const last = si === chain.length - 1;
         explorer += '<div class="path-step mono' + (last ? ' path-last' : '') + '">' + (last ? '&#8618; ' : '&#183; ') + esc(step) + '</div>';
       });
       explorer += '<div class="path-rule mono">' + esc(f.ruleId) + ' — ' + esc(f.title) + '</div>';
-      explorer += '</div>';
+      explorer += '<button class="path-link" data-fp="' + esc(f.fingerprint) + '">Inspect finding →</button></div>';
     });
   }
 
@@ -1003,7 +807,7 @@ function renderGraph() {
     '<button class="g-btn" id="gZoomOut" title="Zoom out">-</button>' +
     '<button class="g-btn" id="gFit" title="Fit to view">&#10534;</button>' +
     '</div>' +
-    '<input id="gFind" class="g-find" type="text" placeholder="Find node..." spellcheck="false"/>' +
+    '<input id="gFind" class="g-find" type="search" aria-label="Find graph node" placeholder="Find node…" spellcheck="false"/><span class="graph-stat">' + nodes.size + ' files · ' + edges.length + ' edges</span>' +
     '</div>';
 
   // Detached files: findings whose files are not part of any call chain (e.g. build.gradle).
@@ -1015,32 +819,23 @@ function renderGraph() {
   if (detached.length > 0) {
     detachedHtml = '<div class="section-label" style="margin-top:12px">Detached files (' + detached.length + ')</div><div class="detached">';
     detached.sort().forEach(function (p) {
-      detachedHtml += '<div class="detached-card mono" data-node="' + esc(p) + '" title="Click to open findings, or the file">' + esc(p) + '</div>';
+      detachedHtml += '<button class="detached-card mono" data-node="' + esc(p) + '" title="Click to inspect this file">' + esc(p) + '</button>';
     });
     detachedHtml += '</div>';
   }
 
-  const legend = '<div class="legend" style="margin-top:8px">' +
-    '<span class="badge">entry</span>' +
-    '<span class="badge warn">script hop</span>' +
-    '<span class="badge err">blocker</span>' +
-    '<span class="badge">hover to trace</span>' +
-    '</div>';
-
-  panel.innerHTML =
-    '<div class="section-label">Call-chain graph (' + nodes.size + ' nodes · ' + edges.length + ' edges)</div>' +
-    toolbar +
-    '<div class="graph-wrap" id="graphWrap"><div class="graph" id="gInner">' + svg + cards + '</div></div>' +
-    detachedHtml +
-    explorer + legend +
-    '<div class="notice" style="margin-top:10px">Call chains are discovered statically — scripts are never executed during analysis.</div>';
+  const legend = '<div class="legend"><span class="legend-key"><span class="legend-dot"></span>Script or configuration</span><span class="legend-key"><span class="legend-dot err"></span>Execution blocker</span><span>Hover to trace connections</span></div>';
+  panel.innerHTML = '<div class="page-head"><div class="page-heading"><div class="eyebrow">Static execution analysis</div><h1>Execution graph</h1><p>Trace how build files connect to scripts and providers.</p></div><span class="badge">' + nodes.size + ' files · ' + edges.length + ' edges</span></div>' +
+    '<div class="graph-workspace"><div class="graph-main">' + toolbar + '<div class="graph-wrap" id="graphWrap"><div class="graph" id="gInner" style="width:' + W + 'px;height:' + H + 'px">' + svg + cards + '</div></div>' + legend + '</div><aside class="graph-inspector" aria-label="Risky path explorer">' + (explorer || '<div class="section-label">Paths to blockers (0)</div><p class="muted">No active blockers in this graph.</p>') + detachedHtml + '</aside></div>' +
+    '<div class="graph-note">Execution paths are inferred from source. Select a node to inspect its findings.</div>';
   bindGraphEvents(r);
+  fitGraph();
 }
 
 function openNodeFromGraph(n, r) {
   const byPath = r.findings.filter(function (f) { return f.location.path === n; });
   const finding =
-    byPath.filter(function (f) { return f.policyAction === 'BLOCK'; })[0] ||
+    byPath.filter(function (f) { return f.policyAction === 'BLOCK' && f.status === 'ACTIVE'; })[0] ||
     byPath.filter(function (f) { return f.severity === 'ERROR'; })[0] ||
     byPath.filter(function (f) { return f.severity === 'WARN'; })[0] ||
     byPath[0];
@@ -1069,10 +864,24 @@ function openNodeFromGraph(n, r) {
 
 function applyZoom() {
   const inner = byId('gInner');
-  if (inner) {
-    inner.style.transform = 'scale(' + zoomScale + ')';
-    inner.style.transformOrigin = 'top left';
+  if (!inner) return;
+  inner.style.transform = 'scale(' + zoomScale + ')';
+  inner.style.transformOrigin = 'top left';
+  const svg = inner.querySelector('svg');
+  const wrap = byId('graphWrap');
+  if (svg && wrap) {
+    const w = Number(svg.getAttribute('width'));
+    inner.style.marginLeft = Math.max(0,(wrap.clientWidth - 24 - w * zoomScale) / 2) + 'px';
+    inner.style.marginRight = '0';
   }
+}
+function fitGraph() {
+  const wrap = byId('graphWrap');
+  if (!wrap || !wrap.clientWidth || !wrap.clientHeight) return;
+  const svg = wrap.querySelector('svg');
+  if (!svg) return;
+  zoomScale = Math.min(1.15, Math.max(0.45, Math.min((wrap.clientWidth - 30) / Number(svg.getAttribute('width')), (wrap.clientHeight - 30) / Number(svg.getAttribute('height')))));
+  applyZoom();
 }
 
 function bindGraphEvents(r) {
@@ -1081,15 +890,7 @@ function bindGraphEvents(r) {
   const zFit = byId('gFit');
   if (zIn) zIn.addEventListener('click', function () { zoomScale = Math.min(2, zoomScale + 0.2); applyZoom(); });
   if (zOut) zOut.addEventListener('click', function () { zoomScale = Math.max(0.4, zoomScale - 0.2); applyZoom(); });
-  if (zFit) zFit.addEventListener('click', function () {
-    const wrap = byId('graphWrap');
-    if (!wrap) return;
-    const avail = wrap.clientWidth - 20;
-    const svg = wrap.querySelector('svg');
-    const w = svg ? svg.getAttribute('width') : 460;
-    zoomScale = Math.min(2, Math.max(0.4, avail / Number(w)));
-    applyZoom();
-  });
+  if (zFit) zFit.addEventListener('click', fitGraph);
   const find = byId('gFind');
   if (find) find.addEventListener('input', function (e) {
     nodeSearch = e.target.value.toLowerCase();
@@ -1104,10 +905,10 @@ function bindGraphEvents(r) {
   document.querySelectorAll('#panel-graph .gnode-card').forEach(function (node) {
     node.addEventListener('mouseenter', function () { setEdgeActive(node.getAttribute('data-node'), true); });
     node.addEventListener('mouseleave', function () { setEdgeActive(null, false); });
-    node.addEventListener('click', function () {
-      openNodeFromGraph(node.getAttribute('data-node'), r);
-    });
+    node.addEventListener('click', function () { openNodeFromGraph(node.getAttribute('data-node'), r); });
+    node.addEventListener('keydown', function(event) { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault();openNodeFromGraph(node.getAttribute('data-node'),r); } });
   });
+  document.querySelectorAll('#panel-graph .path-link').forEach(function(button) { button.addEventListener('click',function() { selectedFp=button.getAttribute('data-fp');renderFindings();switchTab('findings'); }); });
   document.querySelectorAll('#panel-graph .detached-card').forEach(function (card) {
     card.addEventListener('click', function () {
       openNodeFromGraph(card.getAttribute('data-node'), r);
@@ -1146,9 +947,10 @@ function setEdgeActive(nodeName, on) {
 
 /* tabs */
 function switchTab(name) {
-  document.querySelectorAll('.tab').forEach(function (t) { t.classList.toggle('active', t.getAttribute('data-tab') === name); });
+  document.querySelectorAll('.tab').forEach(function (t) { const active=t.getAttribute('data-tab') === name;t.classList.toggle('active',active);if(active)t.setAttribute('aria-current','page');else t.removeAttribute('aria-current'); });
   document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.remove('active'); });
   byId('panel-' + name).classList.add('active');
+  if (name === 'graph') fitGraph();
 }
 
 byId('tabs').addEventListener('click', function (e) {

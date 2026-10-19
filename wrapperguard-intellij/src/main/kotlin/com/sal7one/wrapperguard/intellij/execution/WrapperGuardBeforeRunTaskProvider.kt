@@ -1,15 +1,16 @@
 package com.sal7one.wrapperguard.intellij.execution
 
 import com.intellij.execution.BeforeRunTask
+import com.intellij.ide.trustedProjects.TrustedProjects
 import com.intellij.execution.BeforeRunTaskProvider
 import com.intellij.execution.configurations.RunConfiguration
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.openapi.actionSystem.DataContext
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.editor.Document
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.externalSystem.service.execution.ExternalSystemRunConfiguration
 import com.intellij.openapi.progress.ProgressManager
+import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
 import com.sal7one.wrapperguard.core.model.Confidence
@@ -20,17 +21,21 @@ import com.sal7one.wrapperguard.core.model.FindingKind
 import com.sal7one.wrapperguard.core.model.FindingStatus
 import com.sal7one.wrapperguard.core.model.PolicyAction
 import com.sal7one.wrapperguard.core.model.ScanReport
+import com.sal7one.wrapperguard.core.model.ScanNotice
 import com.sal7one.wrapperguard.core.model.ScanVerdict
 import com.sal7one.wrapperguard.core.model.Severity
 import com.sal7one.wrapperguard.core.model.SourceLocation
 import com.sal7one.wrapperguard.core.policy.EnforcementMode
 import com.sal7one.wrapperguard.core.policy.ScanPolicy
 import com.sal7one.wrapperguard.core.util.Fingerprints
-import com.sal7one.wrapperguard.intellij.settings.buildScanSettings
 import com.sal7one.wrapperguard.intellij.WrapperGuardProjectService
-import com.sal7one.wrapperguard.rules.RepositoryScanner
+import com.sal7one.wrapperguard.intellij.vetting.IntellijVettingProviders
+import com.sal7one.wrapperguard.core.vetting.VettingAction
+import com.sal7one.wrapperguard.core.vetting.VettingOperation
 import com.sal7one.wrapperguard.rules.RuleIds
+import com.sal7one.wrapperguard.intellij.demo.WrapperGuardDemo
 import java.nio.file.Path
+import java.util.concurrent.CancellationException
 
 /**
  * Marker before-run task; carries no state. One enabled instance is attached to each
@@ -39,10 +44,8 @@ import java.nio.file.Path
 class WrapperGuardBeforeRunTask : BeforeRunTask<WrapperGuardBeforeRunTask>(WrapperGuardBeforeRunTaskProvider.KEY)
 
 /**
- * Runs a fresh WrapperGuard scan before every applicable run configuration and hard-blocks
- * the run (returns false) when the policy marks any finding BLOCK. This is the core
- * "guard" promise: policy-selected malicious patterns cannot execute through IDE run
- * configurations before a scan has cleared them.
+ * Runs enabled providers before applicable run configurations. Active findings with a
+ * host-authorized BLOCK_BUILD action require cancellation or an explicit Run Once override.
  *
  * Scope (stated honestly in the UI too): covers IDE Gradle/script run configurations.
  * Does NOT cover external terminals, CLI invocations, or other plugins' processes.
@@ -54,6 +57,7 @@ open class WrapperGuardBeforeRunTaskProvider : BeforeRunTaskProvider<WrapperGuar
 
         /** Applicable = Gradle/ExternalSystem/shell-script run configurations. */
         fun isApplicable(configuration: RunConfiguration): Boolean {
+            if (WrapperGuardDemo.enabled) return true
             val typeId = configuration.type.id.lowercase()
             return configuration is ExternalSystemRunConfiguration ||
                 typeId.contains("gradle") ||
@@ -83,38 +87,48 @@ open class WrapperGuardBeforeRunTaskProvider : BeforeRunTaskProvider<WrapperGuar
         env: ExecutionEnvironment,
         task: WrapperGuardBeforeRunTask
     ): Boolean {
-        if (!isApplicable(configuration)) return true
-
         val project = configuration.project
+        if (project.isDisposed) return false
+        if (WrapperGuardDemo.enabled || project.getService(WrapperGuardProjectService::class.java).isDemo) return false
+        if (!isApplicable(configuration)) return true
         // The execution seal must reflect what will actually run: flush unsaved editor
         // documents before scanning (backlog #4: save unsaved documents, or account for them).
-        FileDocumentManager.getInstance().saveAllDocuments()
+        val application = ApplicationManager.getApplication()
+        val saveDocuments = Runnable { FileDocumentManager.getInstance().saveAllDocuments() }
+        if (application.isDispatchThread) saveDocuments.run() else application.invokeAndWait(saveDocuments)
 
         val report = if (ApplicationManager.getApplication().isUnitTestMode) {
             // Headless smoke tests drive the same path without the modal progress wrapper.
-            runCatching { runGuardScan(project) }.getOrNull()
+            runGuardedScanOrFailure(project)
         } else {
             var result: ScanReport? = null
             ProgressManager.getInstance().runProcessWithProgressSynchronously(
-                { result = runGuardedScanWithSeal(project) },
+                { result = runGuardedScanOrFailure(project) },
                 "WrapperGuard: Scanning project before run…",
                 false,
                 project
             )
             result
         }
-        // No project path / scan failed open — do not block builds on scanner failure.
-        val result = report ?: return true
+        // A configured guard must establish a fresh result before execution.
+        val result = report ?: return false
+        if (project.isDisposed) return false
+        if (!TrustedProjects.isProjectTrusted(project)) {
+            project.getService(WrapperGuardProjectService::class.java)
+                .publishExternalReport(untrustedProjectReport(project, VettingOperation.BUILD))
+            return false
+        }
+
+        project.getService(WrapperGuardProjectService::class.java).publishExternalReport(result)
 
         val blockers = result.findings.filter {
-            it.policyAction == PolicyAction.BLOCK && it.status == FindingStatus.ACTIVE
+            it.status == FindingStatus.ACTIVE && VettingAction.BLOCK_BUILD in it.actions
         }
         if (blockers.isEmpty()) return true
 
-        // Publish the fresh report so the tool window shows what blocked the run.
-        project.getService(WrapperGuardProjectService::class.java).publishExternalReport(result)
-
-        return askUserToRunOnce(project, configuration, blockers)
+        val accepted = askUserToRunOnce(project, configuration, blockers)
+        // Trust can be revoked while the confirmation dialog is open.
+        return accepted && !project.isDisposed && TrustedProjects.isProjectTrusted(project)
     }
 
     /**
@@ -133,9 +147,19 @@ open class WrapperGuardBeforeRunTaskProvider : BeforeRunTaskProvider<WrapperGuar
  * Fresh ENFORCE-mode scan shared by the run guard — the guard decides with blocking
  * enabled. Top-level so the smoke tests can exercise the exact production path.
  */
-internal fun runGuardScan(project: Project): ScanReport? {
-    val root = project.basePath?.let(Path::of) ?: return null
-    return RepositoryScanner().scan(root, ScanPolicy(mode = EnforcementMode.ENFORCE), buildScanSettings())
+internal fun runGuardScan(
+    project: Project,
+    operation: VettingOperation = VettingOperation.BUILD,
+    root: Path? = project.basePath?.let(Path::of)
+): ScanReport? {
+    if (WrapperGuardDemo.enabled || project.getService(WrapperGuardProjectService::class.java).isDemo) {
+        return demoExecutionReport(project, operation)
+    }
+    root ?: return null
+    if (operation != VettingOperation.SCAN && !TrustedProjects.isProjectTrusted(project)) {
+        return untrustedProjectReport(project, operation)
+    }
+    return IntellijVettingProviders.scan(project, root, ScanPolicy(mode = EnforcementMode.ENFORCE), operation)
 }
 
 /**
@@ -144,22 +168,54 @@ internal fun runGuardScan(project: Project): ScanReport? {
  * content; a project that is still churning returns a synthetic WG-SCAN-TOCTOU blocker so
  * the launch is refused rather than allowed on unverified content.
  */
-internal fun runGuardedScanWithSeal(project: Project): ScanReport? {
+internal fun runGuardedScanWithSeal(
+    project: Project,
+    operation: VettingOperation = VettingOperation.BUILD,
+    root: Path? = project.basePath?.let(Path::of)
+): ScanReport? {
+    if (WrapperGuardDemo.enabled || project.getService(WrapperGuardProjectService::class.java).isDemo) {
+        return demoExecutionReport(project, operation)
+    }
+    root ?: return null
+    if (operation != VettingOperation.SCAN && !TrustedProjects.isProjectTrusted(project)) {
+        return untrustedProjectReport(project, operation)
+    }
     val service = project.getService(WrapperGuardProjectService::class.java)
-    val sealBefore = service.computeSeal() ?: return runCatching { runGuardScan(project) }.getOrNull()
-    var report = runCatching { runGuardScan(project) }.getOrNull()
-    val sealAfter = service.computeSeal()
+    val sealBefore = service.computeSeal(root) ?: return guardFailureReport(project, operation)
+    var report = runGuardScan(project, operation, root)
+    val sealAfter = service.computeSeal(root)
     if (sealAfter != sealBefore) {
-        report = runCatching { runGuardScan(project) }.getOrNull()
-        if (service.computeSeal() != sealAfter) {
-            return toctouBlockedReport(project)
+        report = runGuardScan(project, operation, root)
+        if (sealAfter == null || service.computeSeal(root) != sealAfter) {
+            return toctouBlockedReport(project, operation)
         }
     }
     return report
 }
 
+/** Preserve IDE cancellation and disposal instead of turning control flow into a failure dialog. */
+internal fun runGuardedScanOrFailure(
+    project: Project,
+    operation: VettingOperation = VettingOperation.BUILD,
+    root: Path? = project.basePath?.let(Path::of)
+): ScanReport? = try {
+    if (project.isDisposed) throw ProcessCanceledException()
+    ProgressManager.checkCanceled()
+    val report = runGuardedScanWithSeal(project, operation, root)
+    if (project.isDisposed) throw ProcessCanceledException()
+    ProgressManager.checkCanceled()
+    report
+} catch (error: ProcessCanceledException) {
+    throw error
+} catch (error: CancellationException) {
+    throw error
+} catch (_: Exception) {
+    if (project.isDisposed) throw ProcessCanceledException()
+    guardFailureReport(project, operation)
+}
+
 /** Synthetic blocker used when protected files keep changing during the pre-run scan. */
-internal fun toctouBlockedReport(project: Project): ScanReport {
+internal fun toctouBlockedReport(project: Project, operation: VettingOperation = VettingOperation.BUILD): ScanReport {
     val root = project.basePath ?: "<project>"
     val finding = Finding(
         fingerprint = Fingerprints.finding(RuleIds.SCAN_TOCTOU, root, "seal-mismatch"),
@@ -174,7 +230,9 @@ internal fun toctouBlockedReport(project: Project): ScanReport {
         evidence = Evidence("execution seal mismatch"),
         remediation = "Wait for the project to settle, then run again.",
         policyAction = PolicyAction.BLOCK,
-        status = FindingStatus.ACTIVE
+        status = FindingStatus.ACTIVE,
+        providerId = "wrapperguard.host",
+        actions = setOf(if (operation == VettingOperation.SYNC) VettingAction.BLOCK_SYNC else VettingAction.BLOCK_BUILD)
     )
     return ScanReport(
         projectPath = root,
@@ -185,4 +243,44 @@ internal fun toctouBlockedReport(project: Project): ScanReport {
         durationMs = 0,
         complete = true
     )
+}
+
+/** Configuration/host errors never silently discard a user's required-provider policy. */
+internal fun guardFailureReport(project: Project, operation: VettingOperation): ScanReport {
+    val report = toctouBlockedReport(project, operation)
+    return report.copy(complete = false, findings = report.findings.map { it.copy(
+        fingerprint = Fingerprints.finding("WG-PROVIDER-CONFIGURATION", project.basePath.orEmpty(), "unavailable"),
+        ruleId = "WG-PROVIDER-CONFIGURATION",
+        title = "Vetting configuration could not be verified",
+        message = "The guard could not load the configured providers or establish its execution seal.",
+        evidence = null,
+        remediation = "Review the provider configuration in WrapperGuard settings and retry."
+    ) })
+}
+
+/** Trust is a host execution prerequisite; a paused required SDK cannot silently clear a run. */
+internal fun untrustedProjectReport(project: Project, operation: VettingOperation): ScanReport {
+    val report = guardFailureReport(project, operation)
+    return report.copy(
+        findings = report.findings.map { it.copy(
+            fingerprint = Fingerprints.finding("WG-PROJECT-UNTRUSTED", project.basePath.orEmpty(), "untrusted-project"),
+            ruleId = "WG-PROJECT-UNTRUSTED",
+            title = "Project trust is required before execution",
+            message = "Third-party providers are paused in Safe Mode. Build and sync require project trust.",
+            remediation = "Review the project and manage its trust using the IDE's project trust controls."
+        ) },
+        notices = listOf(ScanNotice("WG-PROVIDERS-UNTRUSTED", "Third-party providers were not initialized. Built-in static analysis remains available through Scan project."))
+    )
+}
+
+/** A demo report, including a simulated CLEAN report, never clears a real launch/import. */
+internal fun demoExecutionReport(project: Project, operation: VettingOperation): ScanReport {
+    val report = guardFailureReport(project, operation)
+    return report.copy(findings = report.findings.map { it.copy(
+        fingerprint = Fingerprints.finding("WG-DEMO-EXECUTION-DISABLED", project.basePath.orEmpty(), "demo-mode"),
+        ruleId = "WG-DEMO-EXECUTION-DISABLED",
+        title = "Execution is disabled in demonstration mode",
+        message = "Simulated report data cannot authorize IDE builds, runs or Gradle sync.",
+        remediation = "Close the demonstration IDE and restart without wrapperguard.demo to use real vetting."
+    ) }, notices = listOf(ScanNotice("WG-DEMO", "DEMO • simulated data. Execution is disabled.")))
 }

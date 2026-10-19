@@ -1,0 +1,99 @@
+{
+  "browser" : "macOS WKWebView",
+  "capture" : "WKWebView.takeSnapshot of generated HTML only; no desktop capture",
+  "checks" : [
+    "active blocker counts agree with report",
+    "tabs and finding selection",
+    "baseline restore\/approval stay in browser",
+    "permission dialog opens",
+    "search and reset",
+    "no webview script errors"
+  ],
+  "demo" : true,
+  "project" : "Atlas Payments",
+  "report" : "demo\/report.json",
+  "screenshots" : [
+    {
+      "description" : "Fictional blocked project overview with active counts and incomplete coverage.",
+      "file" : "01-overview-dark.png",
+      "theme" : "dark",
+      "viewport" : {
+        "height" : 960,
+        "width" : 1440
+      }
+    },
+    {
+      "description" : "Real finding list, evidence inspector, provenance and effective actions.",
+      "file" : "02-findings-dark.png",
+      "theme" : "dark",
+      "viewport" : {
+        "height" : 960,
+        "width" : 1440
+      }
+    },
+    {
+      "description" : "Static execution graph and active blocker paths.",
+      "file" : "03-execution-dark.png",
+      "theme" : "dark",
+      "viewport" : {
+        "height" : 960,
+        "width" : 1440
+      }
+    },
+    {
+      "description" : "Expanded workspace showing the graph, detached files and risky-path inspector.",
+      "file" : "09-execution-expanded.png",
+      "theme" : "dark",
+      "viewport" : {
+        "height" : 1000,
+        "width" : 1600
+      }
+    },
+    {
+      "description" : "Provider grants, completion, timeout, failure and disabled states.",
+      "file" : "04-policy-dark.png",
+      "theme" : "dark",
+      "viewport" : {
+        "height" : 1023,
+        "width" : 1440
+      }
+    },
+    {
+      "description" : "Light theme with the same real renderer and fictional report.",
+      "file" : "05-findings-light.png",
+      "theme" : "light",
+      "viewport" : {
+        "height" : 960,
+        "width" : 1440
+      }
+    },
+    {
+      "description" : "Narrow detail route and Back navigation.",
+      "file" : "06-findings-narrow.png",
+      "theme" : "dark",
+      "viewport" : {
+        "height" : 1000,
+        "width" : 430
+      }
+    },
+    {
+      "description" : "Approved baseline evidence stays visible without blocking execution.",
+      "file" : "07-approved-baseline.png",
+      "theme" : "dark",
+      "viewport" : {
+        "height" : 960,
+        "width" : 1440
+      }
+    },
+    {
+      "description" : "Clearly labelled browser-only permission controls.",
+      "file" : "08-demo-permission-controls.png",
+      "theme" : "dark",
+      "viewport" : {
+        "height" : 960,
+        "width" : 1440
+      }
+    }
+  ],
+  "source" : "vscode-extension\/src\/webviewUi.ts"
+}

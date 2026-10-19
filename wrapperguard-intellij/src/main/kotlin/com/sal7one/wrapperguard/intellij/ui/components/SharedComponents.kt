@@ -29,7 +29,7 @@ import com.sal7one.wrapperguard.intellij.ui.mutedTextColor
 import com.sal7one.wrapperguard.intellij.ui.outlineColor
 import org.jetbrains.jewel.ui.component.Text
 
-private val PillShape = RoundedCornerShape(50)
+private val PillShape = RoundedCornerShape(3.dp)
 
 /**
  * Compact uppercase status pill: a translucent fill of [tone] with a solid [tone] border.
@@ -40,16 +40,17 @@ fun StatusBadge(text: String, tone: Color, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .clip(PillShape)
-            .background(tone.asBadgeBackground(0.18f))
-            .border(1.dp, tone.copy(alpha = 0.55f), PillShape)
+            .background(tone.asBadgeBackground(0.10f))
+            .border(1.dp, tone.copy(alpha = 0.22f), PillShape)
             .padding(horizontal = 8.dp, vertical = 2.dp)
     ) {
         Text(
-            text = text.uppercase(),
+            text = text,
             color = tone,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.Monospace
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            softWrap = false
         )
     }
 }
@@ -62,8 +63,7 @@ fun LabeledValue(label: String, value: String, mono: Boolean = false, modifier: 
             text = label.uppercase(),
             color = mutedTextColor(),
             fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.Monospace
+            fontWeight = FontWeight.SemiBold
         )
         Spacer(Modifier.height(2.dp))
         Text(

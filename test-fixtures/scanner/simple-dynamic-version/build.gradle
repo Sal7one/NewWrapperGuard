@@ -1,0 +1,2 @@
+// Static regression input. Never import.
+dependencies { implementation 'example.invalid:library:+' }

@@ -1,0 +1,8 @@
+# DISPLAY FIXTURE: invented coordinates, no resolvable dependencies.
+[versions]
+payment-adapter = "4.2.0"
+receipt-codec = "2.+"
+
+[libraries]
+payment-adapter = { module = "com.atlas.demo:payment-adapter", version.ref = "payment-adapter" }
+receipt-codec = { module = "com.atlas.demo:receipt-codec", version.ref = "receipt-codec" }

@@ -1,0 +1,4 @@
+#!/bin/sh
+# Static regression input. Never execute.
+echo 'echo fixture' > generated.sh
+bash generated.sh

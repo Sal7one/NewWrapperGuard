@@ -8,7 +8,12 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.ProjectActivity
 import com.sal7one.wrapperguard.intellij.execution.WrapperGuardBeforeRunTask
 import com.sal7one.wrapperguard.intellij.execution.WrapperGuardBeforeRunTaskProvider
-import com.sal7one.wrapperguard.intellij.execution.runGuardScan
+import com.sal7one.wrapperguard.intellij.settings.WrapperGuardSettings
+import com.sal7one.wrapperguard.intellij.demo.WrapperGuardDemo
+import com.intellij.openapi.wm.ToolWindowManager
+import com.intellij.openapi.wm.ToolWindowType
+import java.awt.GraphicsEnvironment
+import javax.swing.SwingUtilities
 
 /**
  * Scans the project as early as possible after open. The scanner is pure text analysis
@@ -24,12 +29,19 @@ import com.sal7one.wrapperguard.intellij.execution.runGuardScan
 class WrapperGuardStartupActivity : ProjectActivity {
     override suspend fun execute(project: Project) {
         val service = project.getService(WrapperGuardProjectService::class.java)
+        if (service.isDemo) {
+            backfillBeforeRunTasks(project)
+            service.scanAsync()
+            WrapperGuardDemo.writePid()
+            showDemoWorkspace(project)
+            return
+        }
         WrapperGuardVfsListener.register(project)
         backfillBeforeRunTasks(project)
-        registerSyncGate(project)
+        registerPostSyncRescan(project)
         registerTrustListener(project)
         // scanAsync runs on a background task; the Compose UI observes the result.
-        service.scanAsync()
+        if (WrapperGuardSettings.getInstance().state.scanOnOpen) service.scanAsync()
         // Dev/sandbox-only convenience (set by the runIde task): open the tool window on
         // startup so UI screenshots and visual checks do not need a manual click. Inert
         // in production — the property is only set by the Gradle sandbox task.
@@ -42,27 +54,35 @@ class WrapperGuardStartupActivity : ProjectActivity {
     }
 }
 
-/**
- * Adds [WrapperGuardBeforeRunTask] to existing applicable run configurations that predate
- * the plugin installation (new configurations receive it via
- * [WrapperGuardBeforeRunTaskProvider.createTask]). Ported from old_project's
- * ProjectStartup via RunManagerImpl.
- *
- * Top-level and internal so the guard smoke tests can exercise it directly.
- */
-/**
- * Gradle-sync gate (#1). The BLOCKING half is provided by the before-run guard: a Gradle
- * sync executes through an [com.intellij.openapi.externalSystem.service.execution.ExternalSystemRunConfiguration],
- * which [WrapperGuardBeforeRunTaskProvider.isApplicable] covers, so a sync is hard-blocked
- * exactly like any other Gradle run when ENFORCE finds blockers.
- *
- * This half re-validates AFTER each import finishes: the report then reflects what the sync
- * actually executed (dependencies resolved, wrapper files rewritten), and any new blocker
- * surfaces in the tool window immediately.
- */
+/** Floats the existing native tool window; the screenshot harness does not rebuild its UI. */
+private fun showDemoWorkspace(project: Project) {
+    ApplicationManager.getApplication().invokeLater {
+        if (project.isDisposed) return@invokeLater
+        val toolWindow = ToolWindowManager.getInstance(project).getToolWindow("WrapperGuard") ?: return@invokeLater
+        val dimensions = System.getProperty(WrapperGuardDemo.WINDOW_PROPERTY)
+            ?.let { Regex("([0-9]{3,4})x([0-9]{3,4})").matchEntire(it) }
+        if (dimensions == null) {
+            toolWindow.activate(null)
+        } else {
+            toolWindow.setType(ToolWindowType.FLOATING, Runnable {
+                toolWindow.activate(Runnable {
+                    SwingUtilities.getWindowAncestor(toolWindow.component)?.let { window ->
+                        val screen = GraphicsEnvironment.getLocalGraphicsEnvironment().maximumWindowBounds
+                        val width = dimensions.groupValues[1].toInt().coerceIn(640, maxOf(640, screen.width))
+                        val height = dimensions.groupValues[2].toInt().coerceIn(480, maxOf(480, screen.height))
+                        window.setSize(width, height)
+                        window.setLocationRelativeTo(null)
+                        window.toFront()
+                    }
+                })
+            })
+        }
+    }
+}
+
 private fun rescanOnTrustChange(project: Project) {
     if (project.isDisposed) return
-    project.getService(WrapperGuardProjectService::class.java).scanAsync()
+    project.getService(WrapperGuardProjectService::class.java).settingsChanged()
 }
 
 /** Re-scans whenever the project's trust state changes (trusted ⇄ untrusted). */
@@ -81,16 +101,14 @@ internal fun registerTrustListener(project: Project) {
     )
 }
 
-internal fun registerSyncGate(project: Project) {
+/** Post-import refresh complements the separately registered pre-resolver sync veto. */
+internal fun registerPostSyncRescan(project: Project) {
     project.messageBus.connect(project).subscribe(
         ProjectDataImportListener.TOPIC,
         object : ProjectDataImportListener {
             override fun onFinalTasksFinished(projectPath: String?) {
                 if (project.isDisposed) return
-                ApplicationManager.getApplication().executeOnPooledThread {
-                    val report = runCatching { runGuardScan(project) }.getOrNull() ?: return@executeOnPooledThread
-                    project.getService(WrapperGuardProjectService::class.java).publishExternalReport(report)
-                }
+                project.getService(WrapperGuardProjectService::class.java).scanAsync()
             }
         }
     )

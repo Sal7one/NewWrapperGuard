@@ -23,6 +23,25 @@ test('masks url userinfo passwords', () => {
   assert.strictEqual(masked, 'https://deploy:[redacted]@evil.example.com/repo');
 });
 
+test('masks every quoted assignment in a multiline credentials block', () => {
+  const input = 'credentials {\n  username = "demo-service-account"\n  password = "DEMO_NOT_A_REAL_SECRET"\n}';
+  const { masked, changed } = maskSecretValues(input);
+  assert.strictEqual(masked, 'credentials {\n  username = "[redacted]"\n  password = "[redacted]"\n}');
+  assert.strictEqual(changed, true);
+  assert.strictEqual(maskSecretValues(masked).masked, masked);
+});
+
+test('shrinking a credential block does not skip the next block or its nested assignments', () => {
+  const input = 'credentials { username = "' + 'a'.repeat(100) + '" password = "FIRST_DEMO_PASSWORD" }\n' +
+    'credentials { identity { accountName = "second-demo-user" } password = "SECOND_DEMO_PASSWORD" }';
+  const expected = 'credentials { username = "[redacted]" password = "[redacted]" }\n' +
+    'credentials { identity { accountName = "[redacted]" } password = "[redacted]" }';
+  const { masked, changed } = maskSecretValues(input);
+  assert.strictEqual(masked, expected);
+  assert.strictEqual(changed, true);
+  assert.strictEqual(maskSecretValues(masked).masked, expected);
+});
+
 test('leaves benign text untouched', () => {
   const input = 'implementation("com.android.tools.build:gradle:8.7.0")';
   const { masked, changed } = maskSecretValues(input);
