@@ -7,7 +7,7 @@ const execute=promisify(execFile);
 
 export async function pythonVersion(executable:string,cwd:string,requireSdk=false):Promise<string|undefined> {
   try {
-    const code=(requireSdk ? 'import wrapperguard_sdk; assert tuple(map(int,wrapperguard_sdk.__version__.split("."))) >= (0,2,0); ' : '')+'import sys; print(str(sys.version_info.major)+"."+str(sys.version_info.minor)+"."+str(sys.version_info.micro))';
+    const code=(requireSdk ? 'import wrapperguard_sdk; assert tuple(map(int,wrapperguard_sdk.__version__.split("."))) >= (0,3,0); ' : '')+'import sys; print(str(sys.version_info.major)+"."+str(sys.version_info.minor)+"."+str(sys.version_info.micro))';
     const {stdout}=await execute(executable,['-I','-c',code],{cwd,timeout:2000,maxBuffer:1024,windowsHide:true});
     const version=stdout.trim();const [major,minor]=version.split('.').map(Number);
     return /^\d+\.\d+\.\d+$/.test(version) && (major>3 || major===3 && minor>=10) ? version : undefined;

@@ -11,6 +11,7 @@
 - Fix fast-exit adapter stdin races and cover request delivery with the shared deadline, retaining strict output validation and descendant cleanup.
 - Marshal native blocker dialogs to the UI thread when before-run checks execute on background workers.
 - Correct the native before-run provider extension registration and test actual IDE registry resolution; the previous registration could leave supported builds unguarded.
+- Reject outdated SDKs during VS Code guided setup before saving profiles that require SDK 0.3 features.
 - Document product/OSS design references, manual acceptance and remaining platform/research/distribution work.
 
 ## 0.5.0 — Release candidate 1 (2026-10-20)

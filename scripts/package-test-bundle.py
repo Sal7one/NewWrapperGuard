@@ -62,8 +62,8 @@ and [integration setup](docs/integrations.md) for completed evidence and remaini
 4. Open `test-fixtures/newfirstparty/` as source only. It has no runnable build. Do not
    execute fixture files. Follow the ten-minute source-analysis and additional platform
    acceptance steps in [verification](docs/verification.md#install-and-test-the-build).
-5. Use Tools for independent methods, custom SDK/command setup, reviewed presets and
-   managed storage. History starts off; opt in explicitly. New commands start disabled.
+5. Use Tools for methods/presets. Native custom SDK/storage controls are in Tools;
+   VS Code custom SDK/storage controls are in Providers. History starts off; opt in explicitly. New commands start disabled.
 6. Run `python3 CHECK-GATES.py` with JDK 21 and Python 3.10+ to exercise this packaged
    CLI's actual provider protocol, grants and failure behavior. If extraction lost modes,
    first `chmod +x cli/bin/wrapperguard-cli` on macOS/Linux.

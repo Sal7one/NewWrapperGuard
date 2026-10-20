@@ -96,7 +96,7 @@ Additional platform acceptance:
 | Check | Result at this source checkpoint | Meaning |
 |---|---|---|
 | JVM build and packages | 205 tests: core 91, rules 40, CLI 8, native 66; zero failures/skips | Shared grants, scopes, actual-read seals, legacy descriptor ABI, custom GUI/storage/history |
-| VS Code | 122 tests and emitted-webview checks passed | Multi-root, generic setup, presets, scope seals, history, cleanup and UI message validation |
+| VS Code | 123 tests and emitted-webview checks passed | Multi-root, generic setup, presets, scope seals, history, cleanup and UI message validation |
 | Python installed SDK wheel | 118 local tests: 112 passed, 6 Windows-only skips; those six execute successfully in Windows CI | Eight passive formats, runners, research, structured AI and isolated experimental helpers |
 | Downloader | 4 trust/archive regressions passed | Official asset/hash boundaries and bounded no-traversal extraction |
 | Catalog/profile contracts | 17 methods, 15 profiles, 10 format IDs passed | Examples cover every format; host examples remain disabled |
