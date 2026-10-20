@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { Finding, ScanSettings, ScanState } from './models';
 import { realpath } from 'node:fs/promises';
 import * as path from 'node:path';
+import { MethodView, methodById } from './methods/catalog';
 const EXTENSION_VERSION = (require('../package.json') as {version:string}).version;
 
 /** Actions the webview UI can request; wired to real commands by the extension host. */
@@ -15,6 +16,10 @@ export interface UiHandlers {
   unbaseline(finding: Finding): void;
   exportSarif(): void;
   configureProvider(id: string): void;
+  configureMethod(id: string): void;
+  toggleMethod(id: string, enabled: boolean): void;
+  disconnectMethod(id: string): void;
+  openMethodDocs(id: string): void;
   openSettings(): void;
 }
 
@@ -66,6 +71,10 @@ export class WrapperGuardWebviewProvider implements vscode.WebviewViewProvider {
     unbaseline: () => undefined,
     exportSarif: () => undefined,
     configureProvider: () => undefined,
+    configureMethod: () => undefined,
+    toggleMethod: () => undefined,
+    disconnectMethod: () => undefined,
+    openMethodDocs: () => undefined,
     openSettings: () => undefined
   };
 
@@ -81,7 +90,7 @@ export class WrapperGuardWebviewProvider implements vscode.WebviewViewProvider {
     webviewView.webview.html = this.buildHtml();
     // Re-sync: the webview starts from its own default state, so push the latest one.
     this.setState(this.lastState);
-    webviewView.webview.onDidReceiveMessage((msg: { type: string; finding?: Finding; providerId?: string }) => {
+    webviewView.webview.onDidReceiveMessage((msg: { type: string; finding?: Finding; providerId?: string; methodId?: string; enabled?: boolean }) => {
       if (!msg || typeof msg.type !== 'string') return;
       // Resolve actions against host state; a webview cannot submit forged paths or fingerprints.
       if (msg.finding) {
@@ -90,6 +99,18 @@ export class WrapperGuardWebviewProvider implements vscode.WebviewViewProvider {
         msg.finding = resolved;
       }
       switch (msg.type) {
+        case 'configure-method':
+          if (typeof msg.methodId === 'string' && methodById(msg.methodId)) this.handlers.configureMethod(msg.methodId);
+          break;
+        case 'toggle-method':
+          if (typeof msg.methodId === 'string' && methodById(msg.methodId) && typeof msg.enabled === 'boolean') this.handlers.toggleMethod(msg.methodId,msg.enabled);
+          break;
+        case 'method-docs':
+          if (typeof msg.methodId === 'string' && methodById(msg.methodId)) this.handlers.openMethodDocs(msg.methodId);
+          break;
+        case 'disconnect-method':
+          if (typeof msg.methodId === 'string' && methodById(msg.methodId)) this.handlers.disconnectMethod(msg.methodId);
+          break;
         case 'configure-provider':
           if (typeof msg.providerId === 'string') this.handlers.configureProvider(msg.providerId);
           break;
@@ -141,12 +162,15 @@ export class WrapperGuardWebviewProvider implements vscode.WebviewViewProvider {
   setState(s: ScanState): void {
     this.lastState = s;
     const payload = s.kind === 'scanned'
-      ? { kind: s.kind, report: s.report, settings: this.lastSettings }
-      : { kind: s.kind, error: s.kind === 'failed' ? s.error : undefined, settings: this.lastSettings };
+      ? { kind: s.kind, report: s.report, settings: this.lastSettings, methods: this.lastMethods }
+      : { kind: s.kind, error: s.kind === 'failed' ? s.error : undefined, settings: this.lastSettings, methods: this.lastMethods };
     this.view?.webview.postMessage({ type: 'state', state: payload });
   }
 
   private lastSettings?: ScanSettings;
+  private lastMethods: readonly MethodView[] = [];
+
+  setMethods(methods: readonly MethodView[]): void { this.lastMethods = methods; }
 
   /** Active scanner settings (shown in the Policy pane). */
   setSettings(settings: ScanSettings): void {
@@ -180,6 +204,11 @@ main{flex:1;min-width:0;min-height:0;padding:18px 20px 16px;overflow:hidden}.tab
 @media(max-width:767px){.app-bar{height:44px;padding:0 12px}.app-title{font-size:12px}.app-title .logo{width:18px;height:20px}.workspace-label{font-size:11px;max-width:130px;margin-left:0;padding-left:10px}.app-actions{gap:2px}.app-actions .btn{font-size:10px;min-height:27px;padding:0 8px}.app-actions .icon-btn{width:26px;font-size:16px}.workspace-shell{flex-direction:column}.sidebar{width:auto;padding:0;border-right:0;border-bottom:1px solid var(--border);gap:0;flex:none}.sidebar>.sidebar-label,.status-card,.sidebar-bottom{display:none}.tabs{flex-direction:row;gap:0}.tab{justify-content:center;flex:1;border-left:0;border-bottom:2px solid transparent;border-radius:0;padding:9px 3px;font-size:10px;gap:5px}.tab.active{border-bottom-color:var(--primary);border-left-color:transparent}.tab .ticon{display:none}.tcount{margin-left:0;min-width:17px;font-size:9px;padding:0 4px}.tab:nth-child(3){font-size:0}.tab:nth-child(3):after{content:'Graph';font-size:10px}main{padding:14px 12px}.page-head{gap:8px;margin-bottom:12px}h1{font-size:19px}.page-head p{font-size:11px}.page-head .btn-row{gap:5px}.page-head .btn-row .btn{font-size:9px;min-height:27px;padding:0 7px}.metrics{grid-template-columns:repeat(2,minmax(0,1fr));margin:10px 0 14px}.metric{flex-direction:row;gap:9px;padding:9px 12px;align-items:center}.metric .top{order:2}.metric:nth-child(2){border-right:0}.metric:nth-child(-n+2){border-bottom:1px solid var(--border)}.metric .value{font-size:19px}.overview-status{padding:8px 10px;align-items:flex-start;flex-wrap:wrap;gap:7px;min-height:38px}.overview-status .status-dot{margin-top:6px}.overview-status .muted{font-size:11px}.overview-status .link-btn{display:none}.overview-grid{gap:12px}.attention-table td{padding:9px 10px}.attention-table th{padding:7px 10px}.attention-table .link-btn{font-size:11px}.review-path{font-size:10px}.health-table td{font-size:11px}.findings-layout{display:block;overflow:auto}.findings-layout>.list{height:100%;overflow:auto}.finding-columns{display:flex;align-items:flex-start;flex-wrap:wrap;gap:3px 8px}.list-head{display:none}.finding-row{height:auto;min-height:67px;padding:9px 10px;position:relative}.finding-issue{width:100%;padding-right:76px;gap:7px}.finding-row .title{font-size:12px;white-space:normal;line-height:1.5}.finding-row .where{font-size:10px;width:100%;padding-left:21px;margin-top:1px}.finding-row>.row-provider{display:block;font-size:10px;padding-left:21px}.finding-row>.row-decision{position:absolute;right:9px;top:10px;max-width:80px}.row-decision .badge{font-size:9px;padding:1px 4px}.findings-layout>.detail{display:none;border-top:0}.findings-layout.narrow>.detail{display:block;height:100%;overflow-y:auto;padding-bottom:16px}.detail-header{display:none}.detail .back{display:flex;width:max-content;margin-bottom:12px}.detail-content{display:block;height:auto}.detail-overview{border-right:0;padding:14px 14px 4px}.detail-evidence{padding:4px 14px 14px}.detail h2{font-size:17px;margin-top:0}.detail-facts{font-size:11px}.detail-description{font-size:13px;line-height:1.65}.provider-line{font-size:12px}.detail .section-label{font-size:10px;margin:13px 0 6px}.detail .action-chips{margin-top:10px}.detail-actions{margin-top:12px}.remediation p{font-size:12px}.detail-actions .btn{font-size:10px}.snippet-bar .file{font-size:10px}.snippet-line{font-size:12px}.provider-table{display:block}.provider-table thead{display:none}.provider-table tbody{display:block}.provider-table tr{display:grid;grid-template-columns:minmax(0,1fr) auto;border-bottom:1px solid var(--border);padding:12px;gap:9px 12px}.provider-table tr:last-child{border:0}.provider-table td{border:0;padding:0}.provider-table td:first-child{grid-column:1}.provider-table td:nth-child(2){grid-column:2;text-align:right}.provider-table td:nth-child(3){display:none}.provider-table td:nth-child(4){grid-column:1;grid-row:2}.provider-table td:last-child{grid-column:2;grid-row:2;align-self:end}.provider-table .provider-title{font-size:12px}.provider-id{font-size:9px}.grants-column{width:auto}.grant-matrix{min-width:165px}.grant-cell{font-size:10px;gap:4px;flex-direction:column;height:auto;min-height:35px;line-height:1.2;padding:3px 1px}.grant-cell:before{content:attr(data-label);font-size:8px;color:var(--text-dim)}.provider-table .provider-note{max-width:170px}.policy-summary{gap:9px;flex-wrap:wrap;font-size:10px}.policy-row{grid-template-columns:1fr;gap:4px;padding:9px 12px}.graph-workspace{display:flex;flex-direction:column;min-height:380px}.g-toolbar{padding:9px;gap:8px}.graph-stat{display:none}.g-find{max-width:none;flex:1;width:auto}.graph-note{font-size:9px}.app-footer{padding:0 10px;font-size:8px}.footer-links{display:none}.app-footer .chip{margin-left:7px;padding-left:7px}.scope-note{font-size:9px}.policy-settings-button{font-size:9px!important;padding:0 8px}.scan-meta{grid-template-columns:1fr 1fr}}
 @media(max-width:399px){.workspace-label{display:none}.app-actions .icon-btn{width:24px}.app-actions .btn{padding:0 7px}.tab{font-size:9px}.tab:nth-child(3):after{font-size:9px}.finding-row .title{font-size:11px}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+.methods-intro{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px;align-items:start;padding:18px 20px;background:var(--surface-low);border:1px solid var(--border);border-top:2px solid var(--primary);border-radius:3px;margin-bottom:20px}.methods-intro p{max-width:720px;color:var(--text-dim);font-size:12px;line-height:1.7;margin-top:7px}.method-summary{font:11px var(--code);color:var(--primary);white-space:nowrap;padding-top:4px}.method-category{margin:22px 0 9px;display:flex;align-items:center;gap:10px}.method-category h2{font-size:13px}.method-category p{color:var(--text-dim);font-size:11px}.method-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.method-card{background:var(--surface-low);border:1px solid var(--border);border-radius:4px;padding:15px 16px;display:flex;flex-direction:column;gap:11px;min-width:0}.method-card.enabled{border-color:color-mix(in srgb,var(--primary) 30%,var(--border))}.method-card-top{display:flex;align-items:flex-start;gap:12px;justify-content:space-between}.method-card h3{font-size:13px;line-height:1.5;margin:0 0 3px}.method-card p{font-size:11px;color:var(--text-dim);line-height:1.75;max-width:680px}.method-tags{display:flex;gap:6px;flex-wrap:wrap}.method-tags .badge{font-size:9px}.method-actions{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin-top:auto;padding-top:11px;border-top:1px solid var(--border)}.method-actions .method-state{font-size:10px;color:var(--text-dim);margin-right:auto}.method-actions .method-state.ready{color:var(--ok)}.method-switch{display:inline-flex;align-items:center;gap:8px;flex:none;font-size:10px;color:var(--text-dim);cursor:pointer}.method-switch input{appearance:none;width:30px;height:18px;margin:0;background:var(--surface-highest);border:1px solid var(--border-strong);border-radius:20px;position:relative;cursor:pointer}.method-switch input:before{content:'';position:absolute;top:3px;left:3px;width:10px;height:10px;background:var(--text-dim);border-radius:50%;transition:transform .14s}.method-switch input:checked{background:var(--primary-container);border-color:var(--primary-container)}.method-switch input:checked:before{transform:translateX(12px);background:white}.method-switch input:disabled{opacity:.5;cursor:wait}.method-note{font-size:10px;color:var(--text-dim);line-height:1.8;margin:16px 0 8px;padding-left:11px;border-left:2px solid var(--border-strong)}.research-flow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--border);border:1px solid var(--border);border-radius:3px;overflow:hidden;margin:16px 0}.research-flow>div{padding:13px 15px;background:var(--surface-low)}.research-flow strong{font-size:11px;font-weight:500}.research-flow p{font-size:10px;color:var(--text-dim);margin-top:4px;line-height:1.7}.research-step{color:var(--primary);font:10px var(--code);margin-right:8px}.methods-bottom{margin:20px 0;display:flex;gap:12px;align-items:center;color:var(--text-dim);font-size:11px}.methods-bottom .link-btn{font-size:11px}
+@media(max-width:1100px){.method-grid{grid-template-columns:1fr}.methods-intro{grid-template-columns:1fr}.method-summary{padding-top:0}.research-flow{grid-template-columns:1fr}}
+@media(max-width:767px){.tabs{overflow-x:auto}.tab{flex:0 0 auto;padding:9px 12px}.methods-intro{padding:14px}.method-card{padding:13px}.method-actions .method-state{flex:0 0 100%;margin-right:0}.method-category{flex-wrap:wrap;gap:3px}.method-category p{width:100%}}
+
 </style>
 </head>
 <body>
@@ -199,6 +228,8 @@ main{flex:1;min-width:0;min-height:0;padding:18px 20px 16px;overflow:hidden}.tab
         <button class="tab" data-tab="findings"><span class="ticon"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m10 2 7 3v5c0 4-4 7-7 8-3-1-7-4-7-8V5zM10 6v5M10 14h.01"/></svg></span>Findings <span class="tcount" id="tabFindingsCount">0</span></button>
         <button class="tab" data-tab="graph"><span class="ticon"><svg viewBox="0 0 20 20" aria-hidden="true"><rect x="7" y="2" width="6" height="4" rx="1"/><rect x="2" y="14" width="6" height="4" rx="1"/><rect x="12" y="14" width="6" height="4" rx="1"/><path d="M10 6v4M5 14v-4h10v4"/></svg></span>Execution graph</button>
         <button class="tab" data-tab="policy"><span class="ticon"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m10 2 7 3v5c0 4-4 7-7 8-3-1-7-4-7-8V5z"/><path d="m7 10 2 2 4-4"/></svg></span>Providers</button>
+        <button class="tab" data-tab="tools"><span class="ticon"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m12 3 5 5-3 3-5-5zM8 9l-5 5v3h3l5-5M12 3l2-1 4 4-1 2"/></svg></span>Tools</button>
+        <button class="tab" data-tab="research"><span class="ticon"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7 2h6M8 2v6l-5 8c-1 2 1 2 2 2h10c1 0 3 0 2-2l-5-8V2M6 12h8"/></svg></span>Research &amp; AI</button>
       </nav>
       <section class="status-card" aria-label="Current scan summary">
         <div class="sidebar-label">Report status</div><span class="pill" id="verdictPill">Not scanned</span>
@@ -219,6 +250,8 @@ main{flex:1;min-width:0;min-height:0;padding:18px 20px 16px;overflow:hidden}.tab
       </section>
       <section class="tab-panel" id="panel-graph"></section>
       <section class="tab-panel" id="panel-policy"></section>
+      <section class="tab-panel" id="panel-tools"></section>
+      <section class="tab-panel" id="panel-research"></section>
     </main>
   </div>
   <footer class="app-footer"><span id="footerLeft">WrapperGuard: Not scanned</span><span class="footer-links"><span>Local workspace analysis</span><span>Provider API v1</span></span></footer>
@@ -347,12 +380,56 @@ function renderPolicy() {
   });
 }
 
+
+function renderMethods(research) {
+  const panel = byId(research ? 'panel-research' : 'panel-tools');
+  const active=document.activeElement;
+  const focusMethod=active && panel.contains(active) ? active.getAttribute('data-method') : null;
+  const focusKind=focusMethod ? ['method-toggle','method-configure','method-permissions','method-disconnect','method-docs'].find(function(kind) { return active.classList.contains(kind); }) : null;
+  const all = state.methods || [];
+  const methods = all.filter(function(m) { return research ? ['RESEARCH','AI'].indexOf(m.category)>=0 : ['RESEARCH','AI'].indexOf(m.category)<0; });
+  const enabled = methods.filter(function(m) { return m.enabled; }).length;
+  const disabled=methods.length-enabled;
+  let html = '<div class="page-head"><div class="page-heading"><h1>' + (research ? 'Research &amp; AI' : 'Security tools') + '</h1><p>' + (research ? 'Explainable experiments. Your model. Your decision.' : 'Choose the checks that fit your project.') + '</p></div><span class="badge">User Settings</span></div>';
+  html += '<div class="methods-intro"><div><h2>' + (research ? 'Better evidence, with clear limits' : 'One workspace. Independent methods.') + '</h2><p>' + (research ? 'Research ideas become separate, removable providers. The semantic method decodes literal script data and highlights risky behavior without executing it. External AI needs a model provider you connect; no trained model is bundled.' : 'Start with local checks for Android, Gradle and Maven projects. Add language scanners, dependency checks or a web security report when you need them. Each connection keeps its own permissions and can be turned off at any time.') + '</p></div><div class="method-summary">' + enabled + ' enabled · ' + disabled + ' disabled</div></div>';
+  if (research) html += '<div class="research-flow"><div><strong><span class="research-step">01</span>Read source safely</strong><p>Literal data only. Bound the file, decode and output budgets.</p></div><div><strong><span class="research-step">02</span>Inspect behavior</strong><p>Expose encoding layers and execution patterns as reviewable evidence.</p></div><div><strong><span class="research-step">03</span>Keep authority explicit</strong><p>Research starts with warnings. Model output never grants itself build permissions.</p></div></div>';
+  const groups = [['BUILT_IN','Built-in checks','Local deterministic rules · no SDK setup'],['SAST','Source analysis','Scripts, Python and scanner reports'],['SUPPLY_CHAIN','Supply chain','Dependency findings for Gradle, Maven and other ecosystems'],['DAST','Web & API security','Explicit target scope for imported results'],['RESEARCH','Research methods','Experimental, separate from the default scanner'],['AI','AI & models','Bring a provider and validate it against your own data']];
+  groups.forEach(function(group) {
+    const entries = methods.filter(function(m) { return m.category===group[0]; });
+    if (!entries.length) return;
+    html += '<div class="method-category"><h2>' + esc(group[1]) + '</h2><p>' + esc(group[2]) + '</p></div><div class="method-grid">';
+    entries.forEach(function(m) {
+      const builtin=m.category==='BUILT_IN';
+      const status=m.status || (builtin ? 'Ready locally' : m.configured ? 'Connected' : 'Setup needed');
+      const mode=builtin ? 'Built-in' : m.availability==='REPORT_IMPORT' ? 'Report import' : m.availability==='EXTERNAL_MODEL' ? 'External model' : 'Optional provider';
+      html += '<article class="method-card' + (m.enabled ? ' enabled' : '') + '"><div class="method-card-top"><div><h3>' + esc(m.title) + '</h3><div class="method-tags"><span class="badge">' + esc(mode) + '</span>' + (m.maturity==='EXPERIMENTAL' ? '<span class="badge warn">Experimental</span>' : '') + '</div></div><label class="method-switch"><span>' + (m.enabled ? 'On' : 'Off') + '</span><input class="method-toggle" data-method="' + esc(m.id) + '" type="checkbox" aria-label="Enable ' + esc(m.title) + '"' + (m.enabled ? ' checked' : '') + (state.kind==='scanning' ? ' disabled' : '') + '/></label></div><p>' + esc(m.summary) + '</p><div class="method-actions"><span class="method-state' + (m.enabled && m.configured ? ' ready' : '') + '">' + esc(status) + '</span>';
+      if (m.docsUrl) html += '<button class="link-btn method-docs" data-method="' + esc(m.id) + '">Reference</button>';
+      if (!builtin && m.configured) html += '<button class="link-btn method-permissions" data-method="' + esc(m.id) + '">Permissions</button><button class="link-btn method-disconnect" data-method="' + esc(m.id) + '">Disconnect</button>';
+      if (!builtin) html += '<button class="btn btn-ghost method-configure" data-method="' + esc(m.id) + '"' + (state.kind==='scanning' ? ' disabled' : '') + '>' + (m.configured ? 'Configure' : 'Set up') + '</button>';
+      html += '</div></article>';
+    });
+    html += '</div>';
+  });
+  if (!methods.length) html += '<div class="empty-note">Loading the security method catalog…</div>';
+  html += '<p class="method-note">' + (research ? 'Experimental findings are signals to review. This is not the published paper implementation or a validated malware classifier. No project code or model is downloaded automatically.' : 'A clean result applies to the enabled methods and the evidence they checked. Disabled checks reduce coverage. Imported reports may be outdated; connecting a report does not run its scanner.') + '</p><div class="methods-bottom"><button class="link-btn method-settings">Open User Settings</button><span>Tools share findings and actions through Provider API v1.</span></div>';
+  panel.innerHTML=html;
+  panel.querySelectorAll('.method-toggle').forEach(function(input) { input.addEventListener('change',function() { vscode.postMessage({type:'toggle-method',methodId:input.getAttribute('data-method'),enabled:input.checked}); }); });
+  panel.querySelectorAll('.method-permissions').forEach(function(button) { button.addEventListener('click',function() { const method=all.find(function(m) { return m.id===button.getAttribute('data-method'); });if (method && method.providerId) vscode.postMessage({type:'configure-provider',providerId:method.providerId}); }); });
+  panel.querySelectorAll('.method-disconnect').forEach(function(button) { button.addEventListener('click',function() { vscode.postMessage({type:'disconnect-method',methodId:button.getAttribute('data-method')}); }); });
+  panel.querySelectorAll('.method-configure').forEach(function(button) { button.addEventListener('click',function() { vscode.postMessage({type:'configure-method',methodId:button.getAttribute('data-method')}); }); });
+  panel.querySelectorAll('.method-docs').forEach(function(button) { button.addEventListener('click',function() { vscode.postMessage({type:'method-docs',methodId:button.getAttribute('data-method')}); }); });
+  panel.querySelectorAll('.method-settings').forEach(function(button) { button.addEventListener('click',function() { post('settings'); }); });
+  if (focusMethod && focusKind) { const next=panel.querySelector('.' + focusKind + '[data-method="' + focusMethod + '"]') || panel.querySelector('.method-configure[data-method="' + focusMethod + '"]');if (next) next.focus(); }
+}
+
 function render() {
   renderStatusCard();
   renderOverview();
   renderFindings();
   renderGraph();
   renderPolicy();
+  renderMethods(false);
+  renderMethods(true);
   renderBusy();
 }
 

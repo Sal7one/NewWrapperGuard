@@ -8,6 +8,15 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def main():
+    catalog = json.loads((ROOT / "catalog/security-methods.json").read_text(encoding="utf-8"))
+    assert catalog["schemaVersion"] == 1
+    methods = catalog["methods"]
+    assert len({m["id"] for m in methods}) == len(methods), "Duplicate method identity."
+    assert all(m["category"] in {"BUILT_IN", "SAST", "SUPPLY_CHAIN", "DAST", "RESEARCH", "AI"} for m in methods)
+    assert all(type(m["defaultEnabled"]) is bool and m["defaultEnabled"] == (m["category"] == "BUILT_IN") for m in methods)
+    assert all(m["providerId"] == "wrapperguard" for m in methods if m["category"] == "BUILT_IN")
+    external = [m["providerId"] for m in methods if m["category"] != "BUILT_IN"]
+    assert len(external) == len(set(external)), "Optional method providers must be independently addressable."
     schema = json.loads((ROOT / "schema/wrapperguard-integration-profile.schema.json").read_text(encoding="utf-8"))
     Draft202012Validator.check_schema(schema)
     validator = Draft202012Validator(schema)
@@ -23,7 +32,7 @@ def main():
     host = json.loads((ROOT / "examples/integrations/host-providers.example.json").read_text(encoding="utf-8"))
     Draft202012Validator(host_schema).validate(host)
     assert all(not p["permissions"]["enabled"] for p in host["providers"]), "Examples must require explicit provider enablement."
-    print(f"Integration schemas: {len(profiles)} profiles, all six formats, and disabled host registrations passed.")
+    print(f"Integration schemas: {len(methods)} methods, {len(profiles)} profiles, all eight formats, and disabled host registrations passed.")
 
 
 if __name__ == "__main__":

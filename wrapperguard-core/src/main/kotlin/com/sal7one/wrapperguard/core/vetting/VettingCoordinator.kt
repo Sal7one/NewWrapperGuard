@@ -1,6 +1,8 @@
 package com.sal7one.wrapperguard.core.vetting
 
 import com.sal7one.wrapperguard.core.model.*
+import com.sal7one.wrapperguard.core.methods.SecurityMethodCatalog
+import com.sal7one.wrapperguard.core.methods.MethodCategory
 import com.sal7one.wrapperguard.core.policy.ScanPolicy
 import com.sal7one.wrapperguard.core.policy.ScanSettings
 import com.sal7one.wrapperguard.core.util.CredentialRedaction
@@ -73,6 +75,25 @@ class VettingCoordinator(registrations: List<ProviderRegistration>, private val 
         operation: VettingOperation = VettingOperation.SCAN
     ): ScanReport {
         val started = System.nanoTime()
+        val optionalMethods = SecurityMethodCatalog.methods.filter { it.category != MethodCategory.BUILT_IN }
+        // Explicit off choices apply to the matching catalog provider only. Missing flags
+        // preserve already configured SDKs and never grant or auto-enable a provider.
+        val configured = this.registrations.map { registration ->
+            val disabled = registration.provider !is BuiltInVettingProvider && optionalMethods.any {
+                it.providerId == registration.descriptor.id && settings.methodFlags[it.id] == false
+            }
+            if (disabled) registration.copy(permissions = registration.permissions.copy(enabled = false)) else registration
+        }
+        val hasExternalAnalysis = configured.any { registration ->
+            registration.permissions.enabled && registration.provider !is BuiltInVettingProvider &&
+                optionalMethods.none { it.providerId == registration.descriptor.id && it.category in setOf(MethodCategory.RESEARCH, MethodCategory.AI) }
+        }
+        val allBuiltInOff = SecurityMethodCatalog.builtInMethods.all { settings.methodFlags[it.id] == false }
+        val replaceBuiltIn = allBuiltInOff && hasExternalAnalysis
+        val registrations = if (replaceBuiltIn) configured.map { registration ->
+            if (registration.provider is BuiltInVettingProvider) registration.copy(permissions = registration.permissions.copy(enabled = false))
+            else registration
+        } else configured
         val root = projectRoot.toAbsolutePath().normalize()
         // The host keeps its own policy snapshot; providers receive separate copies.
         val hostPolicy = policy.copy(blockedRuleIds = policy.blockedRuleIds.toSet())
@@ -82,6 +103,21 @@ class VettingCoordinator(registrations: List<ProviderRegistration>, private val 
         val notices = mutableListOf<ScanNotice>()
         val runs = mutableListOf<ProviderRun>()
         var complete = true
+        if (replaceBuiltIn && configured.any { it.provider is BuiltInVettingProvider && it.permissions.enabled }) {
+            notices += ScanNotice("WG-METHOD-REPLACED", "Built-in methods are disabled; configured external analysis providers define the scan scope.")
+        }
+        val hasBuiltInAnalysis = registrations.any { it.provider is BuiltInVettingProvider && it.permissions.enabled } &&
+            SecurityMethodCatalog.builtInMethods.any { SecurityMethodCatalog.isEnabled(it.id, settings.methodFlags) }
+        if (!hasExternalAnalysis && !hasBuiltInAnalysis) {
+            complete = false
+            notices += ScanNotice("WG-NO-ANALYSIS-PROVIDERS", "No security analysis providers are enabled; advisory AI and research methods cannot establish scan coverage.")
+        }
+        optionalMethods.filter { method ->
+            settings.methodFlags[method.id] == true && registrations.none { it.permissions.enabled && it.descriptor.id == method.providerId }
+        }.forEach { method ->
+            complete = false
+            notices += ScanNotice("WG-METHOD-NOT-CONNECTED", "Security method is enabled but no provider is connected: ${method.id}.")
+        }
         var scannedFiles = 0L
         val enabledCount = registrations.count { it.permissions.enabled }
         if (enabledCount == 0) {
@@ -331,7 +367,7 @@ class VettingCoordinator(registrations: List<ProviderRegistration>, private val 
     private fun copySettings(settings: ScanSettings) = settings.copy(
         allowedHosts = settings.allowedHosts.toSet(), allowedUrlPatterns = settings.allowedUrlPatterns.toList(),
         blockedCommands = settings.blockedCommands.toSet(), knownSafeRepositoryHosts = settings.knownSafeRepositoryHosts.toSet(),
-        trustedWrapperChecksums = settings.trustedWrapperChecksums.toMap()
+        trustedWrapperChecksums = settings.trustedWrapperChecksums.toMap(), methodFlags = settings.methodFlags.toMap()
     )
 
     companion object {

@@ -5,99 +5,733 @@
   "description": "Explicit user-owned SDK profile stored outside the scanned project. Host action grants remain separate. Path containment and executable checks are enforced at runtime.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "displayName", "version", "analysisKind", "format"],
+  "required": [
+    "id",
+    "displayName",
+    "version",
+    "analysisKind",
+    "format"
+  ],
   "properties": {
     "id": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9._-]{0,79}$",
-      "not": {"const": "wrapperguard"}
+      "not": {
+        "const": "wrapperguard"
+      }
     },
-    "displayName": {"type": "string", "minLength": 1, "maxLength": 160},
-    "version": {"type": "string", "minLength": 1, "maxLength": 80},
-    "analysisKind": {"enum": ["SAST", "SCA", "DAST"]},
-    "format": {"enum": ["sarif", "bandit", "psscriptanalyzer", "trivy", "osv", "zap"]},
+    "displayName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "analysisKind": {
+      "enum": [
+        "SAST",
+        "SCA",
+        "DAST",
+        "AI"
+      ]
+    },
+    "format": {
+      "enum": [
+        "sarif",
+        "bandit",
+        "psscriptanalyzer",
+        "trivy",
+        "osv",
+        "zap",
+        "script-semantics",
+        "ai-review"
+      ]
+    },
     "reportPath": {
       "type": "string",
       "minLength": 1,
       "maxLength": 4096,
       "description": "Absolute path to a JSON report selected by the user. No report location is discovered from repository settings."
     },
-    "runner": {"$ref": "#/$defs/runner"},
+    "runner": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tool": {
+              "const": "bandit"
+            },
+            "timeoutMs": {
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 300000
+            },
+            "maxOutputBytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 16777216
+            },
+            "executable": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096,
+              "description": "Absolute user-owned path; runtime enforces containment, symlinks and existence."
+            }
+          },
+          "required": [
+            "tool",
+            "executable"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tool": {
+              "const": "psscriptanalyzer"
+            },
+            "timeoutMs": {
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 300000
+            },
+            "maxOutputBytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 16777216
+            },
+            "executable": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096,
+              "description": "Absolute user-owned path; runtime enforces containment, symlinks and existence."
+            },
+            "modulePath": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096,
+              "description": "Absolute user-owned path; runtime enforces containment, symlinks and existence."
+            }
+          },
+          "required": [
+            "tool",
+            "executable",
+            "modulePath"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tool": {
+              "const": "trivy"
+            },
+            "timeoutMs": {
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 300000
+            },
+            "maxOutputBytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 16777216
+            },
+            "executable": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096,
+              "description": "Absolute user-owned path; runtime enforces containment, symlinks and existence."
+            },
+            "cachePath": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096,
+              "description": "Absolute user-owned path; runtime enforces containment, symlinks and existence."
+            }
+          },
+          "required": [
+            "tool",
+            "executable"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tool": {
+              "const": "osv"
+            },
+            "timeoutMs": {
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 300000
+            },
+            "maxOutputBytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 16777216
+            },
+            "executable": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096,
+              "description": "Absolute user-owned path; runtime enforces containment, symlinks and existence."
+            }
+          },
+          "required": [
+            "tool",
+            "executable"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tool": {
+              "const": "script-semantics"
+            },
+            "timeoutMs": {
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 300000
+            },
+            "maxOutputBytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 16777216
+            }
+          },
+          "required": [
+            "tool"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tool": {
+              "const": "local-ai"
+            },
+            "timeoutMs": {
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 300000
+            },
+            "maxOutputBytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 16777216
+            },
+            "endpoint": {
+              "type": "string",
+              "maxLength": 512,
+              "description": "Explicit HTTP numeric loopback address, port and /v1 path. Runtime rejects remote hosts, credentials and query strings."
+            },
+            "model": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,159}$"
+            },
+            "inputReportPath": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096,
+              "description": "Absolute user-owned path; runtime enforces containment, symlinks and existence."
+            }
+          },
+          "required": [
+            "tool",
+            "endpoint",
+            "model",
+            "inputReportPath"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tool",
+            "executable"
+          ],
+          "properties": {
+            "tool": {
+              "const": "semgrep"
+            },
+            "executable": {
+              "type": "string",
+              "minLength": 1
+            },
+            "rulesPath": {
+              "type": "string",
+              "minLength": 1
+            },
+            "timeoutMs": {
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 300000
+            },
+            "maxOutputBytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 16777216
+            }
+          }
+        }
+      ]
+    },
     "allowedOperations": {
       "type": "array",
       "minItems": 1,
       "maxItems": 3,
       "uniqueItems": true,
-      "items": {"enum": ["SCAN", "BUILD", "SYNC"]},
-      "default": ["SCAN"]
+      "items": {
+        "enum": [
+          "SCAN",
+          "BUILD",
+          "SYNC"
+        ]
+      },
+      "default": [
+        "SCAN"
+      ]
     },
     "requestedActions": {
       "type": "array",
       "maxItems": 5,
       "uniqueItems": true,
-      "items": {"enum": ["WARNING", "MAJOR_WARNING", "ALERT", "BLOCK_BUILD", "BLOCK_SYNC"]},
-      "default": ["WARNING"],
+      "items": {
+        "enum": [
+          "WARNING",
+          "MAJOR_WARNING",
+          "ALERT",
+          "BLOCK_BUILD",
+          "BLOCK_SYNC"
+        ]
+      },
+      "default": [
+        "WARNING"
+      ],
       "description": "Requests only; the host intersects these actions with separate user grants."
     },
-    "targetScope": {"$ref": "#/$defs/targetScope"}
+    "targetScope": {
+      "$ref": "#/$defs/targetScope"
+    }
   },
   "oneOf": [
-    {"required": ["reportPath"], "not": {"required": ["runner"]}},
-    {"required": ["runner"], "not": {"required": ["reportPath"]}}
+    {
+      "required": [
+        "reportPath"
+      ],
+      "not": {
+        "required": [
+          "runner"
+        ]
+      },
+      "properties": {
+        "format": {
+          "enum": [
+            "sarif",
+            "bandit",
+            "psscriptanalyzer",
+            "trivy",
+            "osv",
+            "zap"
+          ]
+        }
+      }
+    },
+    {
+      "required": [
+        "runner"
+      ],
+      "not": {
+        "required": [
+          "reportPath"
+        ]
+      }
+    }
   ],
   "allOf": [
     {
-      "if": {"properties": {"format": {"enum": ["bandit", "psscriptanalyzer"]}}, "required": ["format"]},
-      "then": {"properties": {"analysisKind": {"const": "SAST"}}}
+      "if": {
+        "properties": {
+          "format": {
+            "const": "sarif"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "analysisKind": {
+            "enum": [
+              "SAST",
+              "SCA"
+            ]
+          }
+        }
+      }
     },
     {
-      "if": {"properties": {"format": {"enum": ["trivy", "osv"]}}, "required": ["format"]},
-      "then": {"properties": {"analysisKind": {"const": "SCA"}}}
+      "if": {
+        "properties": {
+          "format": {
+            "const": "bandit"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "analysisKind": {
+            "enum": [
+              "SAST"
+            ]
+          }
+        }
+      }
     },
     {
-      "if": {"properties": {"format": {"const": "sarif"}}, "required": ["format"]},
-      "then": {"properties": {"analysisKind": {"enum": ["SAST", "SCA"]}}}
+      "if": {
+        "properties": {
+          "format": {
+            "const": "psscriptanalyzer"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "analysisKind": {
+            "enum": [
+              "SAST"
+            ]
+          }
+        }
+      }
     },
     {
-      "if": {"properties": {"format": {"const": "zap"}}, "required": ["format"]},
-      "then": {"properties": {"analysisKind": {"const": "DAST"}}, "required": ["targetScope"]}
+      "if": {
+        "properties": {
+          "format": {
+            "const": "trivy"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "analysisKind": {
+            "enum": [
+              "SCA"
+            ]
+          }
+        }
+      }
     },
     {
-      "if": {"properties": {"analysisKind": {"const": "DAST"}}, "required": ["analysisKind"]},
-      "then": {"properties": {"format": {"const": "zap"}}, "required": ["targetScope", "reportPath"]}
+      "if": {
+        "properties": {
+          "format": {
+            "const": "osv"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "analysisKind": {
+            "enum": [
+              "SCA"
+            ]
+          }
+        }
+      }
     },
     {
-      "if": {"properties": {"analysisKind": {"enum": ["SAST", "SCA"]}}, "required": ["analysisKind"]},
-      "then": {"not": {"required": ["targetScope"]}}
+      "if": {
+        "properties": {
+          "format": {
+            "const": "zap"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "analysisKind": {
+            "enum": [
+              "DAST"
+            ]
+          }
+        }
+      }
     },
     {
-      "if": {"required": ["runner"]},
-      "then": {"properties": {"analysisKind": {"const": "SAST"}, "format": {"const": "bandit"}}}
+      "if": {
+        "properties": {
+          "format": {
+            "const": "script-semantics"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "analysisKind": {
+            "enum": [
+              "SAST"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "format": {
+            "const": "ai-review"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "analysisKind": {
+            "enum": [
+              "AI"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "analysisKind": {
+            "const": "DAST"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "targetScope"
+        ]
+      },
+      "else": {
+        "not": {
+          "required": [
+            "targetScope"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "runner"
+        ],
+        "properties": {
+          "runner": {
+            "properties": {
+              "tool": {
+                "const": "bandit"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "format": {
+            "const": "bandit"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "runner"
+        ],
+        "properties": {
+          "runner": {
+            "properties": {
+              "tool": {
+                "const": "psscriptanalyzer"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "format": {
+            "const": "psscriptanalyzer"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "runner"
+        ],
+        "properties": {
+          "runner": {
+            "properties": {
+              "tool": {
+                "const": "trivy"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "format": {
+            "const": "trivy"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "runner"
+        ],
+        "properties": {
+          "runner": {
+            "properties": {
+              "tool": {
+                "const": "osv"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "format": {
+            "const": "osv"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "runner"
+        ],
+        "properties": {
+          "runner": {
+            "properties": {
+              "tool": {
+                "const": "script-semantics"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "format": {
+            "const": "script-semantics"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "runner"
+        ],
+        "properties": {
+          "runner": {
+            "properties": {
+              "tool": {
+                "const": "local-ai"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "format": {
+            "const": "ai-review"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "runner"
+        ],
+        "properties": {
+          "runner": {
+            "properties": {
+              "tool": {
+                "const": "semgrep"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "format": {
+            "const": "sarif"
+          }
+        }
+      }
     }
   ],
   "$defs": {
     "runner": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["tool", "executable"],
+      "required": [
+        "tool",
+        "executable"
+      ],
       "properties": {
-        "tool": {"const": "bandit"},
-        "executable": {"type": "string", "minLength": 1, "maxLength": 4096},
-        "timeoutMs": {"type": "integer", "minimum": 100, "maximum": 300000, "default": 30000},
-        "maxOutputBytes": {"type": "integer", "minimum": 1, "maximum": 16777216, "default": 16777216}
+        "tool": {
+          "const": "bandit"
+        },
+        "executable": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 300000,
+          "default": 30000
+        },
+        "maxOutputBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16777216,
+          "default": 16777216
+        }
       }
     },
     "targetScope": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["origins"],
+      "required": [
+        "origins"
+      ],
       "properties": {
         "origins": {
           "type": "array",
           "minItems": 1,
           "maxItems": 32,
           "uniqueItems": true,
-          "items": {"type": "string", "format": "uri", "pattern": "^https?://", "maxLength": 4096},
+          "items": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https?://",
+            "maxLength": 4096
+          },
           "description": "Exact HTTP(S) origins, including nondefault ports; wildcards, credentials, query strings and fragments are rejected at runtime."
         },
         "pathPrefixes": {
@@ -105,8 +739,14 @@
           "minItems": 1,
           "maxItems": 32,
           "uniqueItems": true,
-          "items": {"type": "string", "pattern": "^/", "maxLength": 4096},
-          "default": ["/"],
+          "items": {
+            "type": "string",
+            "pattern": "^/",
+            "maxLength": 4096
+          },
+          "default": [
+            "/"
+          ],
           "description": "Path boundaries are checked after URL normalization. A prefix /app does not permit /application."
         }
       }

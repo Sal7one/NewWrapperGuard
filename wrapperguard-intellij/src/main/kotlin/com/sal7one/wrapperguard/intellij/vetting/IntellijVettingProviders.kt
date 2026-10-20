@@ -9,6 +9,7 @@ import com.sal7one.wrapperguard.core.policy.ScanPolicy
 import com.sal7one.wrapperguard.core.vetting.*
 import com.sal7one.wrapperguard.intellij.settings.WrapperGuardSettings
 import com.sal7one.wrapperguard.intellij.settings.buildScanSettings
+import com.sal7one.wrapperguard.intellij.settings.OptionalMethodConnections
 import com.sal7one.wrapperguard.intellij.demo.WrapperGuardDemo
 import com.sal7one.wrapperguard.rules.RepositoryScanner
 import java.nio.file.Path
@@ -35,10 +36,24 @@ object IntellijVettingProviders {
         val configured = if (path.isEmpty()) null else ProviderConfiguration.load(Path.of(path), root)
         val registrations = (configured?.registrations(scanner) ?: listOf(
             ProviderRegistration(BuiltInVettingProvider(scanner), settings.permissions("wrapperguard"))
-        )).toMutableList()
+        )).map { registration ->
+            if (settings.state.providers.any { it.id == registration.provider.descriptor.id && it.overrideConfiguredPermissions })
+                registration.copy(permissions = settings.permissions(registration.provider.descriptor.id))
+            else registration
+        }.toMutableList()
         // In Safe Mode we do not even initialize third-party SDK extensions.
         if (trusted) installedProviders().forEach { provider ->
             registrations += ProviderRegistration(provider, settings.permissions(provider.descriptor.id))
+        }
+        if (trusted) {
+            val preferredIds = settings.state.methodConnections.filter { connection -> connection.preferManaged &&
+                settings.state.methodFlags[connection.methodId] != false }.mapNotNull { connection ->
+                com.sal7one.wrapperguard.core.methods.SecurityMethodCatalog.find(connection.methodId)?.providerId
+                    ?.takeIf { settings.permissions(it).enabled }
+            }.toSet()
+            registrations.removeAll { it.provider.descriptor.id in preferredIds }
+            val existing = registrations.map { it.provider.descriptor.id }.toSet()
+            OptionalMethodConnections.registrations(root, settings.state, existing).filterNot { it.provider.descriptor.id in existing }.forEach { registrations += it }
         }
         val effective = if (trusted) registrations else registrations.map { registration ->
             if (registration.provider is BuiltInVettingProvider) registration

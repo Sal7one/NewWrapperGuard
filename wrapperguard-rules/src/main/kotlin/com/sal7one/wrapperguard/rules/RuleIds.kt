@@ -50,6 +50,14 @@ object RuleIds {
     const val SUPPLY_INIT_SCRIPT = "WG-BUILD-014"
     const val SUPPLY_INIT_LIFECYCLE = "WG-BUILD-015"
 
+    // Bounded static Maven POM checks
+    const val MAVEN_REPO_NOT_HTTPS = "WG-MAVEN-001"
+    const val MAVEN_REPO_NOT_ALLOWLISTED = "WG-MAVEN-002"
+    const val MAVEN_UNPINNED_VERSION = "WG-MAVEN-003"
+    const val MAVEN_UNSUPPORTED = "WG-MAVEN-UNSUPPORTED"
+    const val METHOD_DISABLED = "WG-METHOD-DISABLED"
+    const val METHOD_NONE = "WG-METHOD-NONE"
+
     // Version catalog
     const val CATALOG_DYNAMIC_VERSION = "WG-CATALOG-001"
 
@@ -63,6 +71,7 @@ object RuleIds {
     const val SCAN_DEPTH_LIMIT = "WG-SCAN-DEPTH"
     const val SCAN_UNRESOLVED = "WG-SCAN-UNRESOLVED"
     const val SCAN_ROOT = "WG-SCAN-ROOT"
+    const val SCAN_LIMIT = "WG-SCAN-LIMIT"
     const val SCAN_TOCTOU = "WG-SCAN-TOCTOU"
     const val SCAN_FILE_SKIPPED = "WG-FILE-SKIPPED"
     const val SCAN_FILE_READ = "WG-FILE-READ"

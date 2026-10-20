@@ -1,5 +1,6 @@
 import { Finding, ScanReport } from '../models';
 import { maskSecretValues } from './redaction';
+const EXTENSION_VERSION=(require('../../package.json') as {version:string}).version;
 
 const mask = (text:string):string => maskSecretValues(text).masked;
 const ruleKey = (finding:Finding):string => mask(!finding.providerId || finding.providerId === 'wrapperguard' ? finding.ruleId : finding.providerId + '/' + finding.ruleId);
@@ -47,7 +48,7 @@ export function toSarif(report: ScanReport): unknown {
         tool: {
           driver: {
             name: 'WrapperGuard',
-            version: '0.4.0',
+            version: EXTENSION_VERSION,
             rules
           }
         },

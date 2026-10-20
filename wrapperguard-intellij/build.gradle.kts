@@ -59,6 +59,25 @@ intellijPlatform {
 
 kotlin { jvmToolchain(21) }
 
+val buildIntegrationSdk by tasks.registering(Exec::class) {
+    group = "build"
+    description = "Build the first-party Python SDK wheel used by the setup GUI"
+    workingDir(rootProject.projectDir)
+    commandLine("python3", "scripts/build-sdk.py")
+    inputs.files(rootProject.fileTree("sdk/python") {
+        exclude("build/**", "**/__pycache__/**", "**/*.egg-info/**")
+    })
+    inputs.file(rootProject.file("scripts/build-sdk.py"))
+    outputs.file(rootProject.file("build/sdk/wrapperguard_sdk-0.2.0-py3-none-any.whl"))
+}
+
+tasks.processResources {
+    dependsOn(buildIntegrationSdk)
+    from(rootProject.file("build/sdk/wrapperguard_sdk-0.2.0-py3-none-any.whl")) {
+        into("integrations")
+    }
+}
+
 tasks.test {
     // IDE platform tests and presentation tests use JUnit 3/4. Explicit discovery avoids
     // picking up an unrelated bundled Jupiter engine from a locally supplied IDE SDK.

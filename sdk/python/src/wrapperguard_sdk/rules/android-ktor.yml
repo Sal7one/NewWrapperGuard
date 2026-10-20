@@ -1,0 +1,34 @@
+rules:
+  - id: wrapperguard.ktor.unrestricted-cors
+    languages: [kotlin]
+    severity: WARNING
+    message: Review unrestricted CORS hosts. Restrict allowed origins and review credential handling for this endpoint.
+    pattern: anyHost()
+  - id: wrapperguard.android.javascript-bridge
+    languages: [java, kotlin]
+    severity: WARNING
+    message: Review this JavaScript bridge and ensure the WebView cannot load untrusted content. Exposed methods must not reveal privileged app operations.
+    pattern: $WEBVIEW.addJavascriptInterface($OBJECT, $NAME)
+  - id: wrapperguard.android.raw-query-concatenation
+    languages: [java, kotlin]
+    severity: WARNING
+    message: Review concatenated SQL input. Use bound arguments for values that can be controlled outside the application.
+    pattern: $DATABASE.rawQuery($LEFT + $RIGHT, ...)
+  - id: wrapperguard.java.empty-server-trust-check
+    languages: [java]
+    severity: ERROR
+    message: An empty server-certificate check can disable TLS authentication. Use the platform trust manager or validate the certificate chain.
+    pattern: |
+      public void checkServerTrusted(X509Certificate[] $CHAIN, String $AUTH) { }
+  - id: wrapperguard.kotlin.empty-server-trust-check
+    languages: [kotlin]
+    severity: ERROR
+    message: An empty server-certificate check can disable TLS authentication. Use the platform trust manager or validate the certificate chain.
+    pattern: |
+      override fun checkServerTrusted($CHAIN: Array<X509Certificate>, $AUTH: String) { }
+  - id: wrapperguard.kotlin.accept-all-hostnames
+    languages: [kotlin]
+    severity: ERROR
+    message: A hostname verifier that always returns true disables hostname authentication. Use the default verifier.
+    pattern: |
+      $BUILDER.hostnameVerifier { $HOST, $SESSION -> true }

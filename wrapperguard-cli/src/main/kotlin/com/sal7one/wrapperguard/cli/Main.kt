@@ -1,5 +1,6 @@
 package com.sal7one.wrapperguard.cli
 
+import com.sal7one.wrapperguard.core.methods.MethodConfiguration
 import com.sal7one.wrapperguard.core.export.SarifExporter
 import com.sal7one.wrapperguard.core.model.BaselineEntry
 import com.sal7one.wrapperguard.core.policy.EnforcementMode
@@ -26,14 +27,15 @@ internal fun runCli(args: Array<String>, output: PrintStream = System.out, error
     return try {
         val options = CliOptions.parse(args)
         if (options.help) { output.println(HELP); return 0 }
-        if (options.version) { output.println("WrapperGuard 0.4.0"); return 0 }
+        if (options.version) { output.println("WrapperGuard 0.5.0"); return 0 }
         val root = options.project.toRealPath()
         require(Files.isDirectory(root))
         val configuration = options.providers?.let { ProviderConfiguration.load(it, root) } ?: ProviderConfiguration()
         val baseline = options.baseline?.let { loadBaseline(it, root) } ?: emptyList()
+        val methods = options.methods?.let { MethodConfiguration.load(it, root) } ?: MethodConfiguration()
         val policy = ScanPolicy(mode = if (options.enforce) EnforcementMode.ENFORCE else EnforcementMode.WARN)
         val report = VettingCoordinator(configuration.registrations(RepositoryScanner()))
-            .scan(root, policy, ScanSettings(), baseline, options.operation)
+            .scan(root, policy, ScanSettings(methodFlags = methods.methodFlags), baseline, options.operation)
         when {
             options.sarif -> output.println(JSON.encodeToString(SarifExporter.toSarif(report)))
             options.json -> output.println(JSON.encodeToString(report))
@@ -58,7 +60,7 @@ internal fun runCli(args: Array<String>, output: PrintStream = System.out, error
         1
     } catch (_: Exception) {
         // Provider errors may contain command arguments or source data. Never echo them.
-        error.println("WrapperGuard: scan could not complete. Check the project path and trusted baseline/provider configuration.")
+        error.println("WrapperGuard: scan could not complete. Check the project path and trusted baseline/provider/method configuration.")
         1
     }
 }
@@ -76,6 +78,7 @@ internal data class CliOptions(
     val project: Path = Path.of("."),
     val baseline: Path? = null,
     val providers: Path? = null,
+    val methods: Path? = null,
     val operation: VettingOperation = VettingOperation.SCAN,
     val enforce: Boolean = false,
     val json: Boolean = false,
@@ -100,6 +103,7 @@ internal data class CliOptions(
                     result = when (argument) {
                         "--baseline" -> result.copy(baseline = Path.of(value()))
                         "--providers" -> result.copy(providers = Path.of(value()))
+                        "--methods" -> result.copy(methods = Path.of(value()))
                         "--operation" -> result.copy(operation = when (value().lowercase()) {
                             "scan" -> VettingOperation.SCAN
                             "build" -> VettingOperation.BUILD
@@ -128,10 +132,11 @@ internal data class CliOptions(
 private class CliUsageException(message: String) : IllegalArgumentException(message)
 
 private val HELP = """
-    WrapperGuard 0.4.0 — provider-based build and sync vetting
+    WrapperGuard 0.5.0 — provider-based build and sync vetting
     Usage: wrapperguard-cli [options] [project-directory]
 
       --providers <absolute-file>  User-owned JSON configuration outside the project
+      --methods <absolute-file>    User-owned method flags outside the project
       --operation scan|build|sync Evaluate grants for this operation (default: scan)
       --enforce                   Enable granted build/sync blocking
       --baseline <file>           Trusted approval list outside the project

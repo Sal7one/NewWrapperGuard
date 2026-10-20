@@ -28,7 +28,11 @@ class WrapperGuardSettings : PersistentStateComponent<WrapperGuardSettings.State
         var scanOnOpen: Boolean = true,
         var scanOnFileChange: Boolean = true,
         var providerConfigurationPath: String = "",
-        var providers: MutableList<ProviderState> = mutableListOf()
+        var providers: MutableList<ProviderState> = mutableListOf(),
+        var methodFlags: MutableMap<String, Boolean> = mutableMapOf(),
+        var methodConnections: MutableList<MethodConnectionState> = mutableListOf(),
+        var managedProviderConfigurationPath: String = "",
+        var managedSdkPython: String = ""
     )
 
     /** Application settings live outside the scanned project and are the SDK grant authority. */
@@ -37,7 +41,8 @@ class WrapperGuardSettings : PersistentStateComponent<WrapperGuardSettings.State
         var enabled: Boolean = false,
         var actions: MutableList<String> = mutableListOf(),
         var required: Boolean = false,
-        var timeoutMs: Long = 30_000
+        var timeoutMs: Long = 30_000,
+        var overrideConfiguredPermissions: Boolean = false
     ) {
         fun permissions() = ProviderPermissions(enabled, actions.mapNotNull { name ->
             VettingAction.entries.firstOrNull { it.name == name }
@@ -56,10 +61,14 @@ class WrapperGuardSettings : PersistentStateComponent<WrapperGuardSettings.State
     val extraAllowedHosts: Set<String>
         get() = state.allowedHostsText.lineSequence().map { it.trim() }.filter { it.isNotEmpty() }.toSet()
 
-    fun permissions(providerId: String): ProviderPermissions =
-        state.providers.firstOrNull { it.id == providerId }?.permissions()
+    fun permissions(providerId: String): ProviderPermissions {
+        val permissions = state.providers.firstOrNull { it.id == providerId }?.permissions()
             ?: if (providerId == "wrapperguard") BuiltInVettingProvider.DEFAULT_PERMISSIONS
             else ProviderPermissions(enabled = false)
+        return if (providerId in setOf("ai.external-model", "research.script-semantics")) permissions.copy(
+            actions = permissions.actions.filterNot { it == VettingAction.BLOCK_BUILD || it == VettingAction.BLOCK_SYNC }.toSet(), required = false)
+        else permissions
+    }
 
     companion object {
         fun getInstance(): WrapperGuardSettings =
@@ -72,6 +81,7 @@ fun buildScanSettings(): ScanSettings {
     val settings = WrapperGuardSettings.getInstance()
     return ScanSettings(
         allowedHosts = ScanSettings.DEFAULT_ALLOWED_HOSTS + settings.extraAllowedHosts,
-        requireDistributionSha256 = settings.state.requireDistributionSha256
+        requireDistributionSha256 = settings.state.requireDistributionSha256,
+        methodFlags = settings.state.methodFlags.toMap()
     )
 }

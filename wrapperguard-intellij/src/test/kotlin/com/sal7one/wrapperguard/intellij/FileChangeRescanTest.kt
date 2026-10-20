@@ -1,6 +1,8 @@
 package com.sal7one.wrapperguard.intellij
 
 import com.intellij.testFramework.HeavyPlatformTestCase
+import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.openapi.vfs.newvfs.events.VFileContentChangeEvent
 import com.sal7one.wrapperguard.core.model.PolicyAction
 import com.sal7one.wrapperguard.core.model.ScanVerdict
 import com.sal7one.wrapperguard.intellij.execution.toctouBlockedReport
@@ -48,6 +50,27 @@ class FileChangeRescanTest : HeavyPlatformTestCase() {
         }
         assertTrue("debounced rescan must publish a fresh report", refreshed)
         assertFalse(service.stale)
+    }
+
+    fun testSourceAndDependencyVfsEditsImmediatelyMarkReportStaleAndChangeSeal() {
+        val root = Path.of(project.basePath!!)
+        val inputs = listOf("src/PaymentRoute.kt", "src/LegacyClient.java", "tools/audit.py", "pom.xml", "gradle.lockfile")
+        inputs.forEach { writeFixture(root, it, "first") }
+        val service = project.getService(WrapperGuardProjectService::class.java)
+        service.scan()
+        assertFalse(service.stale)
+        inputs.forEach { relative ->
+            val path = root.resolve(relative)
+            val file = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(path)!!
+            val before = service.computeSeal()!!
+            Files.writeString(path, "changed")
+            val event = VFileContentChangeEvent(null, file, file.modificationStamp, file.modificationStamp + 1, false)
+            WrapperGuardVfsListener(project).after(listOf(event))
+            assertTrue("A VFS edit to $relative must immediately mark the report stale", service.stale)
+            assertFalse("The execution seal must include $relative", before == service.computeSeal())
+            service.scan()
+            assertFalse("A completed scan restores freshness for $relative", service.stale)
+        }
     }
 
     fun testAsyncScanPublishesBusyAndCompletionState() {

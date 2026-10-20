@@ -1,0 +1,18 @@
+{
+  "id": "powershell.psscriptanalyzer",
+  "displayName": "PowerShell static analysis",
+  "version": "0.2.0",
+  "analysisKind": "SAST",
+  "format": "psscriptanalyzer",
+  "runner": {
+    "tool": "psscriptanalyzer",
+    "executable": "/absolute/trusted/pwsh",
+    "modulePath": "/absolute/trusted/PSScriptAnalyzer/PSScriptAnalyzer.psd1"
+  },
+  "allowedOperations": [
+    "SCAN"
+  ],
+  "requestedActions": [
+    "WARNING"
+  ]
+}

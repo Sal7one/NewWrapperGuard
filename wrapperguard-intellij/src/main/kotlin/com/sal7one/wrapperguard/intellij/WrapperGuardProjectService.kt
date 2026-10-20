@@ -12,6 +12,7 @@ import com.sal7one.wrapperguard.core.model.ScanReport
 import com.sal7one.wrapperguard.core.policy.EnforcementMode
 import com.sal7one.wrapperguard.core.policy.ScanPolicy
 import com.sal7one.wrapperguard.intellij.settings.buildScanSettings
+import com.sal7one.wrapperguard.intellij.settings.OptionalMethodConnections
 import com.sal7one.wrapperguard.intellij.settings.WrapperGuardSettings
 import com.sal7one.wrapperguard.intellij.vetting.IntellijVettingProviders
 import com.sal7one.wrapperguard.core.vetting.VettingOperation
@@ -205,6 +206,8 @@ class WrapperGuardProjectService(private val project: Project) {
         val text = buildString {
             append(buildScanSettings().toString())
             append(state.providers.toString())
+            append(state.managedSdkPython)
+            append(OptionalMethodConnections.inputSeal(state))
             append(TrustedProjects.isProjectTrusted(project))
             if (TrustedProjects.isProjectTrusted(project)) {
                 append(IntellijVettingProviders.installedProviders().map { it.descriptor }.toString())
@@ -293,18 +296,28 @@ class WrapperGuardProjectService(private val project: Project) {
         /** Debounce window for rescans after VFS change bursts (Gradle sync writes etc.). */
         const val RESCAN_DEBOUNCE_MS: Long = 3_000
 
-        /** The file names whose content changes invalidate a scan. */
-        fun isWatchedFileName(name: String): Boolean =
-            name == "gradlew" ||
-                name == "gradlew.bat" ||
-                name == "gradle-wrapper.properties" ||
-                name == "gradle-wrapper.jar" ||
-                name == "libs.versions.toml" ||
-                name.endsWith(".gradle") ||
-                name.endsWith(".gradle.kts") ||
-                name.endsWith(".sh") ||
-                name.endsWith(".bat") ||
-                name.endsWith(".cmd") ||
-                name.endsWith(".ps1")
+        /**
+         * Shared VFS/seal input scope: built-in build/script inputs plus the source and
+         * dependency inputs accepted by the bundled SDK runners. It is deliberately
+         * independent of method flags so disabling a built-in method cannot hide an
+         * input used by another provider. Custom SDKs may inspect additional inputs;
+         * this predicate is not a claim to seal their arbitrary filesystem scope.
+         */
+        fun isWatchedFileName(name: String): Boolean {
+            val normalized = name.lowercase(java.util.Locale.ROOT)
+            return normalized in WATCHED_INPUT_NAMES || WATCHED_INPUT_SUFFIXES.any(normalized::endsWith)
+        }
+
+        private val WATCHED_INPUT_NAMES = setOf(
+            "gradlew", "gradlew.bat", "gradle-wrapper.properties", "gradle-wrapper.jar", "libs.versions.toml",
+            "pom.xml", "gradle.lockfile", "verification-metadata.xml", "requirements.txt", "requirements-dev.txt",
+            "poetry.lock", "pipfile.lock", "pdm.lock", "uv.lock", "pyproject.toml", "package-lock.json",
+            "npm-shrinkwrap.json", "pnpm-lock.yaml", "yarn.lock", "bun.lock", "go.mod", "go.sum",
+            "cargo.lock", "composer.lock", "gemfile.lock", "packages.lock.json"
+        )
+        private val WATCHED_INPUT_SUFFIXES = setOf(
+            ".gradle", ".kts", ".kt", ".java", ".py", ".sh", ".bash", ".zsh", ".bats",
+            ".bat", ".cmd", ".ps1", ".psm1", ".psd1", ".lockfile"
+        )
     }
 }

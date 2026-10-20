@@ -124,6 +124,6 @@ test('invalid grants and workspace-owned security configuration are rejected',()
 });
 test('SARIF scopes third-party rule IDs and carries effective provenance/actions with redaction',()=>{
   const sarif=toSarif({findings:[finding({providerId:'first',evidence:{text:'token=PRIVATE',redacted:false}}),finding({providerId:'second'}),finding({providerId:'wrapperguard'})]});
-  const run=sarif.runs[0];assert.deepEqual(run.tool.driver.rules.map(r=>r.id),['first/TEST','second/TEST','TEST']);
+  const run=sarif.runs[0];assert.equal(run.tool.driver.version,require('../package.json').version);assert.deepEqual(run.tool.driver.rules.map(r=>r.id),['first/TEST','second/TEST','TEST']);
   assert.equal(run.results[0].properties.providerId,'first');assert.deepEqual(run.results[0].properties.actions,['WARNING','BLOCK_BUILD','BLOCK_SYNC']);assert.ok(!run.results[0].properties.evidence.includes('PRIVATE'));
 });

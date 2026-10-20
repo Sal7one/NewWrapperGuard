@@ -1,6 +1,6 @@
 """Local report integrations for the unchanged WrapperGuard provider API 1."""
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 from .models import make_finding
 from .paths import normalize_location

@@ -25,7 +25,7 @@ Findings use the existing report model: rule ID, title, message, severity (`INFO
 | `BLOCK_BUILD` | Prevent a supported build/run operation in Enforce mode |
 | `BLOCK_SYNC` | Prevent a supported Gradle synchronization in Enforce mode |
 
-These seven finding fields are sufficient. Providers can omit `fingerprint`, `providerId`,
+These finding fields are sufficient. Providers can omit `fingerprint`, `providerId`,
 `policyAction` and `status`; the host creates them. TypeScript exposes `ProviderFinding`
 for this input and keeps the full `Finding` type for stored reports. `kind` defaults to
 `ACTIONABLE`, and `reachable` defaults to true.
@@ -57,6 +57,25 @@ Reports include `providerRuns`: descriptor, user permissions, status (`COMPLETED
 `FAILED`, `TIMED_OUT`, `DISABLED`), elapsed milliseconds, finding count and a safe message.
 Results are ordered by registration, independently of completion order. A required partial
 result retains its findings and displays its incomplete status.
+
+## Optional methods and replacement
+
+The shared [method catalog](../catalog/security-methods.json) supplies descriptive categories
+and defaults. User-level `ScanSettings.methodFlags` select methods independently of host
+grants. Flags never install tools, enable a disabled provider, approve findings or change
+another provider's permissions. Existing providers remain compatible when no optional
+method flag is set; explicit false suppresses the corresponding catalog provider only.
+
+Disabling an included method emits a reduced-scope notice. A completed configured scope
+is distinct from full-project coverage. When every built-in method is explicitly off,
+an enabled external analyzer can replace the built-in provider. Unknown organization
+providers qualify; catalog AI/research methods alone do not establish analysis coverage.
+Zero detectors, missing explicitly requested connections and real scan failures remain
+incomplete. Required failure blocking still depends on relevant grants and policy.
+
+The [setup guide](integrations.md) covers GUI-managed connections, SDK 0.2.0 profiles,
+source SAST, dependency analysis and advisory research/AI. Custom providers need not use
+the Python SDK or adopt a particular algorithm to share the host interface.
 
 ## Command adapters: any language or SDK
 

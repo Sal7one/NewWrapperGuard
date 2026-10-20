@@ -1,0 +1,18 @@
+{
+  "id": "sca.osv",
+  "displayName": "Dependency vulnerabilities \u00b7 OSV",
+  "version": "0.2.0",
+  "analysisKind": "SCA",
+  "format": "osv",
+  "runner": {
+    "tool": "osv",
+    "executable": "/absolute/trusted/osv-scanner",
+    "timeoutMs": 120000
+  },
+  "allowedOperations": [
+    "SCAN"
+  ],
+  "requestedActions": [
+    "WARNING"
+  ]
+}

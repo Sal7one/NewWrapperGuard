@@ -1,0 +1,16 @@
+{
+  "id": "research.script-semantics",
+  "displayName": "Script behavior signals",
+  "version": "0.2.0",
+  "analysisKind": "SAST",
+  "format": "script-semantics",
+  "runner": {
+    "tool": "script-semantics"
+  },
+  "allowedOperations": [
+    "SCAN"
+  ],
+  "requestedActions": [
+    "WARNING"
+  ]
+}

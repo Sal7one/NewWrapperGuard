@@ -13,7 +13,7 @@ from .models import MAX_FINDINGS, redact_text
 from .profile import (MAX_OUTPUT_BYTES, MAX_PROFILE_BYTES, MAX_REPORT_BYTES, OPERATIONS,
                       IntegrationProfile, bounded_read, load_json_document, load_profile)
 from .runner import (EXCLUDED_DIRECTORIES, MAX_SOURCE_BYTES, MAX_SOURCE_DEPTH,
-                     MAX_SOURCE_FILE_BYTES, MAX_SOURCE_FILES, run_bandit)
+                     MAX_SOURCE_FILE_BYTES, MAX_SOURCE_FILES, run_tool, runner_plan)
 
 
 class _SafeParser(argparse.ArgumentParser):
@@ -25,16 +25,18 @@ def build_plan(profile: IntegrationProfile, project_root: Path, operation: str =
     if operation not in profile.allowed_operations:
         raise ValueError("Operation is not allowed by the user profile")
     active = profile.runner is not None
+    tool = profile.runner.tool if profile.runner else None
+    process = active and tool not in {"script-semantics", "local-ai"}
     plan = {"sdkVersion": __version__, "providerApiVersion": 1,
             "profile": {"id": profile.id, "displayName": profile.display_name, "version": profile.version},
             "analysisKind": profile.analysis_kind, "format": profile.format,
-            "mode": "bandit-static-runner" if active else "report-import",
+            "mode": tool + "-runner" if active else "report-import",
             "projectPath": str(project_root), "operation": operation,
             "allowedOperations": list(profile.allowed_operations),
             "requestedActions": list(profile.requested_actions),
             "authority": "Requested actions are intersected with host user grants; profiles do not enable providers.",
             "inputAccess": "An existing JSON report only; report contents are untrusted data.",
-            "executesProjectCode": False, "startsToolProcess": active,
+            "executesProjectCode": False, "startsToolProcess": process,
             "network": "The SDK performs no network requests and starts no active DAST scanner.",
             "isolation": "Host permissions govern findings and actions, not OS filesystem or network access.",
             "limits": {"profileBytes": MAX_PROFILE_BYTES, "reportBytes": MAX_REPORT_BYTES,
@@ -45,15 +47,20 @@ def build_plan(profile: IntegrationProfile, project_root: Path, operation: str =
         plan["targetScope"] = profile.target_scope.to_dict()
         plan["inputAccess"] = "Existing passive ZAP JSON report; only findings matching explicit target scope are imported."
     if profile.runner is not None:
-        plan["executable"] = redact_text(str(profile.runner.executable))
-        plan["fixedArguments"] = ["--ini", "<owned-empty-ini>", "--configfile", "<owned-empty-yaml>",
-                                  "--ignore-nosec", "--exit-zero", "-q", "-f", "json", "-r", "."]
-        plan["inputAccess"] = "Only regular .py source data copied into a temporary snapshot; symlinks are skipped."
+        if profile.runner.executable:
+            plan["executable"] = redact_text(str(profile.runner.executable))
+        if profile.runner.module_path:
+            plan["modulePath"] = redact_text(str(profile.runner.module_path))
+        if tool == "local-ai":
+            plan.update({"endpoint": profile.runner.endpoint, "model": profile.runner.model,
+                         "inputReportPath": redact_text(str(profile.runner.input_report_path)), "advisoryOnly": True})
+        if tool == "script-semantics":
+            plan["advisoryOnly"] = True
+        plan.update(runner_plan(tool))
         plan["isolation"] = ("Snapshot input and sanitized environment limit accidental repository influence; "
-                             "the installed Bandit executable and its installed plugins remain trusted code with OS user privileges. "
+                             "installed scanners and their plugins remain trusted code with OS user privileges. "
                              "The runner inherits the host process group for cancellation and terminates its known child on local failures.")
-        plan["network"] = "No network access is requested; this is not an OS network sandbox for installed tool code."
-        plan["runnerSupported"] = os.name == "posix" and hasattr(os, "O_NOFOLLOW")
+        plan["runnerSupported"] = tool == "local-ai" or os.name == "posix" and hasattr(os, "O_NOFOLLOW")
         plan["limits"].update({"timeoutMs": profile.runner.timeout_ms,
                                "toolOutputBytes": profile.runner.max_output_bytes,
                                "sourceFiles": MAX_SOURCE_FILES, "sourceFileBytes": MAX_SOURCE_FILE_BYTES,
@@ -88,9 +95,15 @@ def evaluate(profile: IntegrationProfile, project_root: Path, operation: str) ->
             raise ValueError("A regular report file is required")
         document = load_json_document(bounded_read(report, MAX_REPORT_BYTES))
     else:
-        document, notices = run_bandit(profile, project_root)
-    from .adapters import parse_report
-    result = parse_report(profile.format, document, project_root, list(profile.requested_actions), profile.target_scope)
+        if profile.runner.tool == "local-ai":
+            from .ai_review import run_ai_review
+            return run_ai_review(profile, project_root)
+        document, notices = run_tool(profile, project_root)
+    if profile.format == "script-semantics":
+        result = document
+    else:
+        from .adapters import parse_report
+        result = parse_report(profile.format, document, project_root, list(profile.requested_actions), profile.target_scope)
     if not isinstance(result, dict) or not isinstance(result.get("findings"), list) or len(result["findings"]) > MAX_FINDINGS:
         raise ValueError("Invalid adapter output")
     if notices:

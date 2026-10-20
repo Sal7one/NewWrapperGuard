@@ -1,12 +1,18 @@
 # Changelog
 
-## Unreleased
+## 0.5.0 — Unreleased
 
-- Add the separately packaged Python integration SDK 0.1.0 for existing provider API 1 hosts.
-- Normalize SARIF, Bandit, PSScriptAnalyzer, Trivy, OSV-Scanner and scoped ZAP reports without executing their source or contacting DAST targets.
-- Require explicit external user profiles, operation selection, review plans, bounded input/output and source-location containment; host action grants remain authoritative.
-- Add a fixed Bandit runner for POSIX hosts using a bounded source snapshot, owned configuration and a cleaned environment; retain host process-group cancellation.
-- Add installed SDK checks through both JVM and TypeScript hosts, real Bandit smoke coverage, profile schema, examples and Python version coverage in CI.
+- Add a shared 15-method catalog, independent user feature flags, and Tools / Research UI categories in both IDEs.
+- Add guided connection, permission and dedicated SDK installation dialogs. Bundle integration SDK 0.2.0 offline; make pinned Bandit 1.9.4 and Semgrep 1.181.0 downloads explicit options.
+- Add fixed Semgrep, PowerShell/PSScriptAnalyzer, Trivy and OSV-Scanner runners alongside Bandit, with bounded source/dependency snapshots and outside-project tool configuration.
+- Add six optional Kotlin/Java Android/Ktor Semgrep review rules and support a reviewed external rule file. Retain six passive report formats, including target-scoped ZAP imports.
+- Add separately optional advisory script behavior signals and local AI finding explanations. No model is bundled; neither feature grants build/sync blocking authority.
+- Add static Maven POM checks, trusted CLI method configuration, visible reduced scope, and external analyzer replacement of disabled built-in detectors. Keep zero-detector and AI-only coverage incomplete.
+- Mark exhausted scanner file/depth budgets incomplete and prevent legacy research scores from downgrading deterministic findings.
+- Invalidate native reports/seals and VS Code reports/gate evaluations when source/dependency inputs change; keep local AI current-scan exports compatible with the SDK.
+- Reject unsafe scan entry points and mark unreadable input coverage incomplete.
+- Expand provider, runner, research, AI and GUI regressions, plus real Bandit/Semgrep checks and installed-host interoperability.
+- Refresh setup, research and engineering documentation; replace the superseded release-readiness record with current verification guidance.
 
 ## 0.4.0 — 2026-10-19
 

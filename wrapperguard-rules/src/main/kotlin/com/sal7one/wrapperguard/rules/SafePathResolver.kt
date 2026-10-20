@@ -23,10 +23,9 @@ object SafePathResolver {
     ): Path? = runCatching {
         val expanded = expandVariables(rawPath, referrer)
         val resolved = normalizePath(projectRoot, expanded, referrer) ?: return@runCatching null
-        if (!Files.exists(resolved) || !Files.isRegularFile(resolved)) return@runCatching null
         if (!isUnderProjectRoot(projectRoot, resolved)) return@runCatching null
-        if (Files.size(resolved) > maxFileBytes) return@runCatching null
-        if (!isTextFile(resolved)) return@runCatching null
+        if (ProjectFileAccess.status(projectRoot, resolved) != ProjectFileAccess.Status.REGULAR) return@runCatching null
+        if (ProjectFileAccess.read(projectRoot, resolved, maxFileBytes).any { it == 0.toByte() }) return@runCatching null
         resolved
     }.getOrNull()
 
@@ -61,7 +60,4 @@ object SafePathResolver {
     private fun isUnderProjectRoot(projectRoot: Path, file: Path): Boolean =
         file.normalize().startsWith(projectRoot.normalize())
 
-    private fun isTextFile(file: Path): Boolean = runCatching {
-        Files.readAllBytes(file).none { it == 0.toByte() }
-    }.getOrDefault(false)
 }

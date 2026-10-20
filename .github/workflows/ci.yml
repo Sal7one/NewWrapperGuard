@@ -28,15 +28,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
       - name: Build, test and package all JVM modules
         run: ./gradlew build :wrapperguard-cli:installDist :wrapperguard-intellij:buildPlugin
       - name: Verify IntelliJ binary compatibility
         run: ./gradlew :wrapperguard-intellij:verifyPlugin
       - name: Installed CLI and provider protocol smoke
         run: python3 scripts/provider-smoke.py
-      - uses: actions/setup-python@v7
-        with:
-          python-version: '3.12'
       - name: Installed integration SDK through the JVM host
         run: |
           python -m pip install ./sdk/python
@@ -74,6 +74,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
       - run: npm ci
       - run: npm test
       - run: npm run hardening
@@ -97,9 +100,19 @@ jobs:
           python-version: ${{ matrix.python }}
       - name: Install SDK and test tools
         run: python -m pip install ./sdk/python bandit==1.9.4 jsonschema==4.25.1
+      - name: Build and install the GUI-bundled SDK wheel
+        if: matrix.python == '3.12'
+        run: |
+          python scripts/build-sdk.py
+          python -m pip install --force-reinstall --no-deps build/sdk/wrapperguard_sdk-0.2.0-py3-none-any.whl
       - name: SDK and report adapter regressions
         run: python -m unittest discover -s sdk/python/tests -v
       - name: Integration schemas and documented profiles
         run: python scripts/validate-integration-profiles.py
       - name: Real Bandit through the installed SDK
         run: python scripts/sdk-bandit-smoke.py --sdk-python "$(command -v python)" --bandit "$(command -v bandit)"
+      - name: Real Kotlin and Java source analysis
+        if: matrix.python == '3.12'
+        run: |
+          python -m pip install semgrep==1.181.0
+          python scripts/sdk-semgrep-smoke.py --sdk-python "$(command -v python)" --semgrep "$(command -v semgrep)"

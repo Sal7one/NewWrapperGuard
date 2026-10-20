@@ -8,10 +8,12 @@ export type AnalyzerKey =
   | 'groovy'
   | 'kotlin'
   | 'catalog'
+  | 'maven'
   | 'generic';
 
 /** Faithful port of FileTypeRouter.rulesFor. */
 export function rulesFor(fileName: string): AnalyzerKey[] {
+  if (fileName === 'pom.xml') return ['maven'];
   const dot = fileName.lastIndexOf('.');
   const extension = dot >= 0 ? fileName.slice(dot + 1) : '';
   if (fileName === 'gradlew' || extension === 'sh') return ['unix'];
@@ -37,6 +39,7 @@ export function isScannable(name: string): boolean {
     name === 'gradlew.bat' ||
     name === 'gradle-wrapper.properties' ||
     name === 'libs.versions.toml' ||
+    name === 'pom.xml' ||
     ['sh', 'bash', 'zsh', 'ps1', 'bat', 'cmd', 'gradle', 'kts'].includes(extension) ||
     name.startsWith('settings.gradle') ||
     name.startsWith('build.gradle') ||

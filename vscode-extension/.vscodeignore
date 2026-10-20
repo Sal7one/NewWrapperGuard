@@ -1,4 +1,8 @@
 node_modules/**
+!node_modules/sax/package.json
+!node_modules/sax/lib/**
+!node_modules/sax/LICENSE.md
+!node_modules/sax/LICENSE
 src/**
 tests/**
 scripts/**
@@ -8,3 +12,4 @@ scripts/**
 tsconfig.json
 package-lock.json
 **/*.vsix
+build/**

@@ -1,113 +1,111 @@
 # WrapperGuard
 
-A local vetting workspace for IntelliJ IDEA, Android Studio, VS Code and CI. Bring
-your own analysis SDKs and approved scripts, run several providers concurrently, and
-use one interface for findings, warnings, alerts, build blocking and Gradle sync blocking.
-The original static WrapperGuard scanner remains included and enabled by default.
+A security vetting workspace for **Android Studio, IntelliJ IDEA, VS Code and CI**.
+Review application source, build inputs and dependency findings together. Choose the
+analyzers you need and control whether each can warn, alert, stop a build or stop Gradle sync.
 
-**Version: 0.4.0.** [Download packages and checksums](https://github.com/Sal7one/NewWrapperGaurd/releases/tag/v0.4.0).
-The release build passed **159 tests** (107 JVM, 52 Node), plus scanner parity,
-hostile-input and installed CLI checks. See [validation and release limits](docs/release-readiness.md).
+**Current development version: 0.5.0 · Python integration SDK: 0.2.0 · Provider API: 1.**
+The 0.5.0 stable release is pending acceptance. See [verification](docs/verification.md) for test builds, completed checks
+and outstanding release work, and [the changelog](CHANGELOG.md) for published history.
 
-Explore the [local UI demo](demo/README.md) and its [screenshot gallery](demo/index.html)
-using a fictional project, simulated providers, and reproducible sample reports.
+## Start in the IDE
 
-## What the host owns
+1. Open WrapperGuard's **Tools** tab. The original static checks are included; the
+   **Built-in** category lets you turn each method on or off.
+2. Select a connection under **SAST**, **Supply chain** or **DAST** and choose **Connect / Set up**.
+   Browse to an installed analyzer or an existing report. **Install SDK…** prepares the
+   bundled SDK in a dedicated environment; Bandit and Semgrep downloads are separate opt-ins.
+3. Review the connection and its **Permissions**, then enable and scan. Optional methods
+   start off; reviewed setup defaults to warning-only grants and SCAN-only scope.
+4. Use **Research** (**Research & AI** in VS Code) for script behavior signals and local AI explanations.
+   Both remain advisory and cannot stop a build or synchronization.
 
-- A small provider API shared across the Kotlin and TypeScript hosts.
-- Explicit per-provider grants: Warning, Major warning, Alert, Block build, Block sync.
-- Bounded concurrent execution, timeouts, isolated failures and visible provider run status.
-- Host policy and trusted approvals; providers request actions but cannot grant permissions.
-- One combined report, provider attribution, source navigation, execution graph and SARIF.
+The [setup guide](docs/integrations.md) explains each connection, Windows report imports,
+local model setup and the difference between source analysis and dependency checks.
+The [demo](demo/README.md) and [screenshot gallery](demo/index.html) use clearly labeled,
+fictional data for interface review.
 
-Third-party providers start disabled with no actions granted. Configuration lives in user
-settings or an explicitly selected file outside the scanned repository. A required provider
-that cannot finish can block the relevant operation when that authority was granted.
-Optional failures remain visible as incomplete coverage.
+## Choose the methods
 
-```text
-Built-in scanner     Organization SDK     Approved command/script adapter
-       \                    |                         /
-        +---------- Provider coordinator ------------+
-                    grants + policy + lifecycle
-                              |
-          +-------------------+-------------------+
-          |                   |                   |
-   IntelliJ / Android      VS Code               CLI / CI
-   native workspace       sidebar + SDK API      JSON / SARIF
-   build + sync gates     cooperative gates      exit 0 / 1 / 2
-```
+The shared [method catalog](catalog/security-methods.json) contains **15 optional methods**:
 
-The built-in detector uses static analysis of Gradle wrappers, build files and bootstrap
-scripts and never executes analyzed project code. It runs in Kotlin for IntelliJ/CLI and
-in TypeScript for VS Code. External SDKs and command adapters run only after user opt-in;
-they are trusted programs with the user's privileges, not sandboxed code.
+| Category | Included connections |
+|---|---|
+| Built-in | Wrapper integrity, script rules, Gradle rules, version catalogs, script graph, Maven POM rules |
+| SAST | Semgrep for Kotlin/Java, Bandit for Python, PSScriptAnalyzer for PowerShell, SARIF reports |
+| Supply chain | Trivy and OSV-Scanner dependency findings |
+| DAST | ZAP reports restricted to explicit application targets |
+| Research | Bounded static Python/PowerShell behavior signals |
+| AI | Advisory explanations from a user-configured local model server |
 
-## Integrate a provider
+Only the six built-in static groups start enabled. Optional tools, models and external
+SDKs require user setup. Every connection can be disabled or replaced independently;
+[organization-specific providers](docs/providers.md) use the same interface and host grants.
+Application analysis is limited to the selected tools, rules and inputs: the bundled
+Semgrep pack contains six Android/Ktor review rules, rather than a complete app audit.
 
-Read the [provider SDK and command protocol guide](docs/providers.md). It covers the
-action contract, user grants, failures, Kotlin/IntelliJ extensions, VS Code registration
-and the any-language JSON subprocess adapter. A working Python adapter and user
-configuration are in [examples/providers](examples/providers).
+## What the host controls
 
-The [controlled integration SDK](docs/integrations.md) adds report adapters for SARIF,
-Bandit, PSScriptAnalyzer, Trivy, OSV-Scanner and ZAP. User-owned profiles select inputs,
-operations and requested actions; host grants remain authoritative. A scan plan previews
-the work, and the supported Bandit runner analyzes an isolated source snapshot. ZAP
-reports require explicit target scope. See [the Python SDK](sdk/python/README.md) for
-installation and the distinction between report imports and tool execution.
+- Concurrent providers, timeouts, attribution and visible failures.
+- Warning, major warning, alert, build blocking and sync blocking permissions.
+- Enforcement policy, approved baselines and combined JSON/SARIF reports.
+- Source navigation, execution paths, method settings and connection management.
 
-In IntelliJ/Android Studio use **Settings → Tools → WrapperGuard**. In VS Code use the
-**Policy** tab or WrapperGuard user settings. Existing detector rules and fingerprints
-remain available; disabling the built-in provider does not require replacing the UI.
+Provider requests are capped by user grants and policy. User configuration lives outside
+scanned projects. Imported reports do not prove freshness; optional failures remain visible.
+Disabling a check changes the declared scope. Disabling every detector cannot produce a
+clean report, while an enabled external analyzer can replace all built-in checks.
 
-IntelliJ intercepts supported IDE Gradle/shell launches and Gradle resolution before
-synchronization starts. VS Code integrations call the exported build/sync gate; the
-extension does not claim a universal veto over terminals or arbitrary tasks. External
-terminals are outside IDE interception. See the guide for cancellation and seal limits.
+IntelliJ/Android Studio guard supported IDE launches and Gradle synchronization. VS Code
+provides cooperative build/sync gates for integrations. Arbitrary terminals and unsupported
+launch paths remain outside those gates. Installed scanners are trusted programs running
+with OS user privileges; action grants do not create a sandbox. See [coverage and limits](docs/integrations.md#coverage-and-trust).
 
-## Build and verify
+## Build from source
 
-Use JDK 21 and Node 22 or newer.
+Use **JDK 21, Node 22+, and Python 3.10+ with pip**. From the repository root:
 
 ```sh
 ./gradlew build :wrapperguard-cli:installDist :wrapperguard-intellij:buildPlugin
 ./gradlew :wrapperguard-intellij:verifyPlugin
-
-cd vscode-extension
-npm ci
-npm test
-npm run parity
-npm run hardening
-npm run package
+npm --prefix vscode-extension ci
+npm --prefix vscode-extension test
+npm --prefix vscode-extension run parity
+npm --prefix vscode-extension run hardening
+npm --prefix vscode-extension run package
 ```
 
-On a machine with an installed compatible IDE, an explicit local SDK avoids downloading
-another IDE: `./gradlew '-Pwrapperguard.localIdePath=/path/to/IDE/Contents' build`.
-This does not replace the separate supported-version plugin verification gate.
-The default SDK/verifier target remains IntelliJ IDEA 2025.3, with minimum platform build252.
+An explicitly installed development IDE can be selected with
+`-Pwrapperguard.localIdePath=/path/to/IDE/Contents`. The default verifier targets
+IntelliJ IDEA 2025.3; the minimum plugin platform build is 252.
+[Verification instructions](docs/verification.md) cover SDK packaging, installed-host
+checks, real analyzer smoke tests and artifact inspection.
+
+For CI or a terminal:
 
 ```sh
-wrapperguard-cli /path/to/project --json --enforce
-wrapperguard-cli /path/to/project --providers /absolute/user/providers.json --operation build --enforce --json
+wrapperguard-cli /absolute/project --json --enforce
+wrapperguard-cli /absolute/project --providers /absolute/user/providers.json --operation build --enforce --json
+wrapperguard-cli /absolute/project --methods /absolute/user/methods.json --json
 ```
 
-Exit0 means a complete scan without active blockers; exit2 means findings block the
-operation; exit1 means invalid input or incomplete coverage without blockers. Configuration
-and trusted baseline files inside the scanned repository are rejected. No SDKs or scripts
-are discovered and executed from repository configuration.
+Exit codes: **0** complete without blockers, **2** blocked, **1** invalid or incomplete
+without blockers. Provider, method and baseline configuration must be explicitly selected
+user files outside the project.
 
-## Repository
+## Repository guide
 
 | Location | Responsibility |
 |---|---|
-| `wrapperguard-core/` | Report models, provider SDK/coordinator, command adapter, policy, approvals and export |
-| `wrapperguard-rules/` | Original static scanner and stable detector IDs |
-| `wrapperguard-cli/` | Provider-aware CI/terminal application |
-| `wrapperguard-intellij/` | Native workspace, provider settings, build guard and pre-sync hook |
-| `vscode-extension/` | TypeScript host/scanner, extension SDK and webview |
-| `schema/` | Backward-compatible report and provider configuration contracts |
-| `test-fixtures/` | Tracked static inputs for regression and parity checks |
+| `catalog/` | Shared method identities and descriptive metadata |
+| `wrapperguard-core/` | Models, policy, provider coordinator, grants and exports |
+| `wrapperguard-rules/` | Static rules and bounded script traversal |
+| `wrapperguard-cli/` | Terminal/CI host |
+| `wrapperguard-intellij/` | Native IDE workspace, guided setup and execution gates |
+| `vscode-extension/` | TypeScript host, sidebar and integration API |
+| `sdk/python/` | Controlled scanner runners, report adapters, research signals and local AI review |
+| `schema/` | Report, provider and integration profile contracts |
+| `test-fixtures/` | Tracked inert regression inputs |
 
-The project is Apache-2.0. Engineering history and constraints are recorded in
-[HANDOVER.md](HANDOVER.md) and [CHANGELOG.md](CHANGELOG.md).
+[Provider API](docs/providers.md) · [Research rationale](docs/research.md) ·
+[Engineering handover](HANDOVER.md) · [Roadmap and remaining work](docs/roadmap.md) · [Apache-2.0 license](LICENSE)
