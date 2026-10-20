@@ -49,7 +49,8 @@
         "script-semantics",
         "ai-review",
         "cyclonedx",
-        "sonar"
+        "sonar",
+        "http-audit"
       ]
     },
     "reportPath": {
@@ -311,6 +312,78 @@
               "rulePacks"
             ]
           }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tool",
+            "ownershipConfirmed",
+            "targetUrls"
+          ],
+          "properties": {
+            "tool": {
+              "const": "http-audit"
+            },
+            "ownershipConfirmed": {
+              "const": true
+            },
+            "targetUrls": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 32,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "format": "uri",
+                "maxLength": 8192,
+                "pattern": "^https?://"
+              },
+              "description": "Exact reviewed numeric-IP URLs inside targetScope; runtime rejects DNS, credential URLs and out-of-scope targets. No redirects/crawling."
+            },
+            "timeoutMs": {
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 300000,
+              "default": 30000
+            },
+            "maxOutputBytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 16777216,
+              "default": 16777216
+            },
+            "maxRequests": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 32,
+              "default": 16
+            },
+            "requestTimeoutMs": {
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 10000,
+              "default": 5000
+            },
+            "maxResponseBytes": {
+              "type": "integer",
+              "minimum": 1024,
+              "maximum": 1048576,
+              "default": 262144
+            },
+            "authHeadersEnv": {
+              "type": "object",
+              "maxProperties": 8,
+              "propertyNames": {
+                "pattern": "^[A-Za-z][A-Za-z0-9-]{0,63}$"
+              },
+              "additionalProperties": {
+                "type": "string",
+                "pattern": "^[A-Z_][A-Z0-9_]{0,127}$"
+              },
+              "description": "Selected authentication header names map to existing environment variable names, never plaintext secret values. Host/hop-by-hop overrides rejected."
+            }
+          }
         }
       ]
     },
@@ -356,6 +429,38 @@
       "minLength": 1,
       "maxLength": 4096,
       "description": "Optional absolute project binding. Runtime requires the selected canonical root to match before reading reports or starting tools."
+    },
+    "reportProvenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "manifestPath"
+      ],
+      "properties": {
+        "manifestPath": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096,
+          "description": "Absolute user-owned manifest outside every selected project; exact report/input hashes and age are verified, not producer authenticity."
+        },
+        "maxAgeSeconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 604800,
+          "default": 86400
+        }
+      }
+    },
+    "dependencyCoverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "requireResolvedVersions": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "description": "Optional bounded producer inventory accounting. Required fixed versions fail closed on unknown/unresolved inventory, without running package managers or claiming full transitive coverage."
     }
   },
   "oneOf": [
@@ -750,6 +855,58 @@
         "properties": {
           "analysisKind": {
             "const": "SAST"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "format": {
+            "const": "http-audit"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "runner"
+        ],
+        "properties": {
+          "analysisKind": {
+            "const": "DAST"
+          },
+          "runner": {
+            "properties": {
+              "tool": {
+                "const": "http-audit"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "reportProvenance"
+        ]
+      },
+      "then": {
+        "required": [
+          "reportPath"
+        ]
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "dependencyCoverage"
+        ]
+      },
+      "then": {
+        "properties": {
+          "analysisKind": {
+            "const": "SCA"
           }
         }
       }

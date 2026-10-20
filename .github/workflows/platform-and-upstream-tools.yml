@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   windows-boundaries:
-    name: Experimental Windows handles and pipes (Python ${{ matrix.python }})
+    name: Windows handles, job trees and pipes (Python ${{ matrix.python }})
     runs-on: windows-latest
     timeout-minutes: 10
     strategy:
@@ -27,25 +27,70 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
-      - name: Install SDK without enabling Windows runners
+      - name: Install SDK
         run: python -m pip install ./sdk/python
       - name: Real handle-relative traversal, junction race, limits and pipe cancellation
         run: |
           python -m unittest discover -s sdk/python/tests -p test_windows_snapshot.py -v
           python -m unittest discover -s sdk/python/tests -p test_portable_process.py -v
-      - name: Check that active fixed runners still require POSIX
+          python -m unittest discover -s sdk/python/tests -p test_windows_job.py -v
+          python -m unittest discover -s sdk/python/tests -p test_provenance.py -v
+          python -m unittest discover -s sdk/python/tests -p test_http_audit.py -v
+
+  windows-real-scanners:
+    name: Real Windows ${{ matrix.tool }} through installed SDK
+    runs-on: windows-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        tool: [bandit, semgrep, psscriptanalyzer, osv, trivy]
+    env:
+      TOOL_NAME: ${{ matrix.tool }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install SDK
+        run: python -m pip install ./sdk/python
+      - name: Install explicit pinned Python scanner
+        if: matrix.tool == 'bandit' || matrix.tool == 'semgrep'
         shell: python
         run: |
-          from pathlib import Path
-          from types import SimpleNamespace
-          from wrapperguard_sdk.runner import run_bandit, run_tool
-          for call in (run_bandit, run_tool):
-              try:
-                  call(SimpleNamespace(runner=SimpleNamespace(tool='semgrep')), Path.cwd())
-              except ValueError as error:
-                  assert 'POSIX' in str(error), str(error)
-              else:
-                  raise AssertionError('Experimental helpers must not enable Windows execution')
+          import os, subprocess, sys
+          version = 'bandit==1.9.4' if os.environ['TOOL_NAME'] == 'bandit' else 'semgrep==1.181.0'
+          subprocess.run([sys.executable, '-m', 'pip', 'install', version], check=True)
+      - name: Verify and download pinned official Windows scanner
+        if: matrix.tool != 'bandit' && matrix.tool != 'semgrep'
+        shell: python
+        run: |
+          import os, pathlib, subprocess, sys
+          tool = os.environ['TOOL_NAME']
+          subprocess.run([sys.executable, 'scripts/download-upstream-tools.py', '--tool', tool,
+              '--platform', 'windows-amd64', '--destination', str(pathlib.Path(os.environ['RUNNER_TEMP']) / ('tools-' + tool))], check=True)
+      - name: Run scanner on inert snapshot through fixed SDK runner
+        shell: python
+        run: |
+          import json, os, pathlib, shutil, subprocess, sys
+          tool = os.environ['TOOL_NAME']
+          if tool in ('bandit', 'semgrep'):
+              executable = shutil.which(tool)
+              assert executable, 'Pinned scanner executable missing'
+              argv = [sys.executable, 'scripts/sdk-windows-smoke.py', '--tool', tool, '--executable', executable]
+          else:
+              installed = pathlib.Path(os.environ['RUNNER_TEMP']) / ('tools-' + tool)
+              manifest = json.loads((installed / 'installed-manifest.json').read_text())
+              argv = [sys.executable, 'scripts/sdk-tool-smoke.py', '--sdk-python', sys.executable, '--tool', tool,
+                      '--executable', manifest['executable']]
+              if tool == 'psscriptanalyzer': argv += ['--module', manifest['module']]
+              if tool == 'trivy': argv += ['--cache', str(pathlib.Path(os.environ['RUNNER_TEMP']) / 'trivy-db')]
+          subprocess.run(argv, check=True, timeout=330)
+      - uses: actions/upload-artifact@v4
+        if: always() && matrix.tool != 'bandit' && matrix.tool != 'semgrep'
+        with:
+          name: windows-${{ matrix.tool }}-verified-manifest
+          path: ${{ runner.temp }}/tools-${{ matrix.tool }}/installed-manifest.json
 
   official-scanners:
     name: Real ${{ matrix.tool }} through installed SDK

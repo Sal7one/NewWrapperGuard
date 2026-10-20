@@ -14,7 +14,7 @@ from .profile import (MAX_OUTPUT_BYTES, MAX_PROFILE_BYTES, MAX_REPORT_BYTES, OPE
                       FORMATS, IntegrationProfile, bounded_read, load_json_document, load_profile)
 from .rule_packs import RULE_PACKS
 from .runner import (EXCLUDED_DIRECTORIES, MAX_SOURCE_BYTES, MAX_SOURCE_DEPTH,
-                     MAX_SOURCE_FILE_BYTES, MAX_SOURCE_FILES, run_tool, runner_plan)
+                     MAX_SOURCE_FILE_BYTES, MAX_SOURCE_FILES, run_tool, runner_plan, runner_supported)
 
 
 class _SafeParser(argparse.ArgumentParser):
@@ -29,7 +29,7 @@ def build_plan(profile: IntegrationProfile, project_root: Path, operation: str =
         raise ValueError("Operation is not allowed by the user profile")
     active = profile.runner is not None
     tool = profile.runner.tool if profile.runner else None
-    process = active and tool not in {"script-semantics", "local-ai"}
+    process = active and tool not in {"script-semantics", "local-ai", "http-audit"}
     plan = {"sdkVersion": __version__, "providerApiVersion": 1,
             "profile": {"id": profile.id, "displayName": profile.display_name, "version": profile.version},
             "analysisKind": profile.analysis_kind, "format": profile.format,
@@ -47,10 +47,23 @@ def build_plan(profile: IntegrationProfile, project_root: Path, operation: str =
     if profile.report_path is not None:
         plan["reportPath"] = redact_text(str(profile.report_path))
         plan["reportFreshness"] = "Report import does not verify scanner generation time or source revision."
+        if profile.report_provenance is not None:
+            plan["reportProvenance"] = {"manifestPath": redact_text(str(profile.report_provenance.manifest_path)),
+                "maxAgeSeconds": profile.report_provenance.max_age_seconds,
+                "guarantee": "Report digest, age and explicitly listed input digests only; no producer authentication or whole-project coverage."}
+    if profile.dependency_coverage is not None:
+        plan["dependencyCoverage"] = {"requireResolvedVersions": profile.dependency_coverage.require_resolved_versions,
+                                     "executesResolver": False}
     plan["projectBinding"] = "explicit" if profile.project_root is not None else "unbound"
     if profile.target_scope is not None:
         plan["targetScope"] = profile.target_scope.to_dict()
         plan["inputAccess"] = "Existing passive ZAP JSON report; only findings matching explicit target scope are imported."
+    if tool == "http-audit":
+        plan.update({"targetUrls": [redact_text(url) for url in profile.runner.target_urls],
+            "ownershipConfirmed": profile.runner.ownership_confirmed, "followsRedirects": False,
+            "startsTarget": False, "authHeaderReferences": {name: variable for name, variable in profile.runner.auth_headers_env}})
+        plan["limits"].update({"requests": profile.runner.max_requests, "requestTimeoutMs": profile.runner.request_timeout_ms,
+                               "responseBytes": profile.runner.max_response_bytes, "responseHeaderBytes": 32768})
     if profile.runner is not None:
         if profile.runner.executable:
             plan["executable"] = redact_text(str(profile.runner.executable))
@@ -67,8 +80,10 @@ def build_plan(profile: IntegrationProfile, project_root: Path, operation: str =
         plan.update(runner_plan(tool))
         plan["isolation"] = ("Snapshot input and sanitized environment limit accidental repository influence; "
                              "installed scanners and their plugins remain trusted code with OS user privileges. "
-                             "The runner inherits the host process group for cancellation and terminates its known child on local failures.")
-        plan["runnerSupported"] = tool == "local-ai" or os.name == "posix" and hasattr(os, "O_NOFOLLOW")
+                             "Windows fixed tools use an atomic kill-on-close Job Object; POSIX tools inherit the host process group for cancellation.")
+        plan["runnerSupported"] = runner_supported(tool)
+        if tool == "http-audit":
+            plan["isolation"] = "Owned target GET requests are scope checked, use no proxies or redirects and are budgeted; no target or project process is started."
         plan["limits"].update({"timeoutMs": profile.runner.timeout_ms,
                                "toolOutputBytes": profile.runner.max_output_bytes,
                                "sourceFiles": MAX_SOURCE_FILES, "sourceFileBytes": MAX_SOURCE_FILE_BYTES,
@@ -97,15 +112,26 @@ def evaluate(profile: IntegrationProfile, project_root: Path, operation: str) ->
     # Review and operation validation happen before report access or process creation.
     build_plan(profile, project_root, operation)
     notices: list[dict] = []
+    provenance_notices: list[dict] = []
     if profile.report_path is not None:
         report = profile.report_path.resolve(strict=True)
         if not report.is_file():
             raise ValueError("A regular report file is required")
-        document = load_json_document(bounded_read(report, MAX_REPORT_BYTES))
+        raw = bounded_read(report, MAX_REPORT_BYTES)
+        if profile.report_provenance is not None:
+            from .provenance import verify_manifest
+            provenance_notices = verify_manifest(profile.report_provenance, raw, project_root)
+        else:
+            provenance_notices = [{"code": "WG-REPORT-PROVENANCE-UNKNOWN", "message":
+                "Imported report provenance is unverified: producer, generation time, database freshness and source revision are unknown. Report import does not prove current or whole-project coverage."}]
+        document = load_json_document(raw)
     else:
         if profile.runner.tool == "local-ai":
             from .ai_review import run_ai_review
             return run_ai_review(profile, project_root)
+        if profile.runner.tool == "http-audit":
+            from .http_audit import run_http_audit
+            return run_http_audit(profile, project_root)
         document, notices = run_tool(profile, project_root)
     if profile.format == "script-semantics":
         result = document
@@ -117,6 +143,14 @@ def evaluate(profile: IntegrationProfile, project_root: Path, operation: str) ->
     if notices:
         result["notices"] = list(result.get("notices", [])) + notices
         result["complete"] = False
+    if provenance_notices:
+        result["notices"] = list(result.get("notices", [])) + provenance_notices
+    if profile.dependency_coverage is not None:
+        from .dependency_coverage import summarize
+        coverage_notices, incomplete = summarize(profile.format, document,
+            require_resolved=profile.dependency_coverage.require_resolved_versions)
+        result["notices"] = list(result.get("notices", [])) + coverage_notices
+        if incomplete: result["complete"] = False
     return result
 
 
@@ -137,6 +171,8 @@ def main(argv: list[str] | None = None) -> int:
                               "formats": sorted(FORMATS), "rulePacks": [
                                   {"id": key, "title": value['title'], "extensions": value['extensions'], "fileNames": value['fileNames']}
                                   for key, value in RULE_PACKS.items()],
+                              "runners": [{"tool": tool, "supported": runner_supported(tool)} for tool in
+                                  ("bandit", "semgrep", "psscriptanalyzer", "trivy", "osv", "script-semantics", "local-ai", "http-audit")],
                               "executesProjectCode": False, "installsTools": False}, separators=(',', ':')))
             return 0
         if not args.profile:

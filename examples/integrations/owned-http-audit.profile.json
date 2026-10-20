@@ -1,0 +1,22 @@
+{
+  "id": "dast.http-audit",
+  "displayName": "Owned acceptance target HTTP audit",
+  "version": "1",
+  "analysisKind": "DAST",
+  "format": "http-audit",
+  "targetScope": {
+    "origins": ["http://127.0.0.1:8765"],
+    "pathPrefixes": ["/acceptance"]
+  },
+  "runner": {
+    "tool": "http-audit",
+    "ownershipConfirmed": true,
+    "targetUrls": ["http://127.0.0.1:8765/acceptance/secure", "http://127.0.0.1:8765/acceptance/weak"],
+    "maxRequests": 2,
+    "requestTimeoutMs": 2000,
+    "timeoutMs": 5000,
+    "maxResponseBytes": 4096
+  },
+  "allowedOperations": ["SCAN"],
+  "requestedActions": ["WARNING"]
+}

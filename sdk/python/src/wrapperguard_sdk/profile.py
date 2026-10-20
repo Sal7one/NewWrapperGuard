@@ -18,7 +18,7 @@ MAX_PROFILE_BYTES = 65_536
 MAX_REPORT_BYTES = 16 * 1024 * 1024
 MAX_OUTPUT_BYTES = 4 * 1024 * 1024
 OPERATIONS = frozenset({"SCAN", "BUILD", "SYNC"})
-FORMATS = frozenset({"sarif", "bandit", "psscriptanalyzer", "trivy", "osv", "zap", "script-semantics", "ai-review", "cyclonedx", "sonar"})
+FORMATS = frozenset({"sarif", "bandit", "psscriptanalyzer", "trivy", "osv", "zap", "script-semantics", "ai-review", "cyclonedx", "sonar", "http-audit"})
 
 
 def _keys(value: object, allowed: set[str], required: set[str] = frozenset()) -> dict:
@@ -152,6 +152,23 @@ class RunnerConfig:
     rules_path: Path | None = None
     response_format: str = "json_schema"
     rule_packs: tuple[str, ...] | None = None
+    ownership_confirmed: bool = False
+    target_urls: tuple[str, ...] | None = None
+    max_requests: int = 16
+    request_timeout_ms: int = 5000
+    max_response_bytes: int = 262144
+    auth_headers_env: tuple[tuple[str, str], ...] = ()
+
+
+@dataclass(frozen=True)
+class ReportProvenance:
+    manifest_path: Path
+    max_age_seconds: int = 86400
+
+
+@dataclass(frozen=True)
+class DependencyCoverage:
+    require_resolved_versions: bool = False
 
 
 @dataclass(frozen=True)
@@ -167,6 +184,8 @@ class IntegrationProfile:
     requested_actions: tuple[str, ...]
     target_scope: TargetScope | None
     project_root: Path | None = None
+    report_provenance: ReportProvenance | None = None
+    dependency_coverage: DependencyCoverage | None = None
 
 
 def load_profile(path: Path, project_root: Path) -> IntegrationProfile:
@@ -178,7 +197,7 @@ def load_profile(path: Path, project_root: Path) -> IntegrationProfile:
         raise ValueError("User profile must be outside the project")
     raw = load_json_document(bounded_read(actual, MAX_PROFILE_BYTES))
     value = _keys(raw, {"id", "displayName", "version", "analysisKind", "format", "reportPath", "runner",
-                        "allowedOperations", "requestedActions", "targetScope", "projectRoot"},
+                        "allowedOperations", "requestedActions", "targetScope", "projectRoot", "reportProvenance", "dependencyCoverage"},
                   {"id", "displayName", "version", "analysisKind", "format"})
     if not isinstance(value["id"], str) or not re.fullmatch(r"[a-z][a-z0-9._-]{0,79}", value["id"]) or value["id"] == "wrapperguard":
         raise ValueError("Invalid profile identity")
@@ -195,7 +214,7 @@ def load_profile(path: Path, project_root: Path) -> IntegrationProfile:
         raise ValueError("Invalid profile classification")
     kinds = {"sarif": {"SAST", "SCA"}, "bandit": {"SAST"}, "psscriptanalyzer": {"SAST"},
              "trivy": {"SCA"}, "osv": {"SCA"}, "zap": {"DAST"},
-             "script-semantics": {"SAST"}, "ai-review": {"AI"}, "cyclonedx": {"SCA"}, "sonar": {"SAST"}}
+             "script-semantics": {"SAST"}, "ai-review": {"AI"}, "cyclonedx": {"SCA"}, "sonar": {"SAST"}, "http-audit": {"DAST"}}
     if kind not in kinds[format_name]:
         raise ValueError("Tool format does not match analysis kind")
     if ("reportPath" in value) == ("runner" in value):
@@ -211,7 +230,7 @@ def load_profile(path: Path, project_root: Path) -> IntegrationProfile:
         raise ValueError("DAST requires an explicit target scope")
     report, runner = None, None
     if "reportPath" in value:
-        if format_name in {"script-semantics", "ai-review"}:
+        if format_name in {"script-semantics", "ai-review", "http-audit"}:
             raise ValueError("This method requires its controlled runner")
         if not isinstance(value["reportPath"], str) or not value["reportPath"] or "\x00" in value["reportPath"]:
             raise ValueError("Invalid report path")
@@ -220,16 +239,18 @@ def load_profile(path: Path, project_root: Path) -> IntegrationProfile:
             raise ValueError("Report path must be absolute")
     else:
         config = _keys(value["runner"], {"tool", "executable", "timeoutMs", "maxOutputBytes", "modulePath",
-                                         "endpoint", "model", "inputReportPath", "cachePath", "rulesPath", "responseFormat", "rulePacks"}, {"tool"})
+                                         "endpoint", "model", "inputReportPath", "cachePath", "rulesPath", "responseFormat", "rulePacks",
+                                         "ownershipConfirmed", "targetUrls", "maxRequests", "requestTimeoutMs", "maxResponseBytes", "authHeadersEnv"}, {"tool"})
         tool = config["tool"]
         formats = {"bandit": "bandit", "psscriptanalyzer": "psscriptanalyzer", "trivy": "trivy",
-                   "osv": "osv", "script-semantics": "script-semantics", "local-ai": "ai-review", "semgrep": "sarif"}
+                   "osv": "osv", "script-semantics": "script-semantics", "local-ai": "ai-review", "semgrep": "sarif", "http-audit": "http-audit"}
         if not isinstance(tool, str) or formats.get(tool) != format_name:
             raise ValueError("Unsupported runner or format mismatch")
         allowed = {"tool", "timeoutMs", "maxOutputBytes"}
         executable, module, endpoint, model, input_report, cache, rules = None, None, None, None, None, None, None
         response_format = "json_schema"
         rule_packs = None
+        ownership, urls, max_requests, request_timeout, max_response, auth_headers = False, None, 16, 5000, 262144, ()
         if tool in {"bandit", "psscriptanalyzer", "trivy", "osv", "semgrep"}:
             allowed.add("executable")
             if not isinstance(config.get("executable"), str) or not Path(config["executable"]).is_absolute():
@@ -281,6 +302,35 @@ def load_profile(path: Path, project_root: Path) -> IntegrationProfile:
                 rules = Path(config["rulesPath"]).resolve(strict=True)
                 if rules.is_relative_to(root) or not rules.is_file():
                     raise ValueError("Semgrep rules must be a file outside the project")
+        if tool == "http-audit":
+            allowed.update({"ownershipConfirmed", "targetUrls", "maxRequests", "requestTimeoutMs", "maxResponseBytes", "authHeadersEnv"})
+            ownership = config.get("ownershipConfirmed")
+            urls = config.get("targetUrls")
+            max_requests = config.get("maxRequests", 16)
+            request_timeout = config.get("requestTimeoutMs", 5000)
+            max_response = config.get("maxResponseBytes", 262144)
+            if (ownership is not True or not isinstance(urls, list) or not 1 <= len(urls) <= 32 or
+                    len(set(url for url in urls if isinstance(url, str))) != len(urls) or
+                    type(max_requests) is not int or not 1 <= max_requests <= 32 or len(urls) > max_requests or
+                    type(request_timeout) is not int or not 100 <= request_timeout <= 10000 or
+                    type(max_response) is not int or not 1024 <= max_response <= 1048576):
+                raise ValueError("HTTP audit requires explicit ownership, unique targets and bounded budgets")
+            for url in urls:
+                if not isinstance(url, str) or not scope.allows(url) or not url.isascii():
+                    raise ValueError("HTTP audit targets must stay inside the exact configured scope")
+                try: ipaddress.ip_address(urlsplit(url).hostname or '')
+                except ValueError: raise ValueError("HTTP audit requires numeric target addresses; DNS targets use external scanner adapters") from None
+            selected_headers = config.get("authHeadersEnv", {})
+            if not isinstance(selected_headers, dict) or len(selected_headers) > 8:
+                raise ValueError("Invalid HTTP audit secret references")
+            for name, reference in selected_headers.items():
+                if (not isinstance(name, str) or not re.fullmatch(r"[A-Za-z][A-Za-z0-9-]{0,63}", name) or
+                        name.lower() in {"host", "content-length", "transfer-encoding", "connection", "accept-encoding", "proxy-authorization"} or
+                        not isinstance(reference, str) or not re.fullmatch(r"[A-Z_][A-Z0-9_]{0,127}", reference)):
+                    raise ValueError("Invalid HTTP audit secret references")
+            if len({name.lower() for name in selected_headers}) != len(selected_headers):
+                raise ValueError("Duplicate HTTP audit authentication header")
+            urls, auth_headers = tuple(urls), tuple(selected_headers.items())
         if set(config) - allowed:
             raise ValueError("Runner does not accept these fields")
         timeout, maximum = config.get("timeoutMs", 120_000 if tool in {"trivy", "osv"} else 30_000), config.get("maxOutputBytes", MAX_REPORT_BYTES)
@@ -288,9 +338,26 @@ def load_profile(path: Path, project_root: Path) -> IntegrationProfile:
             raise ValueError("Invalid tool timeout")
         if type(maximum) is not int or not 1 <= maximum <= MAX_REPORT_BYTES:
             raise ValueError("Invalid tool output limit")
-        runner = RunnerConfig(tool, executable, timeout, maximum, module, endpoint, model, input_report, cache, rules, response_format, rule_packs)
+        runner = RunnerConfig(tool, executable, timeout, maximum, module, endpoint, model, input_report, cache, rules, response_format, rule_packs,
+                              ownership, urls, max_requests, request_timeout, max_response, auth_headers)
+    provenance = coverage = None
+    if "reportProvenance" in value:
+        selected = _keys(value["reportProvenance"], {"manifestPath", "maxAgeSeconds"}, {"manifestPath"})
+        if report is None or not isinstance(selected["manifestPath"], str) or not Path(selected["manifestPath"]).is_absolute():
+            raise ValueError("Report provenance requires an absolute user manifest and report import")
+        manifest = Path(selected["manifestPath"]).resolve(strict=True)
+        age = selected.get("maxAgeSeconds", 86400)
+        if manifest.is_relative_to(root) or not manifest.is_file() or type(age) is not int or not 1 <= age <= 604800:
+            raise ValueError("Invalid report provenance configuration")
+        provenance = ReportProvenance(manifest, age)
+    if "dependencyCoverage" in value:
+        selected = _keys(value["dependencyCoverage"], {"requireResolvedVersions"})
+        required = selected.get("requireResolvedVersions", False)
+        if kind != "SCA" or type(required) is not bool:
+            raise ValueError("Dependency coverage requires SCA and an explicit boolean")
+        coverage = DependencyCoverage(required)
     return IntegrationProfile(value["id"], display_name, version, kind, format_name, report, runner,
-                              tuple(operations), tuple(actions), scope, binding)
+                              tuple(operations), tuple(actions), scope, binding, provenance, coverage)
 
 
 def validate_local_endpoint(endpoint: object) -> str:

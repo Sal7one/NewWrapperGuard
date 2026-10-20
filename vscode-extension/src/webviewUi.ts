@@ -5,6 +5,7 @@ import * as path from 'node:path';
 import { MethodView, methodById } from './methods/catalog';
 import { ProviderDescriptor, ProviderPermissions } from './providers/sdk';
 import { HistoryView, HistoryFinding } from './methods/history';
+import { AutomationView } from './methods/automation';
 const EXTENSION_VERSION = (require('../package.json') as {version:string}).version;
 
 /** Actions the webview UI can request; wired to real commands by the extension host. */
@@ -29,7 +30,12 @@ export interface UiHandlers {
   toggleProvider(id:string,enabled:boolean):void;
   selectProject(root:string):void;
   manageStorage():void;
+  sdkMaintenance():void;
+  evidenceSettings(id:string):void;
   applyPreset():void;
+  importPreset():void;
+  exportPreset():void;
+  automation(action:'configure'|'start'|'pause'):void;
   historyEnabled(enabled:boolean):void;
   historyRetention():void;
   clearHistory():void;
@@ -91,7 +97,7 @@ export class WrapperGuardWebviewProvider implements vscode.WebviewViewProvider {
     disconnectMethod: () => undefined,
     openMethodDocs: () => undefined,
     openSettings: () => undefined,
-    addProvider:()=>undefined,editProvider:()=>undefined,removeProvider:()=>undefined,toggleProvider:()=>undefined,selectProject:()=>undefined,manageStorage:()=>undefined,applyPreset:()=>undefined,
+    addProvider:()=>undefined,editProvider:()=>undefined,removeProvider:()=>undefined,toggleProvider:()=>undefined,selectProject:()=>undefined,manageStorage:()=>undefined,sdkMaintenance:()=>undefined,evidenceSettings:()=>undefined,applyPreset:()=>undefined,importPreset:()=>undefined,exportPreset:()=>undefined,automation:()=>undefined,
     historyEnabled:()=>undefined,historyRetention:()=>undefined,clearHistory:()=>undefined,compareHistory:()=>undefined,openHistoryFinding:()=>undefined
   };
 
@@ -123,7 +129,14 @@ export class WrapperGuardWebviewProvider implements vscode.WebviewViewProvider {
         case 'toggle-provider':if(typeof msg.enabled==='boolean'&&this.platform.connections.some(item=>item.descriptor.id===msg.providerId))this.handlers.toggleProvider(msg.providerId!,msg.enabled);break;
         case 'select-project':if(this.platform.projects.some(item=>item.root===msg.projectRoot))this.handlers.selectProject(msg.projectRoot!);break;
         case 'manage-storage':this.handlers.manageStorage();break;
+        case 'sdk-maintenance':this.handlers.sdkMaintenance();break;
+        case 'evidence-settings':if(typeof msg.methodId==='string'&&methodById(msg.methodId))this.handlers.evidenceSettings(msg.methodId);break;
         case 'apply-preset':this.handlers.applyPreset();break;
+        case 'import-preset':this.handlers.importPreset();break;
+        case 'export-preset':this.handlers.exportPreset();break;
+        case 'automation-configure':this.handlers.automation('configure');break;
+        case 'automation-start':this.handlers.automation('start');break;
+        case 'automation-pause':this.handlers.automation('pause');break;
         case 'history-enabled':if(typeof msg.enabled==='boolean')this.handlers.historyEnabled(msg.enabled);break;
         case 'history-retention':this.handlers.historyRetention();break;
         case 'history-clear':this.handlers.clearHistory();break;
@@ -192,8 +205,8 @@ export class WrapperGuardWebviewProvider implements vscode.WebviewViewProvider {
   setState(s: ScanState): void {
     this.lastState = s;
     const payload = s.kind === 'scanned'
-      ? { kind: s.kind, report: s.report, settings: this.lastSettings, methods: this.lastMethods,history:this.lastHistory,...this.platform }
-      : { kind: s.kind, error: s.kind === 'failed' ? s.error : undefined, settings: this.lastSettings, methods: this.lastMethods,history:this.lastHistory,...this.platform };
+      ? { kind: s.kind, report: s.report, settings: this.lastSettings, methods: this.lastMethods,history:this.lastHistory,automation:this.lastAutomation,...this.platform }
+      : { kind: s.kind, error: s.kind === 'failed' ? s.error : undefined, settings: this.lastSettings, methods: this.lastMethods,history:this.lastHistory,automation:this.lastAutomation,...this.platform };
     this.view?.webview.postMessage({ type: 'state', state: payload });
   }
 
@@ -203,6 +216,8 @@ export class WrapperGuardWebviewProvider implements vscode.WebviewViewProvider {
   setPlatform(platform:typeof this.platform):void{this.platform=platform;}
   private lastHistory:HistoryView={enabled:false,limit:20,entries:[]};
   setHistory(history:HistoryView):void{this.lastHistory=history;}
+  private lastAutomation?:AutomationView;
+  setAutomation(view:AutomationView):void{this.lastAutomation=view;}
 
   setMethods(methods: readonly MethodView[]): void { this.lastMethods = methods; }
 
@@ -266,6 +281,7 @@ main{flex:1;min-width:0;min-height:0;padding:18px 20px 16px;overflow:hidden}.tab
         <button class="tab" data-tab="tools"><span class="ticon"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m12 3 5 5-3 3-5-5zM8 9l-5 5v3h3l5-5M12 3l2-1 4 4-1 2"/></svg></span>Tools</button>
         <button class="tab" data-tab="research"><span class="ticon"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7 2h6M8 2v6l-5 8c-1 2 1 2 2 2h10c1 0 3 0 2-2l-5-8V2M6 12h8"/></svg></span>Research &amp; AI</button>
         <button class="tab" data-tab="history"><span class="ticon"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5v4h4M3 9a7 7 0 1 1 2 6M10 5v5l3 2"/></svg></span>History</button>
+        <button class="tab" data-tab="automation"><span class="ticon"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3a7 7 0 1 1-6 3M3 3v4h4M10 6v4l3 2"/></svg></span>Automation</button>
       </nav>
       <section class="status-card" aria-label="Current scan summary">
         <div class="sidebar-label">Report status</div><span class="pill" id="verdictPill">Not scanned</span>
@@ -289,6 +305,7 @@ main{flex:1;min-width:0;min-height:0;padding:18px 20px 16px;overflow:hidden}.tab
       <section class="tab-panel" id="panel-tools"></section>
       <section class="tab-panel" id="panel-research"></section>
       <section class="tab-panel" id="panel-history"></section>
+      <section class="tab-panel" id="panel-automation"></section>
     </main>
   </div>
   <footer class="app-footer"><span id="footerLeft">WrapperGuard: Not scanned</span><span class="footer-links"><span>Local workspace analysis</span><span>Provider API v1</span></span></footer>
@@ -383,7 +400,7 @@ function renderPolicy() {
   const r = report();
   const panel = byId('panel-policy');
   const runs = r ? (r.providerRuns || []) : [];
-  let html = '<div class="page-head"><div class="page-heading"><div class="eyebrow">Permission boundaries</div><h1>Policy &amp; providers</h1><p class="policy-intro">Independent vetting. Shared actions. Explicit permissions.</p></div><div class="btn-row"><button class="btn btn-ghost" id="manageStorage">Storage</button><button class="btn btn-primary" id="addSdk">Add SDK</button><button class="btn btn-ghost policy-settings-button" id="providerSettings">Settings</button></div></div>';
+  let html = '<div class="page-head"><div class="page-heading"><div class="eyebrow">Permission boundaries</div><h1>Policy &amp; providers</h1><p class="policy-intro">Independent vetting. Shared actions. Explicit permissions.</p></div><div class="btn-row"><button class="btn btn-ghost" id="sdkMaintenance">SDK maintenance</button><button class="btn btn-ghost" id="manageStorage">Storage</button><button class="btn btn-primary" id="addSdk">Add SDK</button><button class="btn btn-ghost policy-settings-button" id="providerSettings">Settings</button></div></div>';
   const enabled = runs.filter(function(run) { return run.permissions.enabled; }).length;
   const completed = runs.filter(function(run) { return run.status === 'COMPLETED'; }).length;
   html += '<div class="policy-summary"><span><strong>' + enabled + '</strong> enabled providers</span><span><strong>' + completed + '</strong> completed</span><span>Grants are owned by your User Settings</span></div>';
@@ -417,6 +434,7 @@ function renderPolicy() {
   panel.innerHTML = html;
   byId('addSdk').addEventListener('click',function() { post('add-provider'); });
   byId('manageStorage').addEventListener('click',function() { post('manage-storage'); });
+  byId('sdkMaintenance').addEventListener('click',function() { post('sdk-maintenance'); });
   ['edit','remove','permissions','toggle'].forEach(function(action) { panel.querySelectorAll('.custom-'+action).forEach(function(button) { button.addEventListener(action==='toggle'?'change':'click',function() {const item=connections[Number(button.getAttribute('data-connection'))];if(item)vscode.postMessage({type:action==='permissions'?'configure-provider':action+'-provider',providerId:item.descriptor.id,enabled:action==='toggle'?button.checked:undefined});});});});
   byId('providerSettings').addEventListener('click',function () { post('settings'); });
   panel.querySelectorAll('.provider-permissions').forEach(function(button) {
@@ -437,7 +455,7 @@ function renderMethods(research) {
   const methods = all.filter(function(m) { return research ? ['RESEARCH','AI'].indexOf(m.category)>=0 : ['RESEARCH','AI'].indexOf(m.category)<0; });
   const enabled = methods.filter(function(m) { return m.enabled; }).length;
   const disabled=methods.length-enabled;
-  let html = '<div class="page-head"><div class="page-heading"><h1>' + (research ? 'Research &amp; AI' : 'Security tools') + '</h1><p>' + (research ? 'Explainable experiments. Your model. Your decision.' : 'Choose the checks that fit your project.') + '</p></div>' + (research?'<span class="badge">User Settings</span>':'<button class="btn btn-ghost apply-preset">Choose preset</button>') + '</div>';
+  let html = '<div class="page-head"><div class="page-heading"><h1>' + (research ? 'Research &amp; AI' : 'Security tools') + '</h1><p>' + (research ? 'Explainable experiments. Your model. Your decision.' : 'Choose the checks that fit your project.') + '</p></div>' + (research?'<span class="badge">User Settings</span>':'<div class="btn-row"><button class="btn btn-ghost apply-preset">Choose preset</button><button class="btn btn-ghost import-preset">Import preset</button><button class="btn btn-ghost export-preset">Export preset</button></div>') + '</div>';
   html += '<div class="methods-intro"><div><h2>' + (research ? 'Better evidence, with clear limits' : 'One workspace. Independent methods.') + '</h2><p>' + (research ? 'Research ideas become separate, removable providers. The semantic method decodes literal script data and highlights risky behavior without executing it. External AI needs a model provider you connect; no trained model is bundled.' : 'Start with local checks for Android, Gradle and Maven projects. Add language scanners, dependency checks or a web security report when you need them. Each connection keeps its own permissions and can be turned off at any time.') + '</p></div><div class="method-summary">' + enabled + ' enabled · ' + disabled + ' disabled</div></div>';
   if (research) html += '<div class="research-flow"><div><strong><span class="research-step">01</span>Read source safely</strong><p>Literal data only. Bound the file, decode and output budgets.</p></div><div><strong><span class="research-step">02</span>Inspect behavior</strong><p>Expose encoding layers and execution patterns as reviewable evidence.</p></div><div><strong><span class="research-step">03</span>Keep authority explicit</strong><p>Research starts with warnings. Model output never grants itself build permissions.</p></div></div>';
   const groups = [['BUILT_IN','Built-in checks','Local deterministic rules · no SDK setup'],['SAST','Source analysis','Scripts, Python and scanner reports'],['SUPPLY_CHAIN','Supply chain','Dependency findings for Gradle, Maven and other ecosystems'],['DAST','Web & API security','Explicit target scope for imported results'],['RESEARCH','Research methods','Experimental, separate from the default scanner'],['AI','AI & models','Bring a provider and validate it against your own data']];
@@ -451,6 +469,7 @@ function renderMethods(research) {
       const mode=builtin ? 'Built-in' : m.availability==='REPORT_IMPORT' ? 'Report import' : m.availability==='EXTERNAL_MODEL' ? 'External model' : 'Optional provider';
       html += '<article class="method-card' + (m.enabled ? ' enabled' : '') + '"><div class="method-card-top"><div><h3>' + esc(m.title) + '</h3><div class="method-tags"><span class="badge">' + esc(mode) + '</span>' + (m.maturity==='EXPERIMENTAL' ? '<span class="badge warn">Experimental</span>' : '') + '</div></div><label class="method-switch"><span>' + (m.enabled ? 'On' : 'Off') + '</span><input class="method-toggle" data-method="' + esc(m.id) + '" type="checkbox" aria-label="Enable ' + esc(m.title) + '"' + (m.enabled ? ' checked' : '') + (state.kind==='scanning' ? ' disabled' : '') + '/></label></div><p>' + esc(m.summary) + '</p><div class="method-actions"><span class="method-state' + (m.enabled && m.configured ? ' ready' : '') + '">' + esc(status) + '</span>';
       if (m.docsUrl) html += '<button class="link-btn method-docs" data-method="' + esc(m.id) + '">Reference</button>';
+      if (!builtin && m.configured && (m.availability==='REPORT_IMPORT' || m.category==='SUPPLY_CHAIN' || m.format==='sarif')) html += '<button class="link-btn method-evidence" data-method="'+esc(m.id)+'">Evidence settings</button>';
       if (!builtin && m.configured) html += '<button class="link-btn method-permissions" data-method="' + esc(m.id) + '">Permissions</button><button class="link-btn method-disconnect" data-method="' + esc(m.id) + '">Disconnect</button>';
       if (!builtin) html += '<button class="btn btn-ghost method-configure" data-method="' + esc(m.id) + '"' + (state.kind==='scanning' ? ' disabled' : '') + '>' + (m.configured ? 'Configure' : 'Set up') + '</button>';
       html += '</div></article>';
@@ -461,9 +480,12 @@ function renderMethods(research) {
   html += '<p class="method-note">' + (research ? 'Experimental findings are signals to review. This is not the published paper implementation or a validated malware classifier. No project code or model is downloaded automatically.' : 'A clean result applies to the enabled methods and the evidence they checked. Disabled checks reduce coverage. Imported reports may be outdated; connecting a report does not run its scanner.') + '</p><div class="methods-bottom"><button class="link-btn method-settings">Open User Settings</button><span>Tools share findings and actions through Provider API v1.</span></div>';
   panel.innerHTML=html;
   panel.querySelectorAll('.apply-preset').forEach(function(button) { button.addEventListener('click',function() { post('apply-preset'); }); });
+  panel.querySelectorAll('.import-preset').forEach(function(button) { button.addEventListener('click',function() { post('import-preset'); }); });
+  panel.querySelectorAll('.export-preset').forEach(function(button) { button.addEventListener('click',function() { post('export-preset'); }); });
   panel.querySelectorAll('.method-toggle').forEach(function(input) { input.addEventListener('change',function() { vscode.postMessage({type:'toggle-method',methodId:input.getAttribute('data-method'),enabled:input.checked}); }); });
   panel.querySelectorAll('.method-permissions').forEach(function(button) { button.addEventListener('click',function() { const method=all.find(function(m) { return m.id===button.getAttribute('data-method'); });if (method && method.providerId) vscode.postMessage({type:'configure-provider',providerId:method.providerId}); }); });
   panel.querySelectorAll('.method-disconnect').forEach(function(button) { button.addEventListener('click',function() { vscode.postMessage({type:'disconnect-method',methodId:button.getAttribute('data-method')}); }); });
+  panel.querySelectorAll('.method-evidence').forEach(function(button) { button.addEventListener('click',function() { vscode.postMessage({type:'evidence-settings',methodId:button.getAttribute('data-method')}); }); });
   panel.querySelectorAll('.method-configure').forEach(function(button) { button.addEventListener('click',function() { vscode.postMessage({type:'configure-method',methodId:button.getAttribute('data-method')}); }); });
   panel.querySelectorAll('.method-docs').forEach(function(button) { button.addEventListener('click',function() { vscode.postMessage({type:'method-docs',methodId:button.getAttribute('data-method')}); }); });
   panel.querySelectorAll('.method-settings').forEach(function(button) { button.addEventListener('click',function() { post('settings'); }); });
@@ -497,6 +519,16 @@ function renderHistory() {
   panel.querySelectorAll('.history-open').forEach(function(button) {button.addEventListener('click',function() {const finding=delta && delta[button.getAttribute('data-group')][Number(button.getAttribute('data-index'))];if(finding)vscode.postMessage({type:'history-open',historyFinding:finding});});});
 }
 
+function renderAutomation() {
+  const view=state.automation || {configured:false,running:false,status:'Paused · configure providers first',providerIds:[],onChanges:true,debounceMs:2000,intervalMinutes:0};
+  const panel=byId('panel-automation');
+  let html='<div class="page-head"><div class="page-heading"><h1>Automatic scans</h1><p>Reviewed providers, explicit triggers, one project at a time.</p></div><div class="btn-row"><button class="btn btn-ghost" id="automationConfigure">Configure</button><button class="btn '+(view.running?'btn-ghost':'btn-primary')+'" id="automationSession"'+(!view.running&&!view.configured?' disabled':'')+'>'+(view.running?'Pause':'Review &amp; start')+'</button></div></div>';
+  html+='<div class="overview-status '+(view.running?'ok':'warn')+'" role="status" aria-live="polite"><strong>'+esc(view.status)+'</strong></div>';
+  if(view.error)html+='<div class="empty-note err" role="alert">'+esc(view.error)+'</div>';
+  html+='<div class="panel-card" style="margin-top:14px"><div class="panel-title">This editor session<span class="badge">SCAN only</span></div><div class="policy-row"><span>Project</span><span>'+esc(view.project || state.selectedProject || 'Choose an open project')+'</span></div><div class="policy-row"><span>After changes</span><span>'+(view.onChanges?view.debounceMs+' ms debounce':'Off')+'</span></div><div class="policy-row"><span>Interval</span><span>'+(view.intervalMinutes?view.intervalMinutes+' minutes':'Off')+'</span></div><div class="policy-row"><span>Providers</span><span>'+esc(view.providerIds.join(', ') || 'None selected')+'</span></div><div class="policy-row"><span>Last automatic scan</span><span>'+esc(view.lastRun?new Date(view.lastRun).toLocaleString():'Not run')+'</span></div></div>';
+  html+='<p class="method-note">Saving preferences, enabling a method or reloading the editor leaves automation paused. Start reviews the selected providers and their network/cost declarations; no immediate or missed scans run. Automatic scans never launch builds, synchronization, downloads or tool installation. Declarations describe your review and do not restrict trusted tool code. Settings, connection and project changes pause the session.</p>';
+  panel.innerHTML=html;byId('automationConfigure').addEventListener('click',function(){post('automation-configure');});byId('automationSession').addEventListener('click',function(){post(view.running?'automation-pause':'automation-start');});
+}
 function render() {
   const selector=byId('projectSelector');
   if(selector){selector.innerHTML=(state.projects || []).map(function(project) { return '<option value="'+esc(project.root)+'"'+(state.selectedProject===project.root?' selected':'')+'>'+esc(project.name)+'</option>'; }).join('');selector.disabled=state.kind==='scanning'||!(state.projects || []).length;}
@@ -508,6 +540,7 @@ function render() {
   renderMethods(false);
   renderMethods(true);
   renderHistory();
+  renderAutomation();
   renderBusy();
 }
 

@@ -1,12 +1,10 @@
-"""Experimental, unwired Windows handle-relative snapshot reader.
+"""Windows handle-relative snapshot reader for explicit fixed scanner inputs.
 
 Every source component opens relative to a held directory handle with NtCreateFile;
 reparse points are opened as reparse points and rejected before bytes are read.
 Directory enumeration also uses a handle. There is deliberately no path-based or
 POSIX-flag fallback. Only explicit local drive paths are currently accepted.
 
-This module is not an announcement of Windows fixed-runner support. Real Windows
-CI, process-tree cancellation and host integration must pass before it is wired.
 Disk operations are synchronous; the enclosing SDK process deadline remains the
 hard cancellation boundary if a filesystem/filter driver stalls an OS call.
 

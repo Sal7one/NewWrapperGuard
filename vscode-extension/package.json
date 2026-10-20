@@ -178,6 +178,82 @@
           "minimum": 1,
           "maximum": 100,
           "description": "Maximum local history summaries retained for each project. Older owned summaries are removed after the next saved scan."
+        },
+        "wrapperGuard.automation": {
+          "type": "object",
+          "scope": "application",
+          "default": {
+            "schemaVersion": 1,
+            "enabled": false,
+            "onChanges": true,
+            "debounceMs": 2000,
+            "intervalMinutes": 0,
+            "providers": {}
+          },
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "enabled",
+            "onChanges",
+            "debounceMs",
+            "intervalMinutes",
+            "providers"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": 1
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "onChanges": {
+              "type": "boolean"
+            },
+            "debounceMs": {
+              "type": "integer",
+              "minimum": 500,
+              "maximum": 60000
+            },
+            "intervalMinutes": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1440
+            },
+            "providers": {
+              "type": "object",
+              "maxProperties": 33,
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "network",
+                  "cost",
+                  "acknowledged"
+                ],
+                "properties": {
+                  "network": {
+                    "enum": [
+                      "NONE",
+                      "LOCAL",
+                      "REMOTE",
+                      "UNKNOWN"
+                    ]
+                  },
+                  "cost": {
+                    "enum": [
+                      "LOW",
+                      "METERED",
+                      "UNKNOWN"
+                    ]
+                  },
+                  "acknowledged": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          },
+          "description": "Reviewed automatic SCAN preferences. User Settings only. Saving or enabling leaves the current editor session paused until Review & start in Automation. Network/cost declarations do not sandbox provider code."
         }
       }
     }

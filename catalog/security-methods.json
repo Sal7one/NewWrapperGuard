@@ -63,7 +63,7 @@
     },
     {
       "id": "sast.semgrep",
-      "title": "Android / Ktor · Semgrep",
+      "title": "Android / Ktor \u00b7 Semgrep",
       "summary": "Inspect Kotlin and Java source with curated Android/Ktor review rules or an explicitly selected rule file. No build is executed.",
       "category": "SAST",
       "defaultEnabled": false,
@@ -76,7 +76,7 @@
     },
     {
       "id": "sast.bandit",
-      "title": "Python · Bandit",
+      "title": "Python \u00b7 Bandit",
       "summary": "Analyze Python with an installed Bandit scanner, or import its JSON report.",
       "category": "SAST",
       "defaultEnabled": false,
@@ -89,7 +89,7 @@
     },
     {
       "id": "sast.powershell",
-      "title": "PowerShell · PSScriptAnalyzer",
+      "title": "PowerShell \u00b7 PSScriptAnalyzer",
       "summary": "Analyze a source snapshot with an installed PowerShell analyzer, or import its JSON report.",
       "category": "SAST",
       "defaultEnabled": false,
@@ -102,7 +102,7 @@
     },
     {
       "id": "sast.sarif",
-      "title": "SAST · SARIF",
+      "title": "SAST \u00b7 SARIF",
       "summary": "Connect findings from a SARIF 2.1.0 producer, including organization-specific tools.",
       "category": "SAST",
       "defaultEnabled": false,
@@ -114,7 +114,7 @@
     },
     {
       "id": "sca.trivy",
-      "title": "Dependencies · Trivy",
+      "title": "Dependencies \u00b7 Trivy",
       "summary": "Scan supported local dependency inputs using an installed Trivy, or import its vulnerability report.",
       "category": "SUPPLY_CHAIN",
       "defaultEnabled": false,
@@ -127,7 +127,7 @@
     },
     {
       "id": "sca.osv",
-      "title": "Dependencies · OSV-Scanner",
+      "title": "Dependencies \u00b7 OSV-Scanner",
       "summary": "Check resolved dependency inputs using an installed OSV-Scanner, or import its JSON report.",
       "category": "SUPPLY_CHAIN",
       "defaultEnabled": false,
@@ -140,7 +140,7 @@
     },
     {
       "id": "dast.zap",
-      "title": "Web application · ZAP",
+      "title": "Web application \u00b7 ZAP",
       "summary": "Import a ZAP report for an explicitly scoped application target. Requires a target origin; sends no requests.",
       "category": "DAST",
       "defaultEnabled": false,
@@ -183,7 +183,7 @@
     },
     {
       "id": "sast.sonar",
-      "title": "External issues · Sonar generic JSON",
+      "title": "External issues \u00b7 Sonar generic JSON",
       "summary": "Import legacy or current Sonar generic issue data from your own analyzer without connecting a cloud account.",
       "category": "SAST",
       "defaultEnabled": false,
@@ -195,7 +195,7 @@
     },
     {
       "id": "sca.cyclonedx",
-      "title": "SBOM / VEX · CycloneDX",
+      "title": "SBOM / VEX \u00b7 CycloneDX",
       "summary": "Import CycloneDX JSON vulnerability assessments. Inventory alone is incomplete; producer VEX statements never become host-approved exceptions.",
       "category": "SUPPLY_CHAIN",
       "defaultEnabled": false,
@@ -204,6 +204,19 @@
       "maturity": "STABLE",
       "format": "cyclonedx",
       "docsUrl": "https://cyclonedx.org/capabilities/vex/"
+    },
+    {
+      "id": "dast.http-audit",
+      "title": "Owned target \u00b7 HTTP response audit",
+      "summary": "Send bounded GET requests to explicitly reviewed numeric-IP URLs. Check response headers and cookie attributes; no crawling, redirects, payloads or target startup.",
+      "category": "DAST",
+      "defaultEnabled": false,
+      "providerId": "dast.http-audit",
+      "availability": "BUILT_IN",
+      "maturity": "EXPERIMENTAL",
+      "format": "http-audit",
+      "runner": "http-audit",
+      "docsUrl": "https://owasp.org/www-project-web-security-testing-guide/"
     }
   ]
 }

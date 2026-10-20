@@ -23,7 +23,7 @@ export function hostInputScopes(providers:readonly VettingProvider[],permissions
       if(!fs.existsSync(file))continue;files.add(file);
       const anchored=path.join(fs.realpathSync(path.dirname(file)),path.basename(file));
       const raw=JSON.parse(readProjectFile(path.parse(anchored).root,anchored,65_536).toString('utf8'));
-      for(const value of [raw.reportPath,raw.runner?.rulesPath,raw.runner?.modulePath,raw.runner?.inputReportPath])if(typeof value==='string'&&path.isAbsolute(value))files.add(value);
+      for(const value of [raw.reportPath,raw.reportProvenance?.manifestPath,raw.runner?.rulesPath,raw.runner?.modulePath,raw.runner?.inputReportPath])if(typeof value==='string'&&path.isAbsolute(value))files.add(value);
     }
   }
   if(files.size)output.push({externalFiles:[...files].map(file=>path.join(fs.realpathSync(path.dirname(file)),path.basename(file)))});return output;

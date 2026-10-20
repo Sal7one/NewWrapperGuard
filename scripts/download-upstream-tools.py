@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Explicit CI-only installer for pinned official Linux scanner releases.
+"""Explicit CI-only installer for pinned official Linux/Windows scanner releases.
 
 Downloads are checked against the reviewed lock SHA256, the official GitHub release
 asset digest and, where published, its release checksum manifest. No latest-version
@@ -99,6 +99,9 @@ def safe_member(name: str) -> PurePosixPath:
     path = PurePosixPath(name)
     if path.is_absolute() or ".." in path.parts or "\\" in name or ":" in name or not path.parts:
         raise ValueError("Release archive contains an unsafe path")
+    if any(part.endswith((".", " ")) or re.fullmatch(r"(?:CON|PRN|AUX|NUL|COM[1-9¹²³]|LPT[1-9¹²³]|CONIN\$|CONOUT\$)(?:\..*)?", part, re.I)
+           for part in path.parts):
+        raise ValueError("Release archive contains a reserved Windows path")
     return path
 
 
@@ -156,9 +159,11 @@ def main() -> None:
     parser.add_argument("--tool", required=True, choices=["psscriptanalyzer", "osv", "trivy"])
     parser.add_argument("--destination", type=Path)
     parser.add_argument("--verify-only", action="store_true", help="Check official manifests without downloading/installing binaries")
+    parser.add_argument("--platform", choices=["linux-amd64", "windows-amd64"], default="windows-amd64" if os.name == "nt" else "linux-amd64")
     args = parser.parse_args()
-    lock = json.loads(LOCK.read_text(encoding="utf-8"))
-    if lock.get("schemaVersion") != 1 or lock.get("platform") != "linux-amd64":
+    selected_lock = LOCK if args.platform == "linux-amd64" else LOCK.with_name("upstream-tools.windows.lock.json")
+    lock = json.loads(selected_lock.read_text(encoding="utf-8"))
+    if lock.get("schemaVersion") != 1 or lock.get("platform") != args.platform:
         raise ValueError("Unsupported reviewed tool lock")
     tool = lock["tools"][args.tool]
     verified = [verified_asset(asset) for asset in tool["assets"]]
@@ -166,8 +171,9 @@ def main() -> None:
     if args.verify_only:
         print(json.dumps(result))
         return
-    if sys.platform != "linux" or platform.machine().lower() not in {"x86_64", "amd64"}:
-        raise ValueError("Pinned tool installer currently supports Linux amd64 only")
+    if ((args.platform == "linux-amd64" and sys.platform != "linux") or
+            (args.platform == "windows-amd64" and os.name != "nt") or platform.machine().lower() not in {"x86_64", "amd64"}):
+        raise ValueError("Pinned tool installer platform does not match this host")
     if args.destination is None or not args.destination.is_absolute() or args.destination.exists():
         raise ValueError("Choose a new absolute owned tool directory")
     destination = args.destination

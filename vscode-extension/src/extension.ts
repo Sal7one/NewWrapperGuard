@@ -4,7 +4,7 @@ import { toSarif } from './scanner/sarif';
 import { WrapperGuardWebviewProvider, openFindingInEditor, findingFileUri } from './webviewUi';
 import { BaselineEntry, Finding, ScanReport, ScanState } from './models';
 import { WrapperGuardState } from './state';
-import { mkdir, readFile, writeFile, rename, unlink } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, rename, unlink, lstat } from 'node:fs/promises';
 import * as path from 'node:path';
 import { SECURITY_METHODS, methodById, providerMethodDisabled, validateMethodFlags, MethodView } from './methods/catalog';
 import { configureIntegration } from './methods/setup';
@@ -16,12 +16,18 @@ import { DEFAULT_ENFORCE_POLICY } from './scanner/defaults';
 import { configureCustomProvider, writeProviderConfiguration, readProviderConfiguration, isWithin } from './providers/customSetup';
 import { captureInputSeal, sealsEqual } from './providers/inputSeal';
 import { hostInputScopes, ObservedReadSet } from './providers/hostInputs';
-import { observeProjectReads } from './scanner/safePath';
+import { observeProjectReads, readProjectFile } from './scanner/safePath';
 import { realpath } from 'node:fs/promises';
 import { storageDialog } from './methods/storage';
 import { SECURITY_PRESETS } from './methods/presets';
 import { HistoryStore, HistoryView, HistoryFinding, historyListItem, compareHistory as compareHistoryEntries } from './methods/history';
 import { historyScope } from './methods/historyScope';
+import { AutomationController, DEFAULT_AUTOMATION, validateAutomationPreferences } from './methods/automation';
+import { configureAutomation } from './methods/automationSetup';
+import { importPreset, exportPreset } from './methods/presetSharing';
+import { createHash } from 'node:crypto';
+import { maintainSdk } from './methods/maintenance';
+import { editEvidenceSettings } from './methods/evidenceSettings';
 export type { VettingApi, VettingProvider, VettingRequest, ProviderFinding, ProviderResult, ProviderDescriptor, ProviderPermissions, ProviderRun, VettingAction, VettingOperation } from './providers/sdk';
 export type { ProviderInputScope } from './providers/inputScope';
 
@@ -55,6 +61,17 @@ export function activate(context: vscode.ExtensionContext): VettingApi {
       return {findings:report.findings,edges:report.edges,scannedFiles:report.scannedFiles,complete:report.complete,notices:report.notices};
     }
   });
+  let automationReviewedIdentity:string|undefined;
+  const automationIdentity=async(root:string):Promise<string>=>{
+    const config=vscode.workspace.getConfiguration('wrapperGuard');const commands=await loadConfigured(root,userSetting(config.inspect('providerConfigPath'),''));
+    return createHash('sha256').update(JSON.stringify({root:await realpath(root),settings:buildSettings(),permissions:userSetting(config.inspect('providerPermissions'),{}),sources:commands.sources.map(source=>[source.file,source.contents]),providers:registry.list().map(item=>item.descriptor),automation:automationPreferences()})).digest('hex');
+  };
+  const automation=new AutomationController(async(root,ids,signal)=>{
+    if(!vscode.workspace.isTrusted||changingConnections||state.get().kind==='scanning')throw new Error('Automatic scanning is paused while the workspace is unavailable or busy.');
+    if(automationReviewedIdentity!==await automationIdentity(root))throw new Error('Provider settings changed since automation review.');
+    await evaluate('SCAN',root,{ids,signal});
+  },view=>{provider.setAutomation(view);provider.setState(state.get());});
+  const automationPreferences=()=>validateAutomationPreferences(userSetting(vscode.workspace.getConfiguration('wrapperGuard').inspect('automation'),DEFAULT_AUTOMATION));
 
   const loadConfigured = async (root: string, configuredPath: string) => {
     const sources:Array<{file:string;contents:string}>=[];
@@ -104,6 +121,7 @@ export function activate(context: vscode.ExtensionContext): VettingApi {
     provider.setState(state.get());
   };
   const invalidate = (): void => {
+    if(changingConnections)automation.pause('Paused · security configuration is being changed');
     configurationGeneration++;
     const current=state.get();
     if (current.kind === 'scanned') { const report={...current.report,stale:true,verdict:'STALE' as const};state.set({kind:'scanned',report,rawJson:JSON.stringify(report,null,2)}); }
@@ -123,7 +141,7 @@ export function activate(context: vscode.ExtensionContext): VettingApi {
     provider.setHistory(historyView);provider.setState(state.get());
   };
 
-  const evaluate = async (operation: VettingOperation = 'SCAN', projectRoot?:string): Promise<ScanReport> => {
+  const evaluate = async (operation: VettingOperation = 'SCAN', projectRoot?:string,automatic?:{ids:readonly string[];signal:AbortSignal}): Promise<ScanReport> => {
     const evaluation = ++latestEvaluation;
     const generation = configurationGeneration;
     if (changingConnections) throw new Error('A security connection is being configured. Finish setup before evaluating a gate.');
@@ -135,6 +153,7 @@ export function activate(context: vscode.ExtensionContext): VettingApi {
     try {
       if (operation !== 'SCAN' && !vscode.workspace.isTrusted) throw new Error('Build and sync gates require a trusted workspace.');
       const settings = buildSettings();
+      if(automatic)settings.methodFlags={...settings.methodFlags,...Object.fromEntries(SECURITY_METHODS.filter(method=>!automatic.ids.includes(method.providerId??'wrapperguard')).map(method=>[method.id,false]))};
       const config = vscode.workspace.getConfiguration('wrapperGuard');
       const configPath = userSetting(config.inspect<string>('providerConfigPath'), '');
       const saved = userSetting(config.inspect<Record<string,ProviderPermissions>>('providerPermissions'), {});
@@ -144,6 +163,7 @@ export function activate(context: vscode.ExtensionContext): VettingApi {
       // The user-owned file is authoritative for built-in/command grants. SDK grants live in User Settings.
       const effectivePermissions:Record<string,ProviderPermissions> = {...permissions,...commands.permissions};
       const registered = registry.list();
+      if(automatic)for(const item of [...registered,...commands.providers])if(!automatic.ids.includes(item.descriptor.id))effectivePermissions[item.descriptor.id]={...(effectivePermissions[item.descriptor.id]??EXTERNAL_PERMISSIONS),enabled:false};
       for (const id of Object.keys(effectivePermissions)) if (providerMethodDisabled(settings.methodFlags,id)) effectivePermissions[id]={...effectivePermissions[id],enabled:false};
       for (const item of registered) if (providerMethodDisabled(settings.methodFlags,item.descriptor.id)) effectivePermissions[item.descriptor.id]={...(effectivePermissions[item.descriptor.id] ?? EXTERNAL_PERMISSIONS),enabled:false};
       const pausedSdk = new Set<string>();
@@ -169,9 +189,10 @@ export function activate(context: vscode.ExtensionContext): VettingApi {
       const observed=new ObservedReadSet(root.fsPath);
       const report = await observeProjectReads(observed.observe,()=>vscode.window.withProgress(
         { location: vscode.ProgressLocation.Notification, title: 'WrapperGuard: Scanning workspace' },
-        () => evaluateProviders({projectRoot:root.fsPath,policy:DEFAULT_ENFORCE_POLICY,settings,baseline,operation,signal:new AbortController().signal},
+        () => evaluateProviders({projectRoot:root.fsPath,policy:DEFAULT_ENFORCE_POLICY,settings,baseline,operation,signal:automatic?.signal??new AbortController().signal},
           {providers:[...registered,...commands.providers],permissions:effectivePermissions,concurrency:4,notApplicableProviders:commands.notApplicableIds})
       ));
+      if(automatic)report.notices.push({code:'WG-AUTOMATED-SCAN',message:'Automatic SCAN scope includes only the reviewed providers: '+automatic.ids.join(', ')+'. No build or sync was launched.'});
       const connectedIds=new Set([...registered,...commands.providers].map(item=>item.descriptor.id));
       if (!vscode.workspace.isTrusted && (configPath || pausedSdk.size)) {
         report.notices.push({code:'WG-PROVIDERS-PAUSED',message:'External providers are paused until this workspace is trusted. Only built-in static analysis ran.'});
@@ -248,7 +269,7 @@ export function activate(context: vscode.ExtensionContext): VettingApi {
       const config=vscode.workspace.getConfiguration('wrapperGuard');
       const flags=validateMethodFlags(userSetting(config.inspect<Record<string,boolean>>('methodFlags'),{}));
       invalidate(); await config.update('methodFlags',{...flags,[id]:enabled},vscode.ConfigurationTarget.Global);
-      await refreshMethodViews(); await scan();
+      await refreshMethodViews();
     } catch (error) { void vscode.window.showErrorMessage('WrapperGuard: ' + (error instanceof Error ? error.message : String(error))); await refreshMethodViews(); }
   };
   const disconnectMethod = async (id: string): Promise<void> => {
@@ -275,7 +296,7 @@ export function activate(context: vscode.ExtensionContext): VettingApi {
       await config.update('providerPermissions',{...saved,[method.providerId]:{...(saved[method.providerId] ?? EXTERNAL_PERMISSIONS),enabled:false}},vscode.ConfigurationTarget.Global);
       await config.update('methodFlags',{...flags,[id]:false},vscode.ConfigurationTarget.Global);
     } catch(error){void vscode.window.showErrorMessage('WrapperGuard: '+(error instanceof Error?error.message:String(error)));}
-    finally {changingConnections=false;invalidate();await refreshMethodViews();await scan();}
+    finally {changingConnections=false;invalidate();await refreshMethodViews();}
   };
   const configureProvider = async (id: string): Promise<void> => {
     if (changingConnections) return;
@@ -348,7 +369,7 @@ export function activate(context: vscode.ExtensionContext): VettingApi {
       }
       await refreshMethodViews();
     } catch (error) { void vscode.window.showErrorMessage('WrapperGuard: ' + (error instanceof Error ? error.message : String(error))); }
-    finally { changingConnections=false;invalidate();await refreshMethodViews();await scan(); }
+    finally { changingConnections=false;invalidate();await refreshMethodViews(); }
   };
 
   const mutateConnection=async(id:string|undefined,action:'edit'|'remove'|'toggle',enabled?:boolean):Promise<void>=>{
@@ -378,7 +399,7 @@ export function activate(context: vscode.ExtensionContext): VettingApi {
         await writeProviderConfiguration(file,{...current,providers:[...current.providers.filter(item=>item.id!==next.id),next]},workspaceRoots());
       }
     }catch(error){void vscode.window.showErrorMessage('WrapperGuard: '+(error instanceof Error?error.message:String(error)));}
-    finally{changingConnections=false;invalidate();await refreshMethodViews();await scan();}
+    finally{changingConnections=false;invalidate();await refreshMethodViews();}
   };
   const manageStorage=async():Promise<void>=>{
     if(changingConnections)return;changingConnections=true;invalidate();
@@ -392,6 +413,29 @@ export function activate(context: vscode.ExtensionContext): VettingApi {
     }catch(error){void vscode.window.showErrorMessage('WrapperGuard: '+(error instanceof Error?error.message:String(error)));}
     finally{changingConnections=false;invalidate();await refreshMethodViews();}
   };
+  const sdkMaintenance=async():Promise<void>=>{
+    if(changingConnections)return;
+    if(state.get().kind==='scanning'){void vscode.window.showWarningMessage('Wait for the current scan to finish before maintaining its SDK.');return;}
+    changingConnections=true;invalidate();
+    try{
+      if(!vscode.workspace.isTrusted)throw new Error('Trust this workspace before SDK maintenance.');const root=await resolveProject();
+      await maintainSdk(context,workspaceRoots(),async()=>{
+        const config=vscode.workspace.getConfiguration('wrapperGuard');const loaded=await loadConfigured(root.fsPath,userSetting(config.inspect('providerConfigPath'),''));
+        const references:string[]=[];let inspected=0;
+        const collect=(value:unknown,depth=0):void=>{if(depth>32||++inspected>10000)throw new Error('Connection references exceed their inspection budget.');if(typeof value==='string'&&path.isAbsolute(value))references.push(value);else if(Array.isArray(value))value.forEach(item=>collect(item,depth+1));else if(value&&typeof value==='object')Object.values(value).forEach(item=>collect(item,depth+1));};
+        for(const source of loaded.sources)collect(JSON.parse(source.contents));
+        for(const method of SECURITY_METHODS){try{const file=path.join(path.dirname(managedConfigPath),method.id+'.profile.json');await lstat(file);const base=await realpath(context.globalStorageUri.fsPath);collect(JSON.parse(readProjectFile(base,path.join(base,'integrations',path.basename(file)),65536).toString('utf8')));}catch(error){if((error as NodeJS.ErrnoException).code!=='ENOENT')throw error;}}
+        return references;
+      });
+    }catch(error){void vscode.window.showErrorMessage('WrapperGuard SDK maintenance: '+(error instanceof Error?error.message:String(error)));}
+    finally{changingConnections=false;invalidate();await refreshMethodViews();}
+  };
+  const evidenceSettings=async(id:string):Promise<void>=>{
+    const method=methodById(id);if(!method||method.category==='BUILT_IN'||changingConnections)return;changingConnections=true;invalidate();
+    try{if(!vscode.workspace.isTrusted)throw new Error('Trust this workspace before editing evidence requirements.');await editEvidenceSettings(context.globalStorageUri.fsPath,method,workspaceRoots());}
+    catch(error){void vscode.window.showErrorMessage('WrapperGuard evidence settings: '+(error instanceof Error?error.message:String(error)));}
+    finally{changingConnections=false;invalidate();await refreshMethodViews();}
+  };
   const applyPreset=async():Promise<void>=>{
     if(changingConnections)return;changingConnections=true;
     try{
@@ -403,6 +447,31 @@ export function activate(context: vscode.ExtensionContext): VettingApi {
       await vscode.window.showInformationMessage(preset.title+' selected. Review connection readiness, then run a scan. No new permissions or installations were added.');
     }catch(error){void vscode.window.showErrorMessage('WrapperGuard: '+(error instanceof Error?error.message:String(error)));}
     finally{changingConnections=false;await refreshMethodViews();}
+  };
+  const sharePreset=async(action:'import'|'export'):Promise<void>=>{
+    if(changingConnections)return;changingConnections=true;
+    try{
+      const config=vscode.workspace.getConfiguration('wrapperGuard');const current=validateMethodFlags(userSetting(config.inspect('methodFlags'),{}));
+      const flags=Object.fromEntries(SECURITY_METHODS.map(method=>[method.id,current[method.id]??method.defaultEnabled]));
+      if(action==='export')await exportPreset(flags);
+      else{const preset=await importPreset(flags);if(preset){invalidate();await config.update('methodFlags',{...current,...preset.methodFlags},vscode.ConfigurationTarget.Global);await vscode.window.showInformationMessage(preset.title+' applied. Review connection readiness and scan explicitly. No permissions or tools changed.');}}
+    }catch(error){void vscode.window.showErrorMessage('WrapperGuard preset: '+(error instanceof Error?error.message:String(error)));}
+    finally{changingConnections=false;await refreshMethodViews();}
+  };
+  const automationAction=async(action:'configure'|'start'|'pause'):Promise<void>=>{
+    if(action==='pause'){automation.pause();return;}
+    try{
+      if(changingConnections||!vscode.workspace.isTrusted)throw new Error('Finish setup and trust this workspace before configuring automatic scans.');
+      const root=await resolveProject();const config=vscode.workspace.getConfiguration('wrapperGuard');const loaded=await loadConfigured(root.fsPath,userSetting(config.inspect('providerConfigPath'),''));
+      const saved=userSetting(config.inspect<Record<string,ProviderPermissions>>('providerPermissions'),{});const flags=validateMethodFlags(userSetting(config.inspect('methodFlags'),{}));
+      const candidates=[...registry.list(),...loaded.providers].map(item=>({id:item.descriptor.id,title:item.descriptor.displayName,enabled:!providerMethodDisabled(flags,item.descriptor.id)&&(loaded.permissions[item.descriptor.id]??saved[item.descriptor.id]??(item.descriptor.id==='wrapperguard'?{enabled:true}:EXTERNAL_PERMISSIONS)).enabled}));
+      if(action==='configure'){
+        automation.pause('Paused · reviewing automation preferences');const next=await configureAutomation(automationPreferences(),candidates);if(!next)return;await config.update('automation',next,vscode.ConfigurationTarget.Global);automation.configure(next);return;
+      }
+      const preferences=automationPreferences();automation.configure(preferences);
+      const review=await vscode.window.showQuickPick([{label:'Start automatic SCAN for '+path.basename(root.fsPath),start:true,description:Object.entries(preferences.providers).map(([id,policy])=>id+' · '+policy.network+' / '+policy.cost).join('; ')},{label:'Keep paused',start:false}],{title:'Review this editor session’s automation',placeHolder:'Only enabled selected providers run after future triggers. Network and cost declarations do not sandbox processes. Closing/reloading pauses this session.',ignoreFocusOut:true});
+      if(review?.start){automationReviewedIdentity=await automationIdentity(root.fsPath);automation.start(root.fsPath,candidates.filter(item=>item.enabled).map(item=>item.id));}
+    }catch(error){automation.pause('Paused · review settings and connection readiness');void vscode.window.showErrorMessage('WrapperGuard automation: '+(error instanceof Error?error.message:String(error)));}
   };
   const historyAction=async(action:'enabled'|'retention'|'clear'|'compare',value?:boolean|string):Promise<void>=>{
     try{
@@ -571,13 +640,18 @@ export function activate(context: vscode.ExtensionContext): VettingApi {
     ,removeProvider:id=>void mutateConnection(id,'remove')
     ,toggleProvider:(id,enabled)=>void mutateConnection(id,'toggle',enabled)
     ,manageStorage:()=>void manageStorage()
+    ,sdkMaintenance:()=>void sdkMaintenance()
+    ,evidenceSettings:id=>void evidenceSettings(id)
     ,applyPreset:()=>void applyPreset()
+    ,importPreset:()=>void sharePreset('import')
+    ,exportPreset:()=>void sharePreset('export')
+    ,automation:action=>void automationAction(action)
     ,historyEnabled:enabled=>void historyAction('enabled',enabled)
     ,historyRetention:()=>void historyAction('retention')
     ,clearHistory:()=>void historyAction('clear')
     ,compareHistory:id=>void historyAction('compare',id)
     ,openHistoryFinding:finding=>void openHistoryFinding(finding)
-    ,selectProject:root=>{if(!workspaceRoots().includes(root))return;selectedProject=root;invalidate();state.set({kind:'not-scanned'});void refreshMethodViews();void refreshHistory();void scan();}
+    ,selectProject:root=>{if(!workspaceRoots().includes(root))return;automation.pause('Paused · selected project changed');selectedProject=root;invalidate();state.set({kind:'not-scanned'});void refreshMethodViews();void refreshHistory();}
   };
 
   const log = vscode.window.createOutputChannel('WrapperGuard');
@@ -588,6 +662,7 @@ export function activate(context: vscode.ExtensionContext): VettingApi {
   const inputsChanged = (uri:vscode.Uri):void => {
     if(uri.scheme!=='file'||!workspaceRoots().some(root=>isWithin(path.resolve(uri.fsPath),path.resolve(root))))return;
     invalidate();
+    const root=selectedRoot();if(root&&isWithin(path.resolve(uri.fsPath),path.resolve(root.fsPath)))automation.inputChanged(root.fsPath);
   };
   const sourceWatcher=vscode.workspace.createFileSystemWatcher('**/*');
 
@@ -606,6 +681,7 @@ export function activate(context: vscode.ExtensionContext): VettingApi {
     status,
     log,
     sourceWatcher,
+    automation,
     sourceWatcher.onDidCreate(inputsChanged),
     sourceWatcher.onDidChange(inputsChanged),
     sourceWatcher.onDidDelete(inputsChanged),
@@ -621,10 +697,13 @@ export function activate(context: vscode.ExtensionContext): VettingApi {
     ,vscode.commands.registerCommand('wrapperGuard.evaluate', evaluate)
     ,vscode.workspace.onDidGrantWorkspaceTrust(() => { configurationGeneration++; void scan(); })
     ,vscode.workspace.onDidChangeConfiguration(event => {
+      if(event.affectsConfiguration('wrapperGuard'))automation.pause('Paused · settings changed; review and Start again');
       if (event.affectsConfiguration('wrapperGuard')) { if(['allowedHosts','blockedCommands','requireDistributionSha256','providerPermissions','providerConfigPath','methodFlags'].some(key=>event.affectsConfiguration('wrapperGuard.'+key)))invalidate();void refreshMethodViews();void refreshHistory(); }
     })
-    ,vscode.workspace.onDidChangeWorkspaceFolders?.(()=>{selectedProject=selectedRoot()?.fsPath;invalidate();state.set({kind:'not-scanned'});void refreshMethodViews();void refreshHistory();})??{dispose(){}}
+    ,vscode.workspace.onDidChangeWorkspaceFolders?.(()=>{automation.pause('Paused · workspace folders changed');selectedProject=selectedRoot()?.fsPath;invalidate();state.set({kind:'not-scanned'});void refreshMethodViews();void refreshHistory();})??{dispose(){}}
   );
+
+  try{automation.configure(automationPreferences());}catch{automation.pause('Paused · automation settings are invalid');}
 
   void refreshMethodViews();
   void refreshHistory();
@@ -635,9 +714,8 @@ export function activate(context: vscode.ExtensionContext): VettingApi {
     apiVersion:1,
     registerProvider: external => {
       const registration = registry.registerProvider(external);
-      configurationGeneration++;
-      void scan();
-      return {dispose:() => { registration.dispose(); configurationGeneration++; void scan(); }};
+      invalidate();automation.pause('Paused · provider registration changed');void refreshMethodViews();
+      return {dispose:() => { registration.dispose();invalidate();automation.pause('Paused · provider registration changed');void refreshMethodViews(); }};
     },
     evaluate,
     gate: async (operation,projectRoot) => {

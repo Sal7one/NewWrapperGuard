@@ -5,9 +5,10 @@ import { constants } from 'node:fs';
 import { CommandProviderConfig, validateCommandConfiguration } from '../providers/commandProvider';
 import { SecurityMethod } from './catalog';
 import { ScanReport } from '../models';
-import { ensureManagedSdk, installManagedPythonTool, pythonVersion, PYTHON_TOOLS } from './bootstrap';
+import { ensureManagedSdk, installManagedPythonTool, pythonVersion, sdkSupportedRunners, PYTHON_TOOLS } from './bootstrap';
 import { HOST_SOURCE_GLOBS } from '../providers/hostInputs';
 import { GENERATED_EXCLUDES } from '../providers/inputScope';
+import { configureHttpAudit } from './httpAuditSetup';
 
 export const SETUP_GRANTS = Object.freeze({enabled:true,required:false,actions:['WARNING'] as const,timeoutMs:45_000});
 export const SEMGREP_RULE_PACKS=[{id:'legacy-android-ktor',title:'Android & Ktor baseline',summary:'Original six Java/Kotlin review rules',defaultEnabled:true},{id:'android-manifest',title:'Android manifest',summary:'Exported components, backup and transport declarations',defaultEnabled:false},{id:'android-webview',title:'Android WebView',summary:'Risky WebView configuration and bridges',defaultEnabled:false},{id:'jvm-crypto',title:'JVM cryptography',summary:'Review weak algorithms and static encryption inputs',defaultEnabled:false},{id:'ktor-runtime',title:'Ktor runtime',summary:'Review server and authentication configuration',defaultEnabled:false}];
@@ -16,7 +17,7 @@ export function integrationProfile(method: SecurityMethod, source: {reportPath?:
   const tool = method.runner ?? method.format;
   if(source.rulePacks && (source.rulesPath || tool!=='semgrep' || !source.rulePacks.length || new Set(source.rulePacks).size!==source.rulePacks.length || source.rulePacks.some(id=>!SEMGREP_RULE_PACKS.some(pack=>pack.id===id))))throw new Error('Choose supported bundled Semgrep packs or one trusted rule file.');
   return {
-    id:method.providerId,displayName:method.title,version:'0.3.0',analysisKind:method.category === 'SUPPLY_CHAIN' ? 'SCA' : method.category === 'DAST' ? 'DAST' : 'SAST',
+    id:method.providerId,displayName:method.title,version:'0.4.0',analysisKind:method.category === 'SUPPLY_CHAIN' ? 'SCA' : method.category === 'DAST' ? 'DAST' : 'SAST',
     format:method.format,...(source.local ? {runner:tool === 'script-semantics' ? {tool} : {tool,executable:source.executable,...(tool === 'psscriptanalyzer' ? {modulePath:source.modulePath} : {}),...(source.rulesPath ? {rulesPath:source.rulesPath} : {}),...(source.rulePacks ? {rulePacks:[...source.rulePacks]} : {})}} : {reportPath:source.reportPath}),
     allowedOperations:['SCAN'],requestedActions:['WARNING'],...(source.targetScope ? {targetScope:source.targetScope} : {})
   };
@@ -39,7 +40,7 @@ export async function validateExecutable(file: string, projectRoots: string[]): 
   // so Python discovers the chosen environment's pyvenv.cfg and installed SDK.
   return original;
 }
-async function choosePython(context:vscode.ExtensionContext,roots:string[],managed:boolean):Promise<string|undefined> {
+export async function choosePython(context:vscode.ExtensionContext,roots:string[],managed:boolean):Promise<string|undefined> {
   const known=process.platform === 'win32' ? ['314','313','312','311','310'].map(version=>path.join(process.env.LOCALAPPDATA ?? '', 'Programs','Python','Python'+version,'python.exe')).filter(file=>path.isAbsolute(file)) : ['/opt/homebrew/bin/python3.12','/opt/homebrew/bin/python3.13','/opt/homebrew/bin/python3.14','/opt/homebrew/bin/python3','/usr/local/bin/python3','/usr/bin/python3'];
   const managedPython=path.join(context.globalStorageUri.fsPath,'sdk-environment',process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
   const candidates=await Promise.all([managedPython,...known].map(async file=>{try {const executable=await validateExecutable(file,roots);const version=await pythonVersion(executable,context.globalStorageUri.fsPath,!managed);return version ? {label:'Python '+version,description:executable,executable,browse:false} : undefined;}catch{return undefined;}}));
@@ -47,8 +48,11 @@ async function choosePython(context:vscode.ExtensionContext,roots:string[],manag
   const choice=await vscode.window.showQuickPick([...distinct,{label:'Browse for Python…',description:managed ? 'Choose Python 3.10+ with venv support' : 'Choose Python from an existing SDK environment',executable:'',browse:true}],{title:managed ? 'Prepare the bundled SDK — choose Python' : 'Connect an existing SDK — choose Python',ignoreFocusOut:true});
   if (!choice) return undefined;
   if (!choice.browse && choice.executable) return choice.executable;
-  const selected=await vscode.window.showOpenDialog({canSelectFiles:true,canSelectFolders:false,canSelectMany:false,title:managed ? 'Choose Python 3.10+ to prepare the managed SDK' : 'Choose Python with wrapperguard-sdk 0.3.0+',openLabel:'Use Python'});
-  return selected?.[0] ? validateExecutable(selected[0].fsPath,roots) : undefined;
+  const selected=await vscode.window.showOpenDialog({canSelectFiles:true,canSelectFolders:false,canSelectMany:false,title:managed ? 'Choose Python 3.10+ to prepare the managed SDK' : 'Choose Python with wrapperguard-sdk 0.4.0+',openLabel:'Use Python'});
+  if(!selected?.[0])return undefined;
+  const executable=await validateExecutable(selected[0].fsPath,roots);
+  if(!await pythonVersion(executable,context.globalStorageUri.fsPath,!managed))throw new Error(managed?'Choose Python 3.10+ with venv support.':'The selected interpreter needs Python 3.10+ and wrapperguard-sdk 0.4.0 or later. Repair the managed SDK or choose a supported environment.');
+  return executable;
 }
 export function targetScopeFromUrl(value: string): {origins:string[];pathPrefixes:string[]} {
   const url=new URL(value);
@@ -76,6 +80,17 @@ export async function configureIntegration(context: vscode.ExtensionContext, met
   await mkdir(context.globalStorageUri.fsPath,{recursive:true,mode:0o700});
   const storage=await realpath(context.globalStorageUri.fsPath);
   for (const root of roots) if (contained(storage,await realpath(root))) throw new Error('SDK storage must be outside every workspace folder.');
+  if(method.runner==='http-audit'){
+    const options=await configureHttpAudit();if(!options)return false;
+    const environment=await vscode.window.showQuickPick([{label:'Create a managed SDK environment',description:'Install the bundled SDK offline',managed:true},{label:'Use an existing SDK environment',managed:false}],{title:'Owned HTTP audit — SDK environment',ignoreFocusOut:true});if(!environment)return false;
+    const selectedPython=await choosePython(context,roots,environment.managed);if(!selectedPython)return false;
+    const python=environment.managed?await ensureManagedSdk(context,selectedPython):selectedPython;
+    if(!(await sdkSupportedRunners(python,storage)).includes('http-audit'))throw new Error('The selected SDK does not support the owned-target HTTP audit. Repair the managed SDK before connecting; no network requests or provider enablement occurred.');
+    if(!await reviewConnection(method,'ACTIVE network audit: exact reviewed numeric-IP URLs only. Fixed GET requests, no redirects/crawling/exploits or application startup. Authentication uses only the reviewed environment references.'))return false;
+    await mkdir(path.dirname(managedPath),{recursive:true,mode:0o700});const profilePath=path.join(path.dirname(managedPath),method.id+'.profile.json');
+    await atomicJson(profilePath,{id:method.providerId,displayName:method.title,version:'0.4.0',analysisKind:'DAST',format:'http-audit',projectRoot,...options,allowedOperations:['SCAN'],requestedActions:['WARNING']});
+    await saveConnection(managedPath,roots,{id:method.providerId!,displayName:method.title,version:'0.4.0',command:[python,'-I','-m','wrapperguard_sdk','--profile',profilePath],permissions:{...SETUP_GRANTS,timeoutMs:Math.min(300000,options.runner.timeoutMs+15000),actions:['WARNING']},projectRoots:[projectRoot]});return true;
+  }
   if (method.category === 'AI') {
     const endpoint=await vscode.window.showInputBox({title:'Connect a local AI model server',value:'http://127.0.0.1:1234/v1',prompt:'OpenAI-compatible HTTP endpoint on numeric loopback with an explicit port and /v1. No source files are sent.',ignoreFocusOut:true,validateInput:value=>{try {validateLocalEndpoint(value);return undefined;} catch {return 'Use http://127.0.0.1:PORT/v1 or http://[::1]:PORT/v1.';}}});
     if (endpoint === undefined) return false;
@@ -97,22 +112,21 @@ export async function configureIntegration(context: vscode.ExtensionContext, met
       inputReportPath=await realpath(selected[0].fsPath);
       for (const root of roots) if (contained(inputReportPath,await realpath(root))) throw new Error('AI input reports must be outside the workspace.');
     }
-    const environment=await vscode.window.showQuickPick([{label:'Create a managed SDK environment',description:'Recommended · installs the bundled SDK locally',managed:true},{label:'Use an existing SDK environment',description:'Python with wrapperguard-sdk 0.3.0 or later',managed:false}],{title:'Local AI review — SDK environment',ignoreFocusOut:true});
+    const environment=await vscode.window.showQuickPick([{label:'Create a managed SDK environment',description:'Recommended · installs the bundled SDK locally',managed:true},{label:'Use an existing SDK environment',description:'Python with wrapperguard-sdk 0.4.0 or later',managed:false}],{title:'Local AI review — SDK environment',ignoreFocusOut:true});
     if (!environment) return false;
     const selectedPython=await choosePython(context,roots,environment.managed);
     if (!selectedPython) return false;
     const python=environment.managed ? await ensureManagedSdk(context,selectedPython) : selectedPython;
     if (!await reviewConnection(method,'Reviews up to five finding summaries on your selected loopback model server. No source evidence, code execution, build or sync permissions.')) return false;
     const profilePath=path.join(path.dirname(managedPath),method.id + '.profile.json');
-    await atomicJson(profilePath,{id:method.providerId,displayName:method.title,version:'0.3.0',analysisKind:'AI',format:'ai-review',projectRoot,runner:{tool:'local-ai',endpoint,model:model.trim(),inputReportPath,responseFormat:outputFormat.responseFormat,timeoutMs:30000},allowedOperations:['SCAN'],requestedActions:[]});
-    await saveConnection(managedPath,roots,{id:method.providerId!,displayName:method.title,version:'0.3.0',command:[python,'-I','-m','wrapperguard_sdk','--profile',profilePath],permissions:{...SETUP_GRANTS,actions:[]},projectRoots:[projectRoot]});
+    await atomicJson(profilePath,{id:method.providerId,displayName:method.title,version:'0.4.0',analysisKind:'AI',format:'ai-review',projectRoot,runner:{tool:'local-ai',endpoint,model:model.trim(),inputReportPath,responseFormat:outputFormat.responseFormat,timeoutMs:30000},allowedOperations:['SCAN'],requestedActions:[]});
+    await saveConnection(managedPath,roots,{id:method.providerId!,displayName:method.title,version:'0.4.0',command:[python,'-I','-m','wrapperguard_sdk','--profile',profilePath],permissions:{...SETUP_GRANTS,actions:[]},projectRoots:[projectRoot]});
     return true;
   }
   if (!method.format) throw new Error('This method does not yet declare a supported integration format.');
   const tool=method.runner ?? method.format;
-  if (process.platform === 'win32' && tool === 'script-semantics') {void vscode.window.showInformationMessage('Script behavior analysis currently requires the POSIX source snapshot runner. Use WrapperGuard in a Linux/WSL environment for this optional method.');return false;}
   const localTools=new Set(['bandit','semgrep','psscriptanalyzer','trivy','osv','script-semantics']);
-  const localSupported=localTools.has(tool) && process.platform !== 'win32';
+  const localSupported=localTools.has(tool);
   const choice=method.format === 'script-semantics' ? {local:true} : await vscode.window.showQuickPick([
     ...(localSupported ? [{label:'Run installed tool locally',description:'Fixed SDK runner · no repository commands · SCAN only',local:true}] : []),
     {label:'Import an existing JSON report',description:'Read findings only; does not run the scanner',local:false}
@@ -123,6 +137,7 @@ export async function configureIntegration(context: vscode.ExtensionContext, met
   const selectedPython=await choosePython(context,roots,environment.managed);
   if (!selectedPython) return false;
   const python=environment.managed ? await ensureManagedSdk(context,selectedPython) : selectedPython;
+  if(choice.local&&process.platform==='win32'&&!(await sdkSupportedRunners(python,storage)).includes(tool))throw new Error('The selected SDK does not support this local runner on Windows. Repair/upgrade the SDK or choose its existing-report import instead. No connection was enabled.');
   let executable:string|undefined,modulePath:string|undefined,rulesPath:string|undefined,rulePacks:string[]|undefined,reportPath:string|undefined,targetScope:unknown;
   if (choice.local && method.format !== 'script-semantics') {
     const pythonTool=tool === 'bandit' || tool === 'semgrep' ? tool : undefined;
@@ -178,7 +193,7 @@ export async function configureIntegration(context: vscode.ExtensionContext, met
   }
   const network= !choice.local ? 'Imports the selected report only; no scanner or network requests. Report age and coverage depend on its producer.' : method.format === 'trivy' ? 'Trivy may download vulnerability databases and indexes. It receives only a bounded source snapshot; no build or dependency install is run.' : method.format === 'osv' ? 'OSV-Scanner sends dependency names and versions to OSV. Dependency resolution, builds and package installation are disabled.' : 'Runs the selected fixed analyzer on a bounded snapshot. Project scripts and build commands are not executed.';
   if (!await reviewConnection(method,network)) return false;
-  const registered={id:method.providerId!,displayName:method.title,version:'0.3.0',command:[python,'-I','-m','wrapperguard_sdk','--profile',profilePath],permissions:{...SETUP_GRANTS,timeoutMs:method.category === 'SUPPLY_CHAIN' && choice.local ? 150000 : SETUP_GRANTS.timeoutMs,actions:[...SETUP_GRANTS.actions]},...(!choice.local?{projectRoots:[projectRoot]}:{})};
+  const registered={id:method.providerId!,displayName:method.title,version:'0.4.0',command:[python,'-I','-m','wrapperguard_sdk','--profile',profilePath],permissions:{...SETUP_GRANTS,timeoutMs:method.category === 'SUPPLY_CHAIN' && choice.local ? 150000 : SETUP_GRANTS.timeoutMs,actions:[...SETUP_GRANTS.actions]},...(!choice.local?{projectRoots:[projectRoot]}:{})};
   await atomicJson(profilePath,profile);
   await saveConnection(managedPath,roots,registered);
   return true;

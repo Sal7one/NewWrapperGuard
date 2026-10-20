@@ -7,6 +7,8 @@ const {analyzeMavenPom,supportedMavenPom}=require('../dist/scanner/mavenPomRules
 let setup;const env={trusted:true,project:'',picks:[],files:[],inputs:[]};
 const vscode={workspace:{get isTrusted(){return env.trusted;},get workspaceFolders(){return [{uri:{scheme:'file',fsPath:env.project}}];}},window:{showQuickPick:async()=>env.picks.shift(),showOpenDialog:async()=>env.files.shift(),showInputBox:async()=>env.inputs.shift(),showWarningMessage:async()=>{}},commands:{executeCommand:async()=>{}}};
 const original=Module._load;try {Module._load=function(id,...args){return id==='vscode'?vscode:original.call(this,id,...args);};setup=require('../dist/methods/setup');}finally{Module._load=original;}
+// Wizard tests select a stand-in executable; interpreter isolation/readiness is covered by bootstrap.test.js.
+require('../dist/methods/bootstrap').pythonVersion=async()=> '3.14.0';
 async function fixture(t,files){const dir=await fs.mkdtemp(path.join(os.tmpdir(),'wg-methods-'));const project=path.join(dir,'project');await fs.mkdir(project);for(const [file,text] of Object.entries(files)){await fs.mkdir(path.dirname(path.join(project,file)),{recursive:true});await fs.writeFile(path.join(project,file),text);}t.after(()=>fs.rm(dir,{recursive:true,force:true}));return{dir,project};}
 test('catalog has independent built-in defaults and explicit user flags reject unknown methods',()=>{
  assert.equal(BUILTIN_METHOD_IDS.length,6);assert.ok(SECURITY_METHODS.filter(m=>m.category!=='BUILT_IN').every(m=>m.defaultEnabled===false));

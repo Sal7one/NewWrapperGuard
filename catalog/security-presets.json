@@ -22,7 +22,8 @@
         "research.script-semantics": false,
         "ai.external-model": false,
         "sast.sonar": false,
-        "sca.cyclonedx": false
+        "sca.cyclonedx": false,
+        "dast.http-audit": false
       },
       "notice": "Semgrep runs installed local code. Missing connections remain visibly incomplete; no download or new permission is granted."
     },
@@ -47,7 +48,8 @@
         "research.script-semantics": false,
         "ai.external-model": false,
         "sast.sonar": false,
-        "sca.cyclonedx": false
+        "sca.cyclonedx": false,
+        "dast.http-audit": false
       },
       "notice": "Rule-pack selection and tool connection remain separate explicit choices."
     },
@@ -72,7 +74,8 @@
         "research.script-semantics": false,
         "ai.external-model": false,
         "sast.sonar": false,
-        "sca.cyclonedx": false
+        "sca.cyclonedx": false,
+        "dast.http-audit": false
       },
       "notice": "Disables optional methods; no external process or network is requested by this selection."
     },
@@ -97,7 +100,8 @@
         "research.script-semantics": false,
         "ai.external-model": false,
         "sast.sonar": false,
-        "sca.cyclonedx": false
+        "sca.cyclonedx": false,
+        "dast.http-audit": false
       },
       "notice": "Installed tools remain independently controlled by their grants and setup state."
     },
@@ -122,7 +126,8 @@
         "research.script-semantics": false,
         "ai.external-model": false,
         "sast.sonar": false,
-        "sca.cyclonedx": false
+        "sca.cyclonedx": false,
+        "dast.http-audit": false
       },
       "notice": "Trivy may download vulnerability databases; OSV sends dependency metadata. Applying this preset does not install tools or grant permissions."
     }

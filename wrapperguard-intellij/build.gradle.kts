@@ -68,12 +68,12 @@ val buildIntegrationSdk by tasks.registering(Exec::class) {
         exclude("build/**", "**/__pycache__/**", "**/*.egg-info/**")
     })
     inputs.file(rootProject.file("scripts/build-sdk.py"))
-    outputs.file(rootProject.file("build/sdk/wrapperguard_sdk-0.3.0-py3-none-any.whl"))
+    outputs.file(rootProject.file("build/sdk/wrapperguard_sdk-0.4.0-py3-none-any.whl"))
 }
 
 tasks.processResources {
     dependsOn(buildIntegrationSdk)
-    from(rootProject.file("build/sdk/wrapperguard_sdk-0.3.0-py3-none-any.whl")) {
+    from(rootProject.file("build/sdk/wrapperguard_sdk-0.4.0-py3-none-any.whl")) {
         into("integrations")
     }
 }

@@ -1,9 +1,8 @@
 """Bounded pipe capture for trusted fixed runners; not a subprocess security sandbox.
 
-This helper does not create a detached process group. The host must own cancellation
-of the containing group/job and prohibit providers that detach descendants. Cleanup
-here terminates the immediate child; it cannot promise Windows process-tree cleanup.
-Windows direct runners remain disabled until the separate platform matrix passes.
+Windows children are assigned atomically to a kill-on-close Job Object, including
+their descendants. POSIX children inherit the host's process group so host group
+cancellation still reaches them; local POSIX cleanup stops the immediate process.
 
 Windows pipe contract:
 https://learn.microsoft.com/en-us/windows/win32/api/namedpipeapi/nf-namedpipeapi-peeknamedpipe
@@ -79,9 +78,13 @@ def bounded_process(argv: list[str], cwd: Path, environment: dict[str, str], dea
             raise TimeoutError("Integration deadline exceeded")
 
     check()
-    process = subprocess.Popen(argv, cwd=cwd, env=environment, stdin=subprocess.DEVNULL,
-                               stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=0,
-                               close_fds=True)
+    if os.name == "nt":
+        from .windows_job import WindowsJobProcess
+        process = WindowsJobProcess(argv, cwd, environment)
+    else:
+        process = subprocess.Popen(argv, cwd=cwd, env=environment, stdin=subprocess.DEVNULL,
+                                   stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=0,
+                                   close_fds=True)
     assert process.stdout is not None
     descriptor = process.stdout.fileno()
     output = bytearray()
@@ -118,5 +121,10 @@ def bounded_process(argv: list[str], cwd: Path, environment: dict[str, str], dea
             raise ValueError("Tool failed")
         return bytes(output)
     finally:
-        _stop_process(process)
-        process.stdout.close()
+        try:
+            _stop_process(process)
+        finally:
+            if os.name == "nt":
+                process.close()  # Also terminates descendants after an exited parent.
+            else:
+                process.stdout.close()
