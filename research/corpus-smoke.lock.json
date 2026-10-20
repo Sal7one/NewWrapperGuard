@@ -1,0 +1,165 @@
+{
+  "schemaVersion": 1,
+  "reviewedAt": "2026-10-20",
+  "purpose": "Static integration and coverage baseline; not a representative accuracy benchmark or training dataset",
+  "sources": [
+    {
+      "id": "pydefender-1.0.0",
+      "repository": "DataDog/malicious-software-packages-dataset",
+      "revision": "8a74a4c8ee0e1a2927f0419e0710968702ded609",
+      "label": "malicious-package",
+      "labelSource": "Dataset maintainer human triage",
+      "referenceDate": "2023-03-20",
+      "dateMeaning": "discovery",
+      "group": "package:pydefender",
+      "family": "unknown",
+      "split": "calibration",
+      "license": "Apache-2.0",
+      "licenseNote": "Dataset license; legitimate embedded code retains its original license. Samples are not redistributed in this repository.",
+      "artifacts": [
+        {
+          "kind": "encrypted-zip",
+          "url": "https://raw.githubusercontent.com/DataDog/malicious-software-packages-dataset/8a74a4c8ee0e1a2927f0419e0710968702ded609/samples/pypi/malicious_intent/pydefender/1.0.0/2023-03-20-pydefender-v1.0.0.zip",
+          "sha256": "3712df7ee70981d57d4aee9fcca79c1f6eb9c5e516fb89bb1c9e62af80f6fd79",
+          "bytes": 15690
+        }
+      ]
+    },
+    {
+      "id": "1337test-1",
+      "repository": "DataDog/malicious-software-packages-dataset",
+      "revision": "8a74a4c8ee0e1a2927f0419e0710968702ded609",
+      "label": "malicious-package",
+      "labelSource": "Dataset maintainer human triage",
+      "referenceDate": "2023-05-03",
+      "dateMeaning": "discovery",
+      "group": "package:1337test",
+      "family": "unknown",
+      "split": "temporal-holdout",
+      "license": "Apache-2.0",
+      "licenseNote": "Dataset license with original-code license caveat; no sample redistribution.",
+      "artifacts": [
+        {
+          "kind": "encrypted-zip",
+          "url": "https://raw.githubusercontent.com/DataDog/malicious-software-packages-dataset/8a74a4c8ee0e1a2927f0419e0710968702ded609/samples/pypi/malicious_intent/1337test/1/2023-05-03-1337test-v1.zip",
+          "sha256": "656baf2a4d14bc267ed87197fc2d1b8e74c663ee859fd883f84f5a488515c64d",
+          "bytes": 28722
+        }
+      ]
+    },
+    {
+      "id": "0wneg-0.9.0",
+      "repository": "DataDog/malicious-software-packages-dataset",
+      "revision": "8a74a4c8ee0e1a2927f0419e0710968702ded609",
+      "label": "malicious-package",
+      "labelSource": "Dataset maintainer human triage",
+      "referenceDate": "2023-05-14",
+      "dateMeaning": "discovery",
+      "group": "package:0wneg",
+      "family": "unknown",
+      "split": "temporal-holdout",
+      "license": "Apache-2.0",
+      "licenseNote": "Dataset license with original-code license caveat; no sample redistribution.",
+      "artifacts": [
+        {
+          "kind": "encrypted-zip",
+          "url": "https://raw.githubusercontent.com/DataDog/malicious-software-packages-dataset/8a74a4c8ee0e1a2927f0419e0710968702ded609/samples/pypi/malicious_intent/0wneg/0.9.0/2023-05-14-0wneg-v0.9.0.zip",
+          "sha256": "3a0c792c933176ea59404ffa90ce9684ab2e033fcd0b42d13c4d5cc6411b0883",
+          "bytes": 11322
+        }
+      ]
+    },
+    {
+      "id": "requests-2.32.5",
+      "repository": "psf/requests",
+      "revision": "b25c87d7cb8d6a18a37fa12442b5f883f9e41741",
+      "label": "benign-project",
+      "labelSource": "Official project source; does not mean vulnerability-free",
+      "referenceDate": "2025-08-18",
+      "dateMeaning": "commit",
+      "group": "source:requests",
+      "family": "not-applicable",
+      "split": "temporal-holdout",
+      "license": "Apache-2.0",
+      "artifacts": [
+        {
+          "kind": "tar-gz",
+          "url": "https://codeload.github.com/psf/requests/tar.gz/b25c87d7cb8d6a18a37fa12442b5f883f9e41741",
+          "sha256": "f43c1e132868abb6a7002ec4a4232b86610bf55c2deba17ef7b53cdc39794eae",
+          "bytes": 4056381
+        }
+      ]
+    },
+    {
+      "id": "powershell-build",
+      "repository": "PowerShell/PowerShell",
+      "revision": "43d85c7a16d37a1e8f5a7519b170f0562ec4dbc4",
+      "label": "benign-project",
+      "labelSource": "Official build module; selected-file scope",
+      "referenceDate": "2026-10-19",
+      "dateMeaning": "commit",
+      "group": "source:powershell",
+      "family": "not-applicable",
+      "split": "temporal-holdout",
+      "license": "MIT",
+      "artifacts": [
+        {
+          "kind": "file",
+          "path": "build.psm1",
+          "url": "https://raw.githubusercontent.com/PowerShell/PowerShell/43d85c7a16d37a1e8f5a7519b170f0562ec4dbc4/build.psm1",
+          "sha256": "aa26d46011754a90dc2814469c154c8174d92eb8986a443ee926be88f709d861",
+          "bytes": 188116
+        },
+        {
+          "kind": "file",
+          "path": "LICENSE.txt",
+          "url": "https://raw.githubusercontent.com/PowerShell/PowerShell/43d85c7a16d37a1e8f5a7519b170f0562ec4dbc4/LICENSE.txt",
+          "sha256": "7c77a44a8acd9b41fdc209864a8016b3d430b5d0e09309818d5b7444336df744",
+          "bytes": 1074
+        }
+      ]
+    },
+    {
+      "id": "ktor-samples",
+      "repository": "ktorio/ktor-samples",
+      "revision": "1c9df7cf102d638eadaf545fcce4c0ec5ccad334",
+      "label": "benign-project",
+      "labelSource": "Official sample repositories; not vulnerability ground truth",
+      "referenceDate": "2026-09-17",
+      "dateMeaning": "commit",
+      "group": "source:ktor",
+      "family": "not-applicable",
+      "split": "temporal-holdout",
+      "license": "Apache-2.0",
+      "artifacts": [
+        {
+          "kind": "tar-gz",
+          "url": "https://codeload.github.com/ktorio/ktor-samples/tar.gz/1c9df7cf102d638eadaf545fcce4c0ec5ccad334",
+          "sha256": "2d997e2d04410da2adc0724f86b1c24116c4274a5da4b587f012e3c43a450a09",
+          "bytes": 15945634
+        }
+      ]
+    },
+    {
+      "id": "now-in-android",
+      "repository": "android/nowinandroid",
+      "revision": "a49ed253d75e61a2b6ab80a8da677b57437b08eb",
+      "label": "benign-project",
+      "labelSource": "Official real Android app; not vulnerability ground truth",
+      "referenceDate": "2026-09-22",
+      "dateMeaning": "commit",
+      "group": "source:android",
+      "family": "not-applicable",
+      "split": "temporal-holdout",
+      "license": "Apache-2.0",
+      "artifacts": [
+        {
+          "kind": "tar-gz",
+          "url": "https://codeload.github.com/android/nowinandroid/tar.gz/a49ed253d75e61a2b6ab80a8da677b57437b08eb",
+          "sha256": "1dcf616df4ca27d301c62921e0513389dd12895396849ee57c7f917ecccd57f2",
+          "bytes": 18026465
+        }
+      ]
+    }
+  ]
+}

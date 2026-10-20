@@ -64,6 +64,7 @@ internal class CustomProviderDialog(private val project: Project, private val pr
         add(JBLabel(label).apply { labelFor = component }, BorderLayout.NORTH); add(component, BorderLayout.CENTER)
         alignmentX = 0f; maximumSize = Dimension(Int.MAX_VALUE, preferredSize.height)
         component.accessibleContext.accessibleName = label
+        if (component is JScrollPane) component.viewport.view?.accessibleContext?.accessibleName = label
     }
     private fun chooser(field: JBTextField): JButton = JButton("Browse…").apply { addActionListener {
         FileChooser.chooseFile(FileChooserDescriptorFactory.createSingleFileDescriptor().withTitle("Choose installed provider executable"), project, null)?.let { field.text = it.path }

@@ -17,5 +17,5 @@ export async function exportPreset(flags:Record<string,boolean>):Promise<Organiz
   }
   const preset=createOrganizationPreset({id:values[0],title:values[1],version:values[2],issuer:values[3]},flags);
   const destination=await vscode.window.showSaveDialog({title:'Export reviewed method selection',defaultUri:vscode.Uri.file(preset.id+'.json'),filters:{'WrapperGuard preset':['json']}});if(!destination)return undefined;
-  await writeOrganizationPreset(destination.fsPath,preset);await vscode.window.showInformationMessage('Preset exported with SHA-256 '+preset.digest+'. The digest checks integrity; it is not a publisher signature.');return preset;
+  await writeOrganizationPreset(destination.fsPath,preset);void vscode.window.showInformationMessage('Preset exported with SHA-256 '+preset.digest+'. The digest checks integrity; it is not a publisher signature.');return preset;
 }

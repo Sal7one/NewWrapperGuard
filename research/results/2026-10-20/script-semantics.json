@@ -1,0 +1,1473 @@
+{
+  "schemaVersion": 1,
+  "projectCodeExecuted": false,
+  "sources": [
+    {
+      "id": "pydefender-1.0.0",
+      "label": "malicious-package",
+      "referenceDate": "2023-03-20",
+      "group": "package:pydefender",
+      "family": "unknown",
+      "split": "calibration",
+      "seconds": 0.049,
+      "complete": true,
+      "scannedFiles": 5,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "1337test-1",
+      "label": "malicious-package",
+      "referenceDate": "2023-05-03",
+      "group": "package:1337test",
+      "family": "unknown",
+      "split": "calibration",
+      "seconds": 0.044,
+      "complete": true,
+      "scannedFiles": 3,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "0wneg-0.9.0",
+      "label": "malicious-package",
+      "referenceDate": "2023-05-14",
+      "group": "package:0wneg",
+      "family": "unknown",
+      "split": "calibration",
+      "seconds": 0.043,
+      "complete": true,
+      "scannedFiles": 1,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "requests-2.32.5",
+      "label": "benign-project",
+      "referenceDate": "2025-08-18",
+      "group": "source:requests",
+      "family": "not-applicable",
+      "split": "temporal-holdout",
+      "seconds": 0.122,
+      "complete": true,
+      "scannedFiles": 36,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ],
+      "cli": {
+        "seconds": 0.266,
+        "complete": true,
+        "scannedFiles": 1,
+        "findingCount": 3,
+        "verdict": "REVIEW_REQUIRED"
+      }
+    },
+    {
+      "id": "powershell-build",
+      "label": "benign-project",
+      "referenceDate": "2026-10-19",
+      "group": "source:powershell",
+      "family": "not-applicable",
+      "split": "temporal-holdout",
+      "seconds": 0.047,
+      "complete": true,
+      "scannedFiles": 1,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ],
+      "cli": {
+        "seconds": 0.219,
+        "complete": true,
+        "scannedFiles": 1,
+        "findingCount": 78,
+        "verdict": "REVIEW_REQUIRED"
+      }
+    },
+    {
+      "id": "ktor-samples",
+      "label": "benign-project",
+      "referenceDate": "2026-09-17",
+      "group": "source:ktor",
+      "family": "not-applicable",
+      "split": "temporal-holdout",
+      "seconds": 0.052,
+      "complete": false,
+      "scannedFiles": 0,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE",
+        "WG-SDK-NO-INPUTS"
+      ],
+      "cli": {
+        "seconds": 0.47,
+        "complete": true,
+        "scannedFiles": 146,
+        "findingCount": 38,
+        "verdict": "REVIEW_REQUIRED"
+      }
+    },
+    {
+      "id": "now-in-android",
+      "label": "benign-project",
+      "referenceDate": "2026-09-22",
+      "group": "source:android",
+      "family": "not-applicable",
+      "split": "temporal-holdout",
+      "seconds": 0.06,
+      "complete": false,
+      "scannedFiles": 0,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE",
+        "WG-SDK-NO-INPUTS"
+      ],
+      "cli": {
+        "seconds": 0.474,
+        "complete": false,
+        "scannedFiles": 48,
+        "findingCount": 8,
+        "verdict": "INCOMPLETE"
+      }
+    },
+    {
+      "id": "mal-316e8c9bf40df03c",
+      "label": "malicious-package",
+      "referenceDate": "2022-11-09",
+      "group": "package:mianprojekt",
+      "family": "unknown",
+      "split": "calibration",
+      "seconds": 0.049,
+      "complete": true,
+      "scannedFiles": 1,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-caf41002db346f52",
+      "label": "malicious-package",
+      "referenceDate": "2022-12-20",
+      "group": "package:aio3",
+      "family": "unknown",
+      "split": "calibration",
+      "seconds": 0.056,
+      "complete": true,
+      "scannedFiles": 14,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-5c0fb62eec5197e4",
+      "label": "malicious-package",
+      "referenceDate": "2022-11-08",
+      "group": "package:yohewoasaw",
+      "family": "unknown",
+      "split": "calibration",
+      "seconds": 0.044,
+      "complete": true,
+      "scannedFiles": 2,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-50278c05f8844f0a",
+      "label": "malicious-package",
+      "referenceDate": "2022-11-12",
+      "group": "package:sagetesttwo",
+      "family": "unknown",
+      "split": "calibration",
+      "seconds": 0.042,
+      "complete": true,
+      "scannedFiles": 1,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-585215425c03fcee",
+      "label": "malicious-package",
+      "referenceDate": "2022-12-20",
+      "group": "package:proxier-api",
+      "family": "unknown",
+      "split": "calibration",
+      "seconds": 0.052,
+      "complete": true,
+      "scannedFiles": 1,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-0ca16129bf326f1d",
+      "label": "malicious-package",
+      "referenceDate": "2022-11-22",
+      "group": "package:xolodvbqgrfohn",
+      "family": "unknown",
+      "split": "calibration",
+      "seconds": 0.043,
+      "complete": true,
+      "scannedFiles": 1,
+      "findingCount": 1,
+      "ruleIds": [
+        "WG-RESEARCH-DECODE-EXEC"
+      ],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-78b499c07141b02e",
+      "label": "malicious-package",
+      "referenceDate": "2022-11-17",
+      "group": "package:ld-impl-linux",
+      "family": "unknown",
+      "split": "calibration",
+      "seconds": 0.043,
+      "complete": true,
+      "scannedFiles": 1,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-1f3e43225a316dc9",
+      "label": "malicious-package",
+      "referenceDate": "2022-12-13",
+      "group": "package:xolobgcbdndabm",
+      "family": "unknown",
+      "split": "calibration",
+      "seconds": 0.043,
+      "complete": true,
+      "scannedFiles": 1,
+      "findingCount": 1,
+      "ruleIds": [
+        "WG-RESEARCH-DECODE-EXEC"
+      ],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-77f20daec8af1eee",
+      "label": "malicious-package",
+      "referenceDate": "2022-11-22",
+      "group": "package:xolodevcceglww",
+      "family": "unknown",
+      "split": "calibration",
+      "seconds": 0.044,
+      "complete": true,
+      "scannedFiles": 1,
+      "findingCount": 1,
+      "ruleIds": [
+        "WG-RESEARCH-DECODE-EXEC"
+      ],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-fc797a198e7ee54d",
+      "label": "malicious-package",
+      "referenceDate": "2022-11-16",
+      "group": "package:salamus5",
+      "family": "unknown",
+      "split": "calibration",
+      "seconds": 0.044,
+      "complete": true,
+      "scannedFiles": 1,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-e77d4ed906728faf",
+      "label": "malicious-package",
+      "referenceDate": "2023-03-23",
+      "group": "package:pycaptchapass",
+      "family": "unknown",
+      "split": "calibration",
+      "seconds": 0.043,
+      "complete": true,
+      "scannedFiles": 1,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-4223b7d9ca453fbb",
+      "label": "malicious-package",
+      "referenceDate": "2023-02-27",
+      "group": "package:libpullvisapy",
+      "family": "unknown",
+      "split": "calibration",
+      "seconds": 0.043,
+      "complete": true,
+      "scannedFiles": 1,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-b936c2c4a12da531",
+      "label": "malicious-package",
+      "referenceDate": "2023-03-07",
+      "group": "package:esqsplitpushpush",
+      "family": "unknown",
+      "split": "calibration",
+      "seconds": 0.045,
+      "complete": true,
+      "scannedFiles": 1,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-2532d19d535f9367",
+      "label": "malicious-package",
+      "referenceDate": "2023-04-22",
+      "group": "package:forgepy",
+      "family": "unknown",
+      "split": "calibration",
+      "seconds": 0.048,
+      "complete": true,
+      "scannedFiles": 2,
+      "findingCount": 1,
+      "ruleIds": [
+        "WG-RESEARCH-DECODE-EXEC"
+      ],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-4dda9bfdbc4afc5c",
+      "label": "malicious-package",
+      "referenceDate": "2023-04-26",
+      "group": "package:pymulticolor",
+      "family": "unknown",
+      "split": "calibration",
+      "seconds": 0.045,
+      "complete": true,
+      "scannedFiles": 4,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-911eda4a63c95c3e",
+      "label": "malicious-package",
+      "referenceDate": "2023-02-27",
+      "group": "package:esqcraftremc",
+      "family": "unknown",
+      "split": "calibration",
+      "seconds": 0.049,
+      "complete": true,
+      "scannedFiles": 1,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-ee280118a02ef5bf",
+      "label": "malicious-package",
+      "referenceDate": "2023-04-23",
+      "group": "package:forgyps",
+      "family": "unknown",
+      "split": "calibration",
+      "seconds": 0.051,
+      "complete": true,
+      "scannedFiles": 2,
+      "findingCount": 1,
+      "ruleIds": [
+        "WG-RESEARCH-DECODE-EXEC"
+      ],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-9421b7f2dc744177",
+      "label": "malicious-package",
+      "referenceDate": "2023-06-04",
+      "group": "package:sqlalchemy-presto",
+      "family": "unknown",
+      "split": "calibration",
+      "seconds": 0.045,
+      "complete": true,
+      "scannedFiles": 1,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-f6fef0205cb550c8",
+      "label": "malicious-package",
+      "referenceDate": "2023-03-08",
+      "group": "package:esqcvvermask",
+      "family": "unknown",
+      "split": "calibration",
+      "seconds": 0.043,
+      "complete": true,
+      "scannedFiles": 1,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-049643e6e5403075",
+      "label": "malicious-package",
+      "referenceDate": "2023-03-03",
+      "group": "package:libpullpongpaypal",
+      "family": "unknown",
+      "split": "calibration",
+      "seconds": 0.044,
+      "complete": true,
+      "scannedFiles": 1,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-bb3692ebab8c2ba4",
+      "label": "malicious-package",
+      "referenceDate": "2024-11-07",
+      "group": "package:physisyphus",
+      "family": "unknown",
+      "split": "temporal-holdout",
+      "seconds": 0.047,
+      "complete": true,
+      "scannedFiles": 2,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-f701b4f9ee1b91b5",
+      "label": "malicious-package",
+      "referenceDate": "2024-07-03",
+      "group": "package:spl-types",
+      "family": "unknown",
+      "split": "temporal-holdout",
+      "seconds": 0.047,
+      "complete": false,
+      "scannedFiles": 1,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE",
+        "WG-RESEARCH-PARTIAL"
+      ]
+    },
+    {
+      "id": "mal-286e8b63b39edf64",
+      "label": "malicious-package",
+      "referenceDate": "2024-02-25",
+      "group": "package:libsock4",
+      "family": "unknown",
+      "split": "temporal-holdout",
+      "seconds": 0.047,
+      "complete": true,
+      "scannedFiles": 1,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-36d3ed97c80016ae",
+      "label": "malicious-package",
+      "referenceDate": "2024-11-29",
+      "group": "package:shoots-flutter",
+      "family": "unknown",
+      "split": "temporal-holdout",
+      "seconds": 0.045,
+      "complete": true,
+      "scannedFiles": 1,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-700a591851aa9b04",
+      "label": "malicious-package",
+      "referenceDate": "2024-11-10",
+      "group": "package:s4transfer",
+      "family": "unknown",
+      "split": "temporal-holdout",
+      "seconds": 0.045,
+      "complete": true,
+      "scannedFiles": 1,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-e40f80e3c570281c",
+      "label": "malicious-package",
+      "referenceDate": "2024-10-06",
+      "group": "package:discould",
+      "family": "unknown",
+      "split": "temporal-holdout",
+      "seconds": 0.044,
+      "complete": true,
+      "scannedFiles": 3,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-ffdd598f3695cad0",
+      "label": "malicious-package",
+      "referenceDate": "2024-11-14",
+      "group": "package:detectron4",
+      "family": "unknown",
+      "split": "temporal-holdout",
+      "seconds": 0.044,
+      "complete": true,
+      "scannedFiles": 2,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-d1f79526433e763d",
+      "label": "malicious-package",
+      "referenceDate": "2024-03-26",
+      "group": "package:requesxts",
+      "family": "unknown",
+      "split": "temporal-holdout",
+      "seconds": 0.045,
+      "complete": true,
+      "scannedFiles": 1,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-df9930d6f5b17ae4",
+      "label": "malicious-package",
+      "referenceDate": "2024-11-05",
+      "group": "package:v2xlm-gml",
+      "family": "unknown",
+      "split": "temporal-holdout",
+      "seconds": 0.043,
+      "complete": true,
+      "scannedFiles": 2,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-affd2cfef2195e2c",
+      "label": "malicious-package",
+      "referenceDate": "2024-06-13",
+      "group": "package:builderknower",
+      "family": "unknown",
+      "split": "temporal-holdout",
+      "seconds": 0.043,
+      "complete": true,
+      "scannedFiles": 3,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-c31bf380f48fd0d6",
+      "label": "malicious-package",
+      "referenceDate": "2025-01-29",
+      "group": "package:deepseekai",
+      "family": "unknown",
+      "split": "temporal-holdout",
+      "seconds": 0.045,
+      "complete": true,
+      "scannedFiles": 2,
+      "findingCount": 1,
+      "ruleIds": [
+        "WG-RESEARCH-ENV-NETWORK"
+      ],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-c34d295934ad1f82",
+      "label": "malicious-package",
+      "referenceDate": "2025-04-30",
+      "group": "package:synapse-sso-proconnect",
+      "family": "unknown",
+      "split": "temporal-holdout",
+      "seconds": 0.045,
+      "complete": true,
+      "scannedFiles": 2,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-7169a5287e4b4416",
+      "label": "malicious-package",
+      "referenceDate": "2025-06-07",
+      "group": "package:atlasctf-21-prod-01",
+      "family": "unknown",
+      "split": "temporal-holdout",
+      "seconds": 0.045,
+      "complete": true,
+      "scannedFiles": 2,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-e255e38971235c92",
+      "label": "malicious-package",
+      "referenceDate": "2025-05-20",
+      "group": "package:aliyun-ai-labs-sdk",
+      "family": "unknown",
+      "split": "temporal-holdout",
+      "seconds": 0.046,
+      "complete": true,
+      "scannedFiles": 6,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-05b28d899dbf0a5f",
+      "label": "malicious-package",
+      "referenceDate": "2025-06-07",
+      "group": "package:atlasctf-21-prod-19",
+      "family": "unknown",
+      "split": "temporal-holdout",
+      "seconds": 0.043,
+      "complete": true,
+      "scannedFiles": 2,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-bd659483dbfc09d7",
+      "label": "malicious-package",
+      "referenceDate": "2025-08-21",
+      "group": "package:python-ledgercommon",
+      "family": "unknown",
+      "split": "temporal-holdout",
+      "seconds": 0.043,
+      "complete": false,
+      "scannedFiles": 0,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE",
+        "WG-SDK-NO-INPUTS"
+      ]
+    },
+    {
+      "id": "mal-1db05d90b3830229",
+      "label": "malicious-package",
+      "referenceDate": "2025-12-26",
+      "group": "package:crypo",
+      "family": "unknown",
+      "split": "temporal-holdout",
+      "seconds": 0.046,
+      "complete": true,
+      "scannedFiles": 1,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-6b9da11933f0a060",
+      "label": "malicious-package",
+      "referenceDate": "2025-02-05",
+      "group": "package:pxz",
+      "family": "unknown",
+      "split": "temporal-holdout",
+      "seconds": 0.044,
+      "complete": true,
+      "scannedFiles": 1,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-f1b9e79166ea77af",
+      "label": "malicious-package",
+      "referenceDate": "2025-02-26",
+      "group": "package:quicly",
+      "family": "unknown",
+      "split": "temporal-holdout",
+      "seconds": 0.107,
+      "complete": true,
+      "scannedFiles": 27,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-bbec193cbd8e99ec",
+      "label": "malicious-package",
+      "referenceDate": "2025-06-07",
+      "group": "package:atlasctf-21-prod-08",
+      "family": "unknown",
+      "split": "temporal-holdout",
+      "seconds": 0.046,
+      "complete": true,
+      "scannedFiles": 2,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-224141c3a9bce685",
+      "label": "malicious-package",
+      "referenceDate": "2026-02-12",
+      "group": "package:oraceldb",
+      "family": "unknown",
+      "split": "temporal-holdout",
+      "seconds": 0.044,
+      "complete": true,
+      "scannedFiles": 1,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-774b83b5aa557588",
+      "label": "malicious-package",
+      "referenceDate": "2026-03-23",
+      "group": "package:example-package-sthnck",
+      "family": "unknown",
+      "split": "temporal-holdout",
+      "seconds": 0.045,
+      "complete": true,
+      "scannedFiles": 6,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-495b1f213d0dbfa9",
+      "label": "malicious-package",
+      "referenceDate": "2026-05-04",
+      "group": "package:rogiant-quick-install",
+      "family": "unknown",
+      "split": "temporal-holdout",
+      "seconds": 0.045,
+      "complete": true,
+      "scannedFiles": 2,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-6fa10284e0648f50",
+      "label": "malicious-package",
+      "referenceDate": "2026-03-16",
+      "group": "package:just4testlm",
+      "family": "unknown",
+      "split": "temporal-holdout",
+      "seconds": 0.043,
+      "complete": true,
+      "scannedFiles": 2,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-ec3f80084d5d548c",
+      "label": "malicious-package",
+      "referenceDate": "2026-04-14",
+      "group": "package:neverinstallme",
+      "family": "unknown",
+      "split": "temporal-holdout",
+      "seconds": 0.043,
+      "complete": true,
+      "scannedFiles": 2,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-a2b9e8bd9ba3871e",
+      "label": "malicious-package",
+      "referenceDate": "2026-03-08",
+      "group": "package:b10connoisseur",
+      "family": "unknown",
+      "split": "temporal-holdout",
+      "seconds": 0.074,
+      "complete": true,
+      "scannedFiles": 2,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-a8acb5e9992526ac",
+      "label": "malicious-package",
+      "referenceDate": "2026-03-24",
+      "group": "package:roboat-util",
+      "family": "unknown",
+      "split": "temporal-holdout",
+      "seconds": 0.126,
+      "complete": true,
+      "scannedFiles": 37,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-de4d6265b340e9b5",
+      "label": "malicious-package",
+      "referenceDate": "2026-04-01",
+      "group": "package:kube-health-tools",
+      "family": "unknown",
+      "split": "temporal-holdout",
+      "seconds": 0.047,
+      "complete": true,
+      "scannedFiles": 2,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-761788fc8d7122fb",
+      "label": "malicious-package",
+      "referenceDate": "2026-03-23",
+      "group": "package:license-utils-kit",
+      "family": "unknown",
+      "split": "temporal-holdout",
+      "seconds": 0.059,
+      "complete": true,
+      "scannedFiles": 16,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "mal-0648fd2e5a337594",
+      "label": "malicious-package",
+      "referenceDate": "2026-03-26",
+      "group": "package:fluxhttp",
+      "family": "unknown",
+      "split": "temporal-holdout",
+      "seconds": 0.231,
+      "complete": true,
+      "scannedFiles": 55,
+      "findingCount": 1,
+      "ruleIds": [
+        "WG-RESEARCH-DECODE-EXEC"
+      ],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ]
+    },
+    {
+      "id": "benign-urllib3",
+      "label": "benign-project",
+      "referenceDate": "2025-06-18",
+      "group": "package:urllib3",
+      "family": "not-applicable",
+      "split": "temporal-holdout",
+      "seconds": 0.122,
+      "complete": true,
+      "scannedFiles": 36,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ],
+      "cli": {
+        "seconds": 0.148,
+        "complete": true,
+        "scannedFiles": 0,
+        "findingCount": 1,
+        "verdict": "CLEAN"
+      }
+    },
+    {
+      "id": "benign-charset-normalizer",
+      "label": "benign-project",
+      "referenceDate": "2025-08-09",
+      "group": "package:charset-normalizer",
+      "family": "not-applicable",
+      "split": "temporal-holdout",
+      "seconds": 0.084,
+      "complete": true,
+      "scannedFiles": 12,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ],
+      "cli": {
+        "seconds": 0.148,
+        "complete": true,
+        "scannedFiles": 0,
+        "findingCount": 1,
+        "verdict": "CLEAN"
+      }
+    },
+    {
+      "id": "benign-idna",
+      "label": "benign-project",
+      "referenceDate": "2024-09-15",
+      "group": "package:idna",
+      "family": "not-applicable",
+      "split": "temporal-holdout",
+      "seconds": 0.11,
+      "complete": false,
+      "scannedFiles": 8,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE",
+        "WG-RESEARCH-PARTIAL"
+      ],
+      "cli": {
+        "seconds": 0.146,
+        "complete": true,
+        "scannedFiles": 0,
+        "findingCount": 1,
+        "verdict": "CLEAN"
+      }
+    },
+    {
+      "id": "benign-click",
+      "label": "benign-project",
+      "referenceDate": "2024-12-21",
+      "group": "package:click",
+      "family": "not-applicable",
+      "split": "temporal-holdout",
+      "seconds": 0.107,
+      "complete": true,
+      "scannedFiles": 16,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ],
+      "cli": {
+        "seconds": 0.144,
+        "complete": true,
+        "scannedFiles": 0,
+        "findingCount": 1,
+        "verdict": "CLEAN"
+      }
+    },
+    {
+      "id": "benign-colorama",
+      "label": "benign-project",
+      "referenceDate": "2022-10-25",
+      "group": "package:colorama",
+      "family": "not-applicable",
+      "split": "calibration",
+      "seconds": 0.062,
+      "complete": true,
+      "scannedFiles": 13,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ],
+      "cli": {
+        "seconds": 0.138,
+        "complete": true,
+        "scannedFiles": 0,
+        "findingCount": 1,
+        "verdict": "CLEAN"
+      }
+    },
+    {
+      "id": "benign-attrs",
+      "label": "benign-project",
+      "referenceDate": "2025-03-13",
+      "group": "package:attrs",
+      "family": "not-applicable",
+      "split": "temporal-holdout",
+      "seconds": 0.076,
+      "complete": true,
+      "scannedFiles": 19,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ],
+      "cli": {
+        "seconds": 0.14,
+        "complete": true,
+        "scannedFiles": 0,
+        "findingCount": 1,
+        "verdict": "CLEAN"
+      }
+    },
+    {
+      "id": "benign-packaging",
+      "label": "benign-project",
+      "referenceDate": "2025-04-19",
+      "group": "package:packaging",
+      "family": "not-applicable",
+      "split": "temporal-holdout",
+      "seconds": 0.084,
+      "complete": true,
+      "scannedFiles": 16,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ],
+      "cli": {
+        "seconds": 0.139,
+        "complete": true,
+        "scannedFiles": 0,
+        "findingCount": 1,
+        "verdict": "CLEAN"
+      }
+    },
+    {
+      "id": "benign-platformdirs",
+      "label": "benign-project",
+      "referenceDate": "2025-05-07",
+      "group": "package:platformdirs",
+      "family": "not-applicable",
+      "split": "temporal-holdout",
+      "seconds": 0.055,
+      "complete": true,
+      "scannedFiles": 8,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ],
+      "cli": {
+        "seconds": 0.144,
+        "complete": true,
+        "scannedFiles": 0,
+        "findingCount": 1,
+        "verdict": "CLEAN"
+      }
+    },
+    {
+      "id": "benign-typing-extensions",
+      "label": "benign-project",
+      "referenceDate": "2025-07-04",
+      "group": "package:typing_extensions",
+      "family": "not-applicable",
+      "split": "temporal-holdout",
+      "seconds": 0.076,
+      "complete": true,
+      "scannedFiles": 1,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ],
+      "cli": {
+        "seconds": 0.134,
+        "complete": true,
+        "scannedFiles": 0,
+        "findingCount": 1,
+        "verdict": "CLEAN"
+      }
+    },
+    {
+      "id": "benign-filelock",
+      "label": "benign-project",
+      "referenceDate": "2025-03-14",
+      "group": "package:filelock",
+      "family": "not-applicable",
+      "split": "temporal-holdout",
+      "seconds": 0.05,
+      "complete": true,
+      "scannedFiles": 9,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ],
+      "cli": {
+        "seconds": 0.148,
+        "complete": true,
+        "scannedFiles": 0,
+        "findingCount": 1,
+        "verdict": "CLEAN"
+      }
+    },
+    {
+      "id": "benign-six",
+      "label": "benign-project",
+      "referenceDate": "2024-12-04",
+      "group": "package:six",
+      "family": "not-applicable",
+      "split": "temporal-holdout",
+      "seconds": 0.055,
+      "complete": true,
+      "scannedFiles": 1,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ],
+      "cli": {
+        "seconds": 0.137,
+        "complete": true,
+        "scannedFiles": 0,
+        "findingCount": 1,
+        "verdict": "CLEAN"
+      }
+    },
+    {
+      "id": "benign-iniconfig",
+      "label": "benign-project",
+      "referenceDate": "2025-03-19",
+      "group": "package:iniconfig",
+      "family": "not-applicable",
+      "split": "temporal-holdout",
+      "seconds": 0.046,
+      "complete": true,
+      "scannedFiles": 4,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ],
+      "cli": {
+        "seconds": 0.134,
+        "complete": true,
+        "scannedFiles": 0,
+        "findingCount": 1,
+        "verdict": "CLEAN"
+      }
+    },
+    {
+      "id": "benign-pluggy",
+      "label": "benign-project",
+      "referenceDate": "2025-05-15",
+      "group": "package:pluggy",
+      "family": "not-applicable",
+      "split": "temporal-holdout",
+      "seconds": 0.054,
+      "complete": true,
+      "scannedFiles": 8,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ],
+      "cli": {
+        "seconds": 0.137,
+        "complete": true,
+        "scannedFiles": 0,
+        "findingCount": 1,
+        "verdict": "CLEAN"
+      }
+    },
+    {
+      "id": "benign-tomli",
+      "label": "benign-project",
+      "referenceDate": "2024-11-27",
+      "group": "package:tomli",
+      "family": "not-applicable",
+      "split": "temporal-holdout",
+      "seconds": 0.052,
+      "complete": true,
+      "scannedFiles": 4,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ],
+      "cli": {
+        "seconds": 0.137,
+        "complete": true,
+        "scannedFiles": 0,
+        "findingCount": 1,
+        "verdict": "CLEAN"
+      }
+    },
+    {
+      "id": "benign-toml",
+      "label": "benign-project",
+      "referenceDate": "2020-11-01",
+      "group": "package:toml",
+      "family": "not-applicable",
+      "split": "calibration",
+      "seconds": 0.063,
+      "complete": true,
+      "scannedFiles": 5,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ],
+      "cli": {
+        "seconds": 0.134,
+        "complete": true,
+        "scannedFiles": 0,
+        "findingCount": 1,
+        "verdict": "CLEAN"
+      }
+    },
+    {
+      "id": "benign-python-dotenv",
+      "label": "benign-project",
+      "referenceDate": "2025-06-24",
+      "group": "package:python-dotenv",
+      "family": "not-applicable",
+      "split": "temporal-holdout",
+      "seconds": 0.051,
+      "complete": true,
+      "scannedFiles": 8,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ],
+      "cli": {
+        "seconds": 0.138,
+        "complete": true,
+        "scannedFiles": 0,
+        "findingCount": 1,
+        "verdict": "CLEAN"
+      }
+    },
+    {
+      "id": "benign-python-dateutil",
+      "label": "benign-project",
+      "referenceDate": "2024-03-01",
+      "group": "package:python-dateutil",
+      "family": "not-applicable",
+      "split": "temporal-holdout",
+      "seconds": 0.113,
+      "complete": true,
+      "scannedFiles": 18,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ],
+      "cli": {
+        "seconds": 0.141,
+        "complete": true,
+        "scannedFiles": 0,
+        "findingCount": 1,
+        "verdict": "CLEAN"
+      }
+    },
+    {
+      "id": "benign-markdown",
+      "label": "benign-project",
+      "referenceDate": "2025-06-19",
+      "group": "package:markdown",
+      "family": "not-applicable",
+      "split": "temporal-holdout",
+      "seconds": 0.111,
+      "complete": true,
+      "scannedFiles": 33,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ],
+      "cli": {
+        "seconds": 0.141,
+        "complete": true,
+        "scannedFiles": 0,
+        "findingCount": 1,
+        "verdict": "CLEAN"
+      }
+    },
+    {
+      "id": "benign-jinja2",
+      "label": "benign-project",
+      "referenceDate": "2025-03-05",
+      "group": "package:jinja2",
+      "family": "not-applicable",
+      "split": "temporal-holdout",
+      "seconds": 0.143,
+      "complete": true,
+      "scannedFiles": 25,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE"
+      ],
+      "cli": {
+        "seconds": 0.142,
+        "complete": true,
+        "scannedFiles": 0,
+        "findingCount": 1,
+        "verdict": "CLEAN"
+      }
+    },
+    {
+      "id": "benign-pyparsing",
+      "label": "benign-project",
+      "referenceDate": "2025-03-25",
+      "group": "package:pyparsing",
+      "family": "not-applicable",
+      "split": "temporal-holdout",
+      "seconds": 0.108,
+      "complete": false,
+      "scannedFiles": 13,
+      "findingCount": 0,
+      "ruleIds": [],
+      "notices": [
+        "WG-RESEARCH-SCOPE",
+        "WG-RESEARCH-PARTIAL"
+      ],
+      "cli": {
+        "seconds": 0.138,
+        "complete": true,
+        "scannedFiles": 0,
+        "findingCount": 1,
+        "verdict": "CLEAN"
+      }
+    }
+  ],
+  "signalMatrix": {
+    "maliciousWithSignal": 7,
+    "maliciousWithoutSignal": 44,
+    "benignWithSignal": 0,
+    "benignWithoutSignal": 20
+  },
+  "matrixScope": "Complete scans with at least one supported source input; incomplete/unsupported sources listed separately",
+  "allMaliciousAttempts": 53,
+  "allMaliciousWithSignal": 7,
+  "allMaliciousSignalRate": 0.1320754716981132,
+  "unassessedSources": [
+    "ktor-samples",
+    "now-in-android",
+    "mal-f701b4f9ee1b91b5",
+    "mal-bd659483dbfc09d7",
+    "benign-idna",
+    "benign-pyparsing"
+  ],
+  "signalPrecision": 1.0,
+  "signalRecall": 0.13725490196078433,
+  "benignSignalRate": 0.0,
+  "crossGroupDuplicateFileHashes": 5,
+  "familySplitVerified": false,
+  "sourceHoldoutVerified": false,
+  "trainingPerformed": false,
+  "limitations": [
+    "Tiny integration baseline, not a statistically representative malware benchmark.",
+    "Any advisory signal is counted as positive; signals do not establish malicious intent.",
+    "Malware comes from one vendor-selected source; unknown families prevent family-disjoint claims.",
+    "Dates mix upstream discovery and commit time; class/date and language confounding remain.",
+    "Android/Ktor inputs unsupported by script semantics are not counted as true negatives.",
+    "A complete scan means completion of configured scope, never universal security coverage."
+  ],
+  "sdkVersion": "0.4.0",
+  "scriptSemanticsSha256": "a60fcf673e68e0b1a2ebe6d86633af73fdd785d1fbbd8cc9232340abc1e98aab",
+  "lockSha256": "26217042941d6d75d2d3dc619f26c671663b687be3d231029cec2a3fa9ffffe9",
+  "cliVersion": "0.6.0",
+  "cliJarSha256": {
+    "wrapperguard-rules-0.6.0.jar": "92968b1964fbe919970cf12adcba59fadf08e2470da55645ef422a5478ff8163",
+    "kotlinx-serialization-json-jvm-1.8.0.jar": "7b7c445880cef94dc464f4733da1b33b94bee78805041ea08ae06e8507e4620e",
+    "wrapperguard-cli-0.6.0.jar": "1672127cfe3814dc4969765c6b842f8ceec8b1a000327c69cdb2a07781bfc69e",
+    "annotations-13.0.jar": "ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478",
+    "kotlin-stdlib-2.2.20.jar": "8836ccffd3585fadda9901244b20d42901d2f3cd581058d8434e2ffabcf3a3e7",
+    "kotlinx-serialization-core-jvm-1.8.0.jar": "d3c94e9d829bba6e0c4cd3ae478a40846dd49d5475d6707877be853976afe416",
+    "wrapperguard-core-0.6.0.jar": "027c0fc78ef278a37e9f2334bf3a4e55e8a5eb6cbf573d37e9f53148513651b4"
+  },
+  "sourceState": "5b71265 plus PowerShell extension routing fix; pre-0.7.0 version bump"
+}

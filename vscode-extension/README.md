@@ -1,4 +1,4 @@
-# WrapperGuard for VS Code — 0.6.0 (local, unreleased)
+# WrapperGuard for VS Code — 0.7.0 (release candidate)
 
 Security vetting with a built-in, in-process TypeScript scanner for Gradle wrappers, build files, and bootstrap scripts. The built-in scanner only reads text and never executes project code. Users can additionally authorize installed extension providers or explicitly configured external command providers. Credential evidence is redacted.
 
@@ -102,9 +102,9 @@ The process receives one JSON line on stdin: `{"apiVersion":1,"projectPath":"/ab
 
 ## Build and package
 
-Use Node 22 or newer. Run `npm ci`, `npm test`, `npm run hardening`, and `npm run package`. The pinned VSCE build creates `wrapperguard-0.6.0.vsix` locally without publishing. The package includes the public declarations, Apache-2.0 license, shared method catalog, the first-party SDK wheel, the SAX runtime with its license, and activity-bar SVG. The package command builds the wheel using Python/pip before compiling the extension.
+Use Node 22 or newer. Run `npm ci`, `npm test`, `npm run hardening`, and `npm run package`. The pinned VSCE build creates `wrapperguard-0.7.0.vsix` locally without publishing. The package includes the public declarations, Apache-2.0 license, shared method catalog, the first-party SDK wheel, the SAX runtime with its license, and activity-bar SVG. The package command builds the wheel using Python/pip before compiling the extension.
 
-The shared catalog supplies removable methods; the host is 0.6.0 and new guided connections require SDK 0.4.0+. See the [integration guide](../docs/integrations.md) for capabilities and data flows, and [verification notes](../docs/verification.md) for tested behavior and limits.
+The shared catalog supplies removable methods; the host is 0.7.0 and new guided connections require SDK 0.4.0+. See the [integration guide](../docs/integrations.md) for capabilities and data flows, and [verification notes](../docs/verification.md) for tested behavior and limits.
 
 ## Actual VS Code host tests
 

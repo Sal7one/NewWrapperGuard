@@ -72,7 +72,7 @@ class WrapperGuardConfigurable : Configurable {
         val descriptors = listOf(BuiltInVettingProvider(RepositoryScanner()).descriptor.copy(displayName = "WrapperGuard (built-in)")) +
             (if (untrustedOpen) emptyList() else IntellijVettingProviders.installedProviders().map { it.descriptor }) +
             WrapperGuardSettings.getInstance().state.methodConnections.mapNotNull { connection -> SecurityMethodCatalog.find(connection.methodId)?.let { method ->
-                method.providerId?.let { ProviderDescriptor(it, method.title, "0.3.0") }
+                method.providerId?.let { ProviderDescriptor(it, method.title, "0.4.0") }
             } } + WrapperGuardSettings.getInstance().state.customProviders.map { it.descriptor() }
         if (untrustedOpen) panel.add(JBLabel("SDK settings are paused while an open project is in Safe Mode."))
         rows = descriptors.distinctBy { it.id }.map { ProviderControls(it).also { row -> panel.add(row.panel) } }
@@ -148,13 +148,13 @@ class WrapperGuardConfigurable : Configurable {
         private val required = JBCheckBox("Require successful result before permitted build / sync")
         private val actions = VettingAction.entries.associateWith { action -> JBCheckBox(action.displayName()).apply {
             accessibleContext.accessibleName = "${descriptor.displayName}: ${action.displayName()} permission"
-            if (descriptor.id in setOf("ai.external-model", "research.script-semantics") && action in setOf(VettingAction.BLOCK_BUILD, VettingAction.BLOCK_SYNC)) isEnabled = false
+            if (descriptor.id in setOf("ai.external-model", "research.script-semantics", "research.container-python") && action in setOf(VettingAction.BLOCK_BUILD, VettingAction.BLOCK_SYNC)) isEnabled = false
         } }
         private val timeout = JSpinner(SpinnerNumberModel(30_000L, 100L, 300_000L, 1_000L))
 
         init {
             enabled.accessibleContext.accessibleName = "Enable ${descriptor.displayName} provider"
-            required.isEnabled = descriptor.id !in setOf("ai.external-model", "research.script-semantics")
+            required.isEnabled = descriptor.id !in setOf("ai.external-model", "research.script-semantics", "research.container-python")
             required.accessibleContext.accessibleName = "Require successful ${descriptor.displayName} result before permitted operations"
             timeout.accessibleContext.accessibleName = "${descriptor.displayName} timeout in milliseconds"
             panel.add(enabled)

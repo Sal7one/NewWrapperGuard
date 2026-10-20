@@ -1,0 +1,21 @@
+{
+  "failed": {
+    "complete": false,
+    "providers": [
+      {
+        "id": "wrapperguard",
+        "status": "COMPLETED"
+      },
+      {
+        "id": "company.missing",
+        "status": "FAILED"
+      }
+    ],
+    "kind": "scanned"
+  },
+  "title": "Edit SDK — Missing-tool acceptance fixture",
+  "focus": {
+    "text": "Edit",
+    "provider": "company.missing"
+  }
+}

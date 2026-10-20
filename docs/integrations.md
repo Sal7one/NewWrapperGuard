@@ -1,7 +1,7 @@
 # Set up optional analysis methods
 
 WrapperGuard combines tools in one workspace. The host owns user permissions, findings
-and enforcement; each analyzer owns its detection method. The Python SDK **0.3.0** uses
+and enforcement; each analyzer owns its detection method. The Python SDK **0.4.0** uses
 Python **3.10+**, has no runtime dependencies, and communicates over provider **API 1**.
 Scanner packages and model servers are separate installations.
 
@@ -10,7 +10,7 @@ Scanner packages and model servers are separate installations.
 Open **Tools** in the WrapperGuard workspace in Android Studio, IntelliJ IDEA or VS Code.
 Choose **Built-in**, **SAST**, **Supply chain** or **DAST**. The separate **Research** tab
 (**Research & AI** in VS Code) contains script behavior signals and local AI review. These categories come from the
-shared [17-method catalog](../catalog/security-methods.json).
+shared [19-method catalog](../catalog/security-methods.json).
 
 1. Native: choose **Install SDK…**. VS Code: choose a method’s **Set up → Create a managed SDK environment**. Select a trusted Python 3.10+ executable outside your projects. The installer creates a dedicated user environment and installs the bundled
    SDK wheel offline. It does not modify the chosen Python environment.
@@ -30,9 +30,7 @@ shared [17-method catalog](../catalog/security-methods.json).
 Use native **Tools → Add SDK / custom command** for a vendor adapter or discovered SDK. In VS Code, use **Providers → Add SDK** for command adapters; installed extension SDKs register through API 1. Enter literal argv, descriptive category/tags and declared inputs, then review its independent permissions. **Presets** apply reviewed method flags without installing or enabling tools. Existing provider files remain available. Native same-ID managed precedence requires an explicit choice. VS Code rejects duplicate provider IDs across connection sources; repair the duplicate rather than silently overriding it. Disconnecting or
 disabling a method does not uninstall your tools or alter another provider's permissions.
 
-On Windows, use existing-report imports for source/dependency tools. Controlled file-snapshot
-runners currently require POSIX no-follow file access. Local AI report review can use a
-Windows loopback server. The GUI does not offer unsupported direct scanner downloads there.
+Windows direct runners use tested handle-based snapshots, bounded pipes and a job object for descendant cleanup. Real Bandit, Semgrep, PSScriptAnalyzer, Trivy and OSV acceptance runs in Windows CI; Python 3.10/3.12/3.14 exercise process/file boundaries. Imports and loopback review remain independent alternatives. Scanner availability and its platform support still matter.
 
 ## Available methods
 
@@ -53,12 +51,14 @@ Windows loopback server. The GUI does not offer unsupported direct scanner downl
 | Supply chain · OSV-Scanner | Installed scanner over selected dependency inputs, or OSV-Scanner JSON import | Off |
 | Supply chain · CycloneDX | CycloneDX 1.4–1.7 vulnerability assessments; inventory alone is incomplete | Off |
 | DAST · ZAP | Existing traditional JSON report with explicit target scope | Off |
+| DAST · HTTP audit | Explicit owned numeric-IP endpoint; bounded GET header/cookie checks | Off |
 | Research · Script behavior | Local bounded literal decoding and simple def/use signals | Off |
+| Research · Container Python | Explicit selected entry executed in reviewed local Docker isolation | Off |
 | AI · Local review | Selected finding metadata sent to an explicit loopback model server | Off |
 
-The SDK recognizes **ten format identifiers**: eight passive report imports (`sarif`,
+The SDK recognizes **twelve format identifiers**: eight passive report imports (`sarif`,
 `bandit`, `psscriptanalyzer`, `trivy`, `osv`, `zap`, `cyclonedx`, `sonar`) and two controlled advisory outputs
-(`script-semantics`, `ai-review`). Semgrep uses the existing SARIF adapter.
+(`script-semantics`, `ai-review`, `http-audit`, `container-python`). Semgrep uses the existing SARIF adapter.
 
 The six included static groups can be disabled separately. Intentional exclusions produce
 coverage notices; completion describes the configured scope. Actual read errors, parsing
@@ -159,9 +159,7 @@ ZAP imports need exact HTTP(S) origins and optional segment-bounded path prefixe
 while excluding another origin and `/application`. Userinfo, ambiguous encoded paths,
 fragments and traversal are rejected. Every imported URL must match the scope.
 
-There is **no active DAST runner**: WrapperGuard does not start an application, discover
-endpoints or contact a target. ZAP results use project location `.` without an invented
-source line. Choose reports from targets you are authorized to assess.
+ZAP remains passive import. The separate **HTTP audit** makes explicitly configured GET requests to an already-running owned target. It is a limited header/cookie audit, without crawling or exploit testing. Choose a numeric IPv4/IPv6 HTTP(S) URL, exact segment-bounded path, ownership confirmation, request/time budgets and authentication environment-variable **names**. Values are read at invocation and never entered into the setup UI or stored in profiles. DNS, redirects, userinfo, proxy inheritance and target startup are rejected. Canceling ownership/auth review saves nothing and makes no request. Results use project location `.` without inventing source lines. This connection is SCAN-only; managed BUILD/SYNC gates skip it before launch.
 
 ## Manual setup and CI
 
@@ -227,7 +225,7 @@ excludes messages, evidence and source bytes. Retention defaults to 20 (maximum 
 Comparisons require the same project/operation/known scope and complete current reports.
 Imported producer provenance and opaque SDK/package/model semantics can make scope unknown; those saved runs remain visible with comparisons disabled. Approval changes do not look like remediation. Pause and clear are separate controls.
 
-**Managed storage** inventories native owned SDK/profile/input data. VS Code **Providers → Storage** inventories profiles, caches and AI snapshots and preserves all SDK environments. Cleanup requires an explicit selection and preserves original user files, active environments and referenced artifacts. Disconnecting does not automatically delete or uninstall them.
+**Managed storage** inventories owned SDK/profile/input data. Cleanup requires an explicit selection and preserves original user files, active environments and referenced artifacts. The connection maintenance UI can repair the SDK offline, explicitly update separately selected tools, clear owned caches and remove only unused generated environments. It preserves legacy and user-owned installations. Disconnecting does not automatically delete or uninstall tools.
 
 ## Coverage and trust
 
@@ -243,3 +241,25 @@ separate. Installed programs retain OS privileges, and imported reports need pro
 No setting promises complete application security or universal interception of execution.
 
 [Verification commands and current evidence](verification.md) · [Provider API](providers.md)
+
+## Provenance and dependency coverage
+
+Report connection setup can select a producer/input manifest and maximum report age. The optional `reportProvenance` envelope binds exact report/input SHA-256 values and shows producer/version, generation time, source revision, database/update identity and declared scope. Missing metadata remains unverified; an input match is not a signature or proof that the producer inspected everything. Expired/mismatched inputs cannot become current clean coverage.
+
+Supply-chain setup exposes `dependencyCoverage.requireResolvedVersions`. Resolved and unresolved package/version inventory and producer database age remain visible. Gradle/Maven manifest input alone cannot prove a resolved transitive graph. No connection silently runs dependency resolution, Gradle, Maven or project install hooks.
+
+## Optional local container backend
+
+Choose **Container** explicitly for Bandit/Semgrep, or configure **Research → Container Python**. Use a reviewed local Unix-socket Docker engine and preinstalled immutable image from `containers/runtime.lock.json`; the product never starts the daemon or pulls an image. Rootless is preferred; a rootful engine requires its separate review.
+
+The backend copies bounded input bytes into owned staging; it never bind-mounts the original project. Containers use no network, read-only rootfs, explicit memory/swap/CPU/PID limits and no-new-privileges. A trusted root bootstrap/timer retains only KILL/SETUID/SETGID to establish a hard worker deadline; the analyzer/payload worker drops to UID/GID65532 with no effective/permitted/ambient capabilities before reading data. Cleanup removes the known container and verifies absence, including when the SDK is killed. These controls trust the kernel, daemon and bootstrap, and do not constitute VM isolation.
+
+The Python research provider executes only the selected entry in that environment. Its observations are bypassable, advisory INFO audit evidence with no actions, and SCAN-only. It has no host fallback. Inert adversarial acceptance tests cover network, privileges, root-clock stop denial, resource limits and cleanup; there is no claim of safely containing arbitrary kernel/container escapes or a reproduction of PowerPeeler/DONAPI.
+
+## Automation and organization presets
+
+Open **Automation** in the Tools UI. Select providers, change debounce (500–60000 ms), change-trigger and optional interval (5–1440 minutes; 0 disables it), then review each provider's network/cost declaration. Saving stores preferences and leaves the session paused. **Review & start** arms the selected project for future events; it makes no immediate or catch-up scan. Runs do not overlap. Project/trust/provider configuration changes pause the session; **Pause** cancels an automatic run. Declarations are review information, not sandbox guarantees. Only SCAN runs automatically.
+
+Organization preset import/export carries schema version, issuer/version, method flags and canonical SHA-256. Review identity/digest/changes before applying. Presets contain no commands, credentials, enabled connections, grants or automatic execution. A digest detects changed data; it does not authenticate an issuer. Signed enterprise distribution can wrap this data contract without changing host permissions.
+
+Reviewed [CI/build examples](../examples/ci/README.md) use the same CLI and exit codes. The [shared conformance adapter](../examples/provider-conformance/README.md) exercises malformed/partial responses, deadlines, cancellation, attribution and per-operation grants through both hosts.

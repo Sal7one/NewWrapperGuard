@@ -1,6 +1,18 @@
 # Changelog
 
-## 0.6.0 — Unreleased
+## 0.7.0 — Release candidate
+
+- Add reviewed per-session debounced/scheduled SCAN automation, with independent provider network/cost declarations, explicit Start/Pause and no immediate execution on save/start.
+- Add optional bounded owned-target HTTP header/cookie audits, exact numeric-IP/path scope and authentication environment-variable names.
+- Add SDK 0.4.0 producer/input provenance, freshness and resolved-dependency coverage details; preserve API 1/schema 1.
+- Enable Windows direct runners after real five-scanner/process-tree CI acceptance.
+- Add optional local container Bandit/Semgrep and selected-entry Python research execution, with tested privilege/network/resource/timer/cleanup boundaries and no host fallback.
+- Add offline SDK repair, explicit tool update, safe unused-environment removal, reviewed portable organization presets and cross-host provider conformance.
+- Add minimum/current real VS Code hosts on three OSes, IntelliJ verifier matrix, real Android Studio upgrade/removal and Android 16 emulator acceptance.
+- Add pinned 77-source static research acquisition, honest missed-signal reporting, two real local-model diagnostic evaluations, resource budgets and runtime dependency/license inventory.
+- Fix PowerShell module/uppercase extension coverage, shell assignment false positives, canceled setup execution, UI focus recovery and SCAN-only managed-provider gate applicability.
+
+## 0.6.0 — Release candidate 1 (2026-10-20)
 
 - Add generic SDK/custom-command GUI setup, literal argv, extensible categories/tags, declared inputs and per-project bindings in both hosts. Preserve API 1 and the compiled Kotlin descriptor ABI.
 - Add VS Code multi-root selection, bounded content seals and actual first-party read tracking across both hosts/CLI. Missing explicitly enabled connections remain incomplete.

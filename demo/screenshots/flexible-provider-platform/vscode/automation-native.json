@@ -1,0 +1,47 @@
+{
+  "review": "Review this editor session’s automation",
+  "first": {
+    "kind": "scanned",
+    "automation": {
+      "configured": true,
+      "running": true,
+      "status": "Watching · last automated scan completed",
+      "providerIds": [
+        "wrapperguard"
+      ],
+      "onChanges": true,
+      "debounceMs": 500,
+      "intervalMinutes": 0,
+      "project": "/private/tmp/wrapperguard-vscode-roadmap-dG7YNJ/project",
+      "lastRun": 1792509549529
+    },
+    "providers": [
+      {
+        "id": "wrapperguard",
+        "status": "COMPLETED"
+      }
+    ],
+    "notices": [
+      {
+        "code": "WG-AUTOMATED-SCAN",
+        "message": "Automatic SCAN scope includes only the reviewed providers: wrapperguard. No build or sync was launched."
+      }
+    ]
+  },
+  "paused": {
+    "automation": {
+      "configured": true,
+      "running": false,
+      "status": "Paused by user",
+      "providerIds": [
+        "wrapperguard"
+      ],
+      "onChanges": true,
+      "debounceMs": 500,
+      "intervalMinutes": 0,
+      "project": "/private/tmp/wrapperguard-vscode-roadmap-dG7YNJ/project",
+      "lastRun": 1792509549529
+    },
+    "focus": "automationSession"
+  }
+}

@@ -41,14 +41,14 @@ export async function maintainSdk(context:vscode.ExtensionContext,roots:string[]
   if(choice.action==='sdk'){
     const selected=await choosePython(context,roots,true);if(!selected)return;
     const confirm=await vscode.window.showQuickPick([{label:'Reinstall the bundled SDK offline',confirm:true},{label:'Cancel',confirm:false}],{title:'Review SDK repair',placeHolder:'Creates a managed environment if needed. Reinstalls the exact bundled wheel without network access or project analysis.',ignoreFocusOut:true});if(!confirm?.confirm)return;
-    await ensureManagedSdk(context,selected);await vscode.window.showInformationMessage('Managed SDK installed from the bundled wheel. No project scan ran.');return;
+    await ensureManagedSdk(context,selected);void vscode.window.showInformationMessage('Managed SDK installed from the bundled wheel. No project scan ran.');return;
   }
   if(choice.action==='remove'){
     const confirm=await vscode.window.showQuickPick([{label:'Remove only the unused owned SDK environment',confirm:true},{label:'Cancel',confirm:false}],{title:'Review managed SDK removal',placeHolder:'Removes the whole generated SDK environment after checking references. Files outside this environment, other Python installations and baseline approvals remain.',ignoreFocusOut:true});if(!confirm?.confirm)return;
-    const removed=await removeManagedEnvironment(storage,roots,await references());await vscode.window.showInformationMessage(removed?'Unused managed SDK environment removed.':'No managed SDK environment exists.');return;
+    const removed=await removeManagedEnvironment(storage,roots,await references());void vscode.window.showInformationMessage(removed?'Unused managed SDK environment removed.':'No managed SDK environment exists.');return;
   }
   if(!ready)throw new Error('Install or repair the bundled SDK before updating a managed Python tool.');
   const tool=choice.action as keyof typeof PYTHON_TOOLS;const spec=PYTHON_TOOLS[tool];if(!spec)throw new Error('Choose a supported managed tool.');
   const confirm=await vscode.window.showQuickPick([{label:'Download and reinstall '+spec.name+' '+spec.version,confirm:true},{label:'Cancel',confirm:false}],{title:'Review tool repair/download',placeHolder:'Downloads the pinned tool and its dependencies from PyPI. It runs no project scanner and changes no grants.',ignoreFocusOut:true});if(!confirm?.confirm)return;
-  await installManagedPythonTool(context,python,tool,true);await vscode.window.showInformationMessage(spec.name+' '+spec.version+' installed. Run a scan explicitly when ready.');
+  await installManagedPythonTool(context,python,tool,true);void vscode.window.showInformationMessage(spec.name+' '+spec.version+' installed. Run a scan explicitly when ready.');
 }

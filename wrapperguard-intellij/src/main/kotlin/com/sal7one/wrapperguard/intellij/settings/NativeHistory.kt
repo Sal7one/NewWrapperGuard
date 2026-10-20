@@ -50,6 +50,7 @@ internal object NativeHistory {
             .filter(String::isNotBlank).map { runCatching { Path.of(it).toRealPath().toString() }.getOrDefault(Path.of(it).toAbsolutePath().normalize().toString()) }.toSet()
         val scopeText = buildString {
             append(buildScanSettings())
+            report.notices.filter { it.code == "WG-AUTOMATED-SCAN" }.forEach { append(it.message) }
             enabled.sortedBy { it.provider.descriptor.id }.forEach { registration ->
                 val descriptor = registration.provider.descriptor
                 append(descriptor).append(descriptor.category).append(descriptor.summary).append(descriptor.tags).append(descriptor.inputScope)

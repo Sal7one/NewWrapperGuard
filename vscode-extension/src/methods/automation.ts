@@ -1,6 +1,6 @@
 export interface AutomationProviderPolicy {network:'NONE'|'LOCAL'|'REMOTE'|'UNKNOWN';cost:'LOW'|'METERED'|'UNKNOWN';acknowledged:boolean}
 export interface AutomationPreferences {schemaVersion:1;enabled:boolean;onChanges:boolean;debounceMs:number;intervalMinutes:number;providers:Record<string,AutomationProviderPolicy>}
-export interface AutomationView {configured:boolean;running:boolean;status:string;project?:string;providerIds:string[];onChanges:boolean;debounceMs:number;intervalMinutes:number;lastRun?:number;error?:string}
+export interface AutomationView {configured:boolean;running:boolean;status:string;project?:string;providerIds:string[];policies?:Record<string,AutomationProviderPolicy>;onChanges:boolean;debounceMs:number;intervalMinutes:number;lastRun?:number;error?:string}
 export const DEFAULT_AUTOMATION:AutomationPreferences={schemaVersion:1,enabled:false,onChanges:true,debounceMs:2000,intervalMinutes:0,providers:{}};
 export function validateAutomationPreferences(input:unknown):AutomationPreferences {
   if(!input||typeof input!=='object'||Array.isArray(input))throw new Error('Automation requires user-owned settings.');
@@ -21,10 +21,10 @@ export class AutomationController {
   private view:AutomationView={configured:false,running:false,status:'Paused · choose providers and start explicitly',providerIds:[],onChanges:true,debounceMs:2000,intervalMinutes:0};
   private debounce:unknown;private interval:unknown;private abort?:AbortController;private generation=0;
   constructor(private readonly run:(project:string,ids:readonly string[],signal:AbortSignal)=>Promise<void>,private readonly changed:(view:AutomationView)=>void,private readonly clock:Clock=realClock){}
-  snapshot():AutomationView{return{...this.view,providerIds:[...this.view.providerIds]};}
+  snapshot():AutomationView{return{...this.view,providerIds:[...this.view.providerIds],policies:Object.fromEntries(Object.entries(this.view.policies??{}).map(([id,policy])=>[id,{...policy}]))};}
   configure(preferences:AutomationPreferences):void {
     this.pause('Paused · saved settings require explicit Start');this.preferences=validateAutomationPreferences(preferences);
-    this.view={...this.view,configured:preferences.enabled,providerIds:Object.keys(preferences.providers),onChanges:preferences.onChanges,debounceMs:preferences.debounceMs,intervalMinutes:preferences.intervalMinutes};this.emit();
+    this.view={...this.view,configured:preferences.enabled,providerIds:Object.keys(preferences.providers),policies:this.preferences.providers,onChanges:preferences.onChanges,debounceMs:preferences.debounceMs,intervalMinutes:preferences.intervalMinutes};this.emit();
   }
   start(project:string,readyIds:readonly string[]):void {
     const ids=Object.keys(this.preferences.providers);

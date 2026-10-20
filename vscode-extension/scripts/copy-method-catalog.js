@@ -4,3 +4,5 @@ const target = path.join(__dirname,'../dist/methods');
 fs.mkdirSync(target,{recursive:true});
 fs.copyFileSync(path.join(__dirname,'../../catalog/security-methods.json'),path.join(target,'security-methods.json'));
 fs.copyFileSync(path.join(__dirname,'../../catalog/security-presets.json'),path.join(target,'security-presets.json'));
+
+fs.copyFileSync(path.join(__dirname,'../../THIRD_PARTY_NOTICES.md'),path.join(__dirname,'../resources/THIRD_PARTY_NOTICES.md'));

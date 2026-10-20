@@ -26,11 +26,12 @@ internal object ManagedMethodInputScopes {
             "sast.bandit" -> listOf("**/*.py", "**/*.PY")
             "sast.semgrep" -> listOf("**/*.kt", "**/*.kts", "**/*.java", "**/*.KT", "**/*.KTS", "**/*.JAVA", "**/AndroidManifest.xml")
             "sast.powershell" -> listOf("**/*.ps1", "**/*.psm1", "**/*.psd1", "**/*.PS1", "**/*.PSM1", "**/*.PSD1")
+            "research.container-python" -> listOf("**/*.py", "**/*.PY")
             "research.script-semantics" -> listOf("**/*.py", "**/*.ps1", "**/*.psm1", "**/*.PY", "**/*.PS1", "**/*.PSM1")
             "sca.trivy", "sca.osv" -> dependencyFiles.map { "**/$it" }
             else -> emptyList()
         }
-        val files = listOf(connection.profilePath, connection.reportPath,
+        val files = listOf(connection.profilePath, connection.reportPath, connection.provenanceManifestPath,
             connection.rulesPath.takeIf { connection.mode == "runner" }.orEmpty(),
             connection.modulePath.takeIf { it.isNotBlank() && !Files.isDirectory(Path.of(it)) }.orEmpty())
             .filter(String::isNotBlank).map(::canonical).distinct()
@@ -53,9 +54,9 @@ internal object NativeProviderInputs {
         val scopes = enabled.mapNotNull { it.provider.descriptor.inputScope?.snapshot() }
         val external = mutableSetOf<Path>()
         val tools = mutableSetOf<Path>()
-        state.methodConnections.filter { connection -> SecurityMethodCatalog.find(connection.methodId)?.providerId in ids &&
+        state.methodConnections.filter { connection -> enabled.any { it.provider.descriptor.id == SecurityMethodCatalog.find(connection.methodId)?.providerId && connectionIsSelected(it.provider.descriptor, connection) } &&
             (connection.projectRoot.isBlank() || runCatching { Path.of(connection.projectRoot).toRealPath() == root.toRealPath() }.getOrDefault(false)) }.forEach { connection ->
-            listOf(connection.pythonExecutable, connection.runnerExecutable.takeIf { connection.mode == "runner" }.orEmpty())
+            listOf(connection.pythonExecutable, (if (connection.sandboxEnabled) connection.sandboxExecutable else connection.runnerExecutable).takeIf { connection.mode == "runner" }.orEmpty())
                 .filter(String::isNotBlank).forEach { value ->
                     val selected = Path.of(value)
                     tools.add(selected.toRealPath())

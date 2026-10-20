@@ -174,7 +174,7 @@ fun WrapperGuardApp(service: WrapperGuardProjectService, project: Project) {
         }
         WorkspaceDivider()
         if (state.error != null || report != null && (report.stale || state.scanning)) {
-            Text(state.error ?: "Showing previous scan results until a new scan completes.",
+            Text(state.error ?: if (state.scanning) "Showing previous results while the new scan runs." else "Preferences or inputs changed. Run Scan project to refresh these results.",
                 modifier = Modifier.fillMaxWidth().background(statusTone.copy(alpha = 0.06f)).padding(horizontal = 16.dp, vertical = 6.dp),
                 fontSize = 11.sp, color = statusTone)
             WorkspaceDivider()
@@ -205,6 +205,7 @@ fun WrapperGuardApp(service: WrapperGuardProjectService, project: Project) {
                     onPermissions = { method -> if (!service.isDemo) { OptionalMethodPermissionsDialog(project, method, report).showAndGet(); refreshMethods() } },
                     onInstallSdk = { if (!service.isDemo) { InstallOptionalSdkDialog(project).showAndGet(); refreshMethods() } },
                     onGuide = { method -> if (!service.isDemo) BrowserUtil.browse(methodGuide(method.id)) },
+                    onAutomation = { if (!service.isDemo) { ScanAutomationDialog(project).showAndGet(); refreshMethods() } },
                     onPresets = { if (!service.isDemo) { MethodPresetDialog(project).showAndGet(); refreshMethods() } },
                     onStorage = { if (!service.isDemo) {
                         methodProgress(project, "Reviewing WrapperGuard managed storage") { ManagedStorage.inventory() }

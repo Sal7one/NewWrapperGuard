@@ -81,4 +81,25 @@ class ManagedStorageTest {
         assertThrows(IllegalArgumentException::class.java) { ManagedStorage.removeOwned(root, record(outside), emptyList()) }
         assertTrue(Files.exists(outside))
     }
+    @Test fun explicitCacheCleanupPreservesReferencedReportsAndOutsideLinkTargets() {
+        val root = temporary.newFolder("cache-storage").toPath().toRealPath()
+        val cache = Files.createDirectory(root.resolve("cache-${java.util.UUID.randomUUID()}"))
+        val report = Files.writeString(cache.resolve("selected-report.json"), "original selected report")
+        val cacheRecord = ManagedArtifactState(cache.toString(), "Tool cache", ManagedStorage.fingerprint(cache).digest)
+        assertThrows(IllegalArgumentException::class.java) { ManagedStorage.clearCache(root, cacheRecord, listOf(report)) }
+        assertEquals("original selected report", Files.readString(report))
+        Files.delete(report)
+        val original = temporary.newFile("original-outside-cache").toPath().toRealPath()
+        Files.writeString(original, "original")
+        Files.createSymbolicLink(cache.resolve("outside-link"), original)
+        Files.writeString(cache.resolve("database-cache"), "generated tool cache")
+        Files.newDirectoryStream(root).use { if (it !is java.nio.file.SecureDirectoryStream<*>) {
+            assertThrows(IllegalArgumentException::class.java) { ManagedStorage.clearCache(root, cacheRecord, emptyList()) }; return
+        } }
+        val fresh = ManagedStorage.clearCache(root, cacheRecord, emptyList())
+        assertEquals("original", Files.readString(original)); assertTrue(Files.isDirectory(cache))
+        assertEquals(0L, Files.list(cache).use { it.count() }); assertEquals(ManagedStorage.fingerprint(cache).digest, fresh)
+        assertThrows(IllegalArgumentException::class.java) { ManagedStorage.clearCache(root, cacheRecord.copy(kind = "Method profile"), emptyList()) }
+    }
+
 }

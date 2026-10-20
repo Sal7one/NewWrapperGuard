@@ -1,62 +1,42 @@
-# Verification record and release gates
+# Build and acceptance verification
 
-Checkpoint **2026-10-20**, candidate **0.6.0**, SDK **0.3.0**, provider **API 1**.
-Branch: `codex/flexible-provider-platform`, based on `8336a61` (0.5 RC1).
-Candidate builds and test evidence do not imply stable-release acceptance or complete
-security coverage. Prior RC1 assets and its [green CI](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39416921098)
-remain historical evidence, not validation of this candidate.
+Checkpoint **2026-10-20**: app **0.7.0**, SDK **0.4.0**, provider **API 1 / schema 1**. This is candidate acceptance work. The previous [0.6.0 RC1 release](https://github.com/Sal7one/NewWrapperGaurd/releases/tag/v0.6.0-rc.1) remains unchanged. Final release metadata/checksums identify the packaged commit; earlier CI is evidence for its recorded checkpoint only.
 
 ## Install and test the build
 
-| Host | Candidate package | Installation |
+| Host | Candidate artifact | Installation |
 |---|---|---|
-| Android Studio / IntelliJ IDEA | `wrapperguard-intellij/build/distributions/wrapperguard-intellij-0.6.0.zip` | Settings → Plugins → gear → Install Plugin from Disk; restart |
-| VS Code | `vscode-extension/wrapperguard-0.6.0.vsix` | Extensions → … → Install from VSIX; reload |
-| CLI | `wrapperguard-cli/build/install/wrapperguard-cli/bin/wrapperguard-cli` | Run after `:wrapperguard-cli:installDist` |
-| SDK | `build/sdk/wrapperguard_sdk-0.3.0-py3-none-any.whl` | Install offline in a dedicated trusted Python 3.10+ environment |
+| Android Studio / IntelliJ | `wrapperguard-intellij/build/distributions/wrapperguard-intellij-0.7.0.zip` | Settings → Plugins → gear → Install Plugin from Disk; restart |
+| VS Code | `vscode-extension/wrapperguard-0.7.0.vsix` | Extensions → … → Install from VSIX; reload |
+| CLI | `wrapperguard-cli/build/install/wrapperguard-cli/bin/wrapperguard-cli` | JDK 21; use `:wrapperguard-cli:installDist` |
+| SDK | `build/sdk/wrapperguard_sdk-0.4.0-py3-none-any.whl` | Offline install into a dedicated trusted Python 3.10+ environment |
 
-A useful first manual pass takes about ten minutes after scanner installation:
+The packaged test bundle includes installers, CLI, wheel, docs, inert source fixtures, checksums and `CHECK-GATES.py`. Verify its `SHA256SUMS` before installation. It is not a mobile WrapperGuard app: Android Studio/VS Code/CLI run on the development machine, while the separate Android acceptance app supplies a controlled device endpoint.
 
-1. Open [test-fixtures/newfirstparty](../test-fixtures/newfirstparty/README.md) as a folder,
-   or copy it into a fresh test directory. It has no build file, wrapper or application
-   startup. Trust only this controlled fixture when external analyzer setup requires
-   workspace trust. Do not build or execute the fixture.
-2. Open WrapperGuard → **Tools → Built-in**. Confirm six independent checks are present
-   and on by default. Scan, inspect provider status, and confirm the selected scope is
-   visible. These build/script checks alone are not source-SAST coverage of Kotlin/Java.
-3. Native: choose **Install SDK…**. VS Code: use **Set up → Create a managed SDK environment**. Select trusted Python 3.10+, and explicitly select Semgrep
-   1.181.0 and/or Bandit 1.9.4 downloads. Under **SAST**, connect the installed Semgrep using
-   bundled rules; connect Bandit for Python. Review the setup summary, keep warning-only
-   SCAN permissions, then enable and scan.
-4. Expect `wrapperguard.ktor.unrestricted-cors` and
-   `wrapperguard.kotlin.empty-server-trust-check` in `Application.kt`, plus
-   `wrapperguard.android.javascript-bridge` and
-   `wrapperguard.android.raw-query-concatenation` in `Browser.java`. Bandit should report
-   `B602` in `app.py` (Bandit may also report `B404` and `B607`). The `nosemgrep` /
-   `nosec` comments must not remove these findings.
-   Select a finding and confirm editor navigation resolves to the fixture source.
-5. Disable Semgrep and rescan: its findings disappear, Bandit remains independent, and
-   disabled/limited scope stays visible. Re-enable and rescan to restore its findings.
-   Review **Permissions**: warning-only connections must not receive build/sync block
-   actions in exported JSON. Research/AI cannot acquire blocking actions. Disconnecting
-   one method must preserve another connection and the six independent built-in switches.
-   In the native IDE, open **Configure… → Disconnect**; VS Code exposes **Disconnect**
-   directly. Edit and save a fixture source: the previous result must become stale.
-   Rescan before treating the displayed result as current.
+### Ten-minute source-analysis check
 
-For a gate check, use a separate trusted disposable Gradle project with a known supported
-IDE run/sync path. Through the connection's permission UI, explicitly allow BUILD/SYNC
-and the matching block action, then use an ERROR-level test finding. A supported native
-launch should stop at the blocker dialog; choose Cancel. Test Gradle synchronization
-separately with Block sync enabled: it should stop before supported resolution begins.
-Do not use the illustrative source fixture as a runnable build. Warning-only grants should
-continue to show review findings without blocking. A failed required provider can also
-block when its matching action is granted.
+1. Open `test-fixtures/newfirstparty/` as a disposable source-only folder. It has no runnable build; do not execute its files. Trust only the controlled fixture when your external-tool setup needs Workspace Trust.
+2. Open **Tools → Built-in** and scan. Six independent static groups default on. Check provider status, selected scope and findings/navigation. Build-input checks alone do not establish Kotlin/Java source-SAST coverage.
+3. Install the bundled SDK using trusted Python 3.10+. Choose separately whether to download pinned Semgrep 1.181.0 / Bandit 1.9.4. Connect **SAST → Semgrep** with bundled rules and **Bandit** with its installed executable; keep warning-only SCAN grants and explicitly enable/scan.
+4. Expect `wrapperguard.ktor.unrestricted-cors` and `wrapperguard.kotlin.empty-server-trust-check` in `Application.kt`, `wrapperguard.android.javascript-bridge` and `wrapperguard.android.raw-query-concatenation` in `Browser.java`, plus Bandit `B602` in `app.py` (other Bandit diagnostics may appear). Source suppression comments must not create approvals.
+5. Disable one analyzer: its findings disappear while another remains independent. Re-enable/rescan. Change source: old results must become stale. Grant changes and unknown/incomplete scope must remain visible; research/AI cannot acquire blockers.
 
-VS Code has cooperative gates: use an integration that calls `gate('BUILD')` /
-`gate('SYNC')`, or the installed CLI operation tests below. An arbitrary terminal
-command is not intercepted. CLI `--operation build|sync` evaluates authority without
-starting a build or synchronization:
+### Setup, automation and maintenance
+
+- **Add SDK**: choose a copied outside-project conformance adapter, literal argv, optional declared scope and independent grants. Save disabled. Blank scope remains visibly unknown; it does not silently declare the entire project. Missing-executable edit/remove paths must remain accessible.
+- **Multiple roots** in VS Code: switch selected project and verify bound profiles/navigation/history. A provider bound elsewhere is disabled there without launching.
+- **Report provenance / SCA**: select a report/manifest, producer age and resolved-version requirement. Mutate input/report during analysis; coverage must become stale/incomplete. Missing identity or unresolved transitives cannot establish current full coverage.
+- **HTTP audit**: use only the controlled acceptance app or your explicitly owned numeric-IP server. Cancel ownership/auth-name review: no profile/request/scan. Explicit connect/scan should produce header diagnostics. A managed SCAN-only connection must not launch on BUILD/SYNC.
+- **Automation**: save change/interval settings with provider network/cost review. Save/enable/Start must produce no immediate request. A later harmless change triggers one nonoverlapping SCAN; Pause cancels/stops future runs. Trust/project/config changes pause the session.
+- **Presets**: export/import through native file dialogs; inspect issuer/version/digest. Apply changes flags only, without commands, tool installation, grants or analysis.
+- **History/storage**: history starts off; opt in, compare compatible completed scans, change retention and clear owned summaries. Source/messages/evidence are not persisted. Repair SDK offline; remove only unused generated environments. Active/referenced/user/legacy installations must survive.
+- **UI**: use keyboard across all tabs/dialogs, Cancel/error and focus-return paths; light/dark/high-contrast themes and 300px layout. Automated AX/keyboard evidence does not replace a human screen-reader session.
+
+### Native and cooperative gates
+
+Use a separate disposable trusted Gradle project with harmless marker tasks. Grant the provider BUILD/SYNC plus the matching block action. Clean supported Run/Sync should execute markers; a controlled ERROR blocker should display the actual blocker dialog; choose Cancel and verify markers are absent. Test sync veto separately before project configuration. Do not build the source-analysis fixture.
+
+VS Code gates are cooperative (`gate('BUILD')` / `gate('SYNC')`); arbitrary terminal commands are not intercepted. The CLI evaluates grants without starting a build:
 
 ```sh
 wrapperguard-cli/build/install/wrapperguard-cli/bin/wrapperguard-cli \
@@ -64,155 +44,69 @@ wrapperguard-cli/build/install/wrapperguard-cli/bin/wrapperguard-cli \
   --operation build --enforce --json
 ```
 
-Expect exit **2** only for active granted blockers, **1** for invalid/incomplete input
-without blockers, and **0** for completed scope without blockers. The automated provider
-smoke below exercises warning-only clipping and independent build/sync actions without
-executing project programs.
+Exit2 means active granted blockers, exit1 invalid/incomplete input without a blocker, exit0 completed configured scope without blockers. INFO/audit/research output cannot block. The bundle's `CHECK-GATES.py` exercises actual provider behavior and action clipping.
 
-Additional platform acceptance:
+## Recorded evidence
 
-1. Native **Tools → Add SDK / custom command** or VS Code **Providers → Add SDK**: use a copied outside-project sample adapter.
-   Choose a category/tags, literal argv rows and declared source inputs. Save disabled;
-   verify its independent warning-only grants, then explicitly enable/scan. Edit/remove
-   must remain available after its executable is missing. Do not execute source fixtures.
-2. Open two VS Code roots, select each project and scan. A root-bound connection must
-   be disabled on the other project; findings/navigation/history must use the selected root.
-3. Preview a preset. Applying it changes flags only: no downloads, execution, command
-   enablement or grant changes. A newly selected method without a connected provider
-   must remain incomplete. Choose Semgrep packs explicitly and exercise the new cases
-   in [newfirstparty](../test-fixtures/newfirstparty/README.md).
-4. History starts off with no summary writes. Opt in, scan twice, and compare compatible
-   scans. Baseline approval must not count as disappearance. A rule/permission/operation
-   change or incomplete/stale scan must prevent comparison. Pause, change retention and
-   clear owned summaries. Titles/relative paths are stored; source/messages/evidence are not.
-5. Inventory managed storage. Remove only selected unused generated data; referenced or
-   active environments, original reports/configuration and unrelated files must survive.
-6. Edit a declared source, unusual recursively read file, selected external rule/profile
-   or report during analysis. Old results must be stale/incomplete and cannot authorize
-   a supported gate from a mismatched content seal.
-
-## Automated evidence
-
-| Check | Result at this source checkpoint | Meaning |
+| Check | Verified checkpoint | Scope |
 |---|---|---|
-| JVM build and packages | 205 tests: core 91, rules 40, CLI 8, native 66; zero failures/skips | Shared grants, scopes, actual-read seals, legacy descriptor ABI, custom GUI/storage/history |
-| VS Code | 123 tests and emitted-webview checks passed | Multi-root, generic setup, presets, scope seals, history, cleanup and UI message validation |
-| Python installed SDK wheel | 118 local tests: 112 passed, 6 Windows-only skips; those six execute successfully in Windows CI | Eight passive formats, runners, research, structured AI and isolated experimental helpers |
-| Downloader | 4 trust/archive regressions passed | Official asset/hash boundaries and bounded no-traversal extraction |
-| Catalog/profile contracts | 17 methods, 15 profiles, 10 format IDs passed | Examples cover every format; host examples remain disabled |
-| Scanner parity | 19/19 fixture findings, 9/9 blockers; 46/46 checkout findings, 19/19 blockers; no fingerprint differences | Existing scanner behavior remains aligned |
-| IntelliJ verifier | Compatible with IDEA 2025.3 / IU-253.28294.334 | Binary compatibility for this target; 8 deprecated / 32 experimental API usages remain |
-| Real Semgrep 1.181.0 | All five selected packs passed generated positive/negative Kotlin/Java/manifest fixtures | Local configs, suppression isolation and source mapping, not accuracy evaluation |
-| Real PSScriptAnalyzer 1.25.0 / PowerShell 7.6.7 | Passed; fixed required runtime-module import | Actual analyzer, fixed script and mapped diagnostics |
-| Real OSV-Scanner 2.7.0 | Passed; vulnerable inert npm lock fixture produced findings | Actual online package-advisory integration; database results can change |
-| Real local model | Ollama + SmolLM2:135m structured schema passed, 1 advisory finding, ~0.7 s | Real protocol compatibility; does not measure explanation quality/detection accuracy |
-| Real Trivy 0.76.0 | Passed in Linux CI; local database download had insufficient disk | Actual vulnerability database/scanner acceptance, independently of protocol fakes |
-| Windows helper matrix | Passed on Python 3.10 / 3.12 / 3.14: 8 snapshot/parser + 6 pipe tests per version; non-Windows-only guard appropriately skipped | Actual handle/junction/race/limits/process checks; active source runners still need end-to-end wiring/acceptance |
+| JVM | Core 96, rules 45, CLI 8, native 79 tests passed locally |228 tests; final CLI/package rerun records subsequent changes |
+| VS Code |152 tests,5 hardening checks, webview checks,8 actual local host cases | Real installed VS Code1.116; keyboard/AX/four themes/narrow/focus/cancel |
+| Python SDK |148 tests locally,9 Windows-only skips | Windows-specific boundaries run in actual Windows CI |
+| Windows / official scanners | [3877542 platform run](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39452049023) passed | Actual five scanners plus Python 3.10/3.12/3.14 boundary matrix |
+| Container isolation | [3877542 Docker run](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39452049100) passed | Real no-network/privilege/resource/root-clock/SDK-kill cleanup acceptance; inert selected entries |
+| VS Code host matrix | All six jobs passed at [5b71265](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39450889378) | Minimum1.95.0 and current 1.142.0, Windows/macOS/Linux;8 real extension-host cases each |
+| IntelliJ | Prior development2025.3 verifier passed; minimum/current matrix underway | Initial matrix jobs exhausted hosted disk; reserved disk before rerun, no fabricated report |
+| Android Studio | Actual2026.1.1 / AI261 install0.5→0.6/restart/removal, clean/blocked Run/Sync passed | Separate isolated profile, real marker checks and dialogs; new0.7 SDK/automation acceptance also exercised |
+| Device | [Android16/API36 emulator passed](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39450889177) | Launch, UI/screenshot, owned loopback server, SDK secure0 findings/weak3 findings; physical phone not connected |
+| Provider conformance | Installed JVM and actual TS bridge cases passed | Healthy/malformed/partial/deadline/cancel/action/attribution cases and descendant death |
+| Resource evaluation | Four real-project subsets plus4096 generated files; five caps/cancel checks passed | Latency/RSS/completion recorded; Android subset legitimately incomplete, Python native scope limited |
+| Research |77 pinned sources and two real local model runs | Misses, unsupported inputs, label bias and incorrect/injected model prose retained; no population accuracy claim |
+| Distribution | Runtime audit/SBOM and embedded wheel/license checks | Current final artifacts must pass after build; live advisory databases are time-sensitive |
 
-The [official-scanner / Windows matrix](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39429520082)
-is green on code checkpoint `31cb2a4`; real PSScriptAnalyzer, OSV and Trivy all completed.
-The [main CI](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39429519950) covers
-VS Code and Python 3.10/3.12/3.14 plus JVM/verifier/parity. Native live acceptance uncovered and fixed incorrect before-run extension registration
-and worker-thread dialog creation. The final isolated IDEA 2025.3 test verified clean
-Gradle execution, actual SYNC veto before configuration, and an actual BUILD blocker
-dialog whose Cancel action prevented execution. No demo/test mode or personal IDE profile
-was used. [Native evidence](../demo/screenshots/platform-0.6/intellij/acceptance-evidence.txt).
+Actual captures and machine-readable evidence are in [Android Studio0.6](../demo/screenshots/platform-0.6/android-studio/), [native/VS Code gallery](../demo/screenshots/flexible-provider-platform/) and [Android device](../demo/screenshots/platform-0.7/android-device/evidence.json). Synthetic demo renders remain separately labeled. A CI PR merge commit can differ from its branch head; device JSON records both identities.
 
-The initial JVM CI exposed a Linux fast-exit stdin Broken-pipe race and a platform-specific
-stdout expectation. Request delivery now shares the bounded asynchronous I/O deadline;
-strict successful exit/UTF-8/result/output validation and real descendant cleanup remain
-required. Four additional lifecycle regressions pass locally. The new CI run is linked
-from [PR #3](https://github.com/Sal7one/NewWrapperGaurd/pull/3); final candidate publication
-requires that rerun to pass.
-Do not substitute renderer captures or fake scanner protocol tests for real host/tool evidence.
+## Reproduce automated checks
 
-## Reproduce the checks
-
-Use JDK 21, Node 22+, and Python 3.10+ with pip. The installed SDK is required for tests
-that launch isolated `python -I` subprocesses; setting only `PYTHONPATH` is insufficient.
-Build from the repository root:
+Use JDK 21, Node 22+, Python 3.10+ with pip. Isolated SDK subprocesses need an installed SDK; `PYTHONPATH` alone is insufficient.
 
 ```sh
-./gradlew build :wrapperguard-cli:installDist :wrapperguard-intellij:buildPlugin
+./gradlew build :wrapperguard-cli:installDist :wrapperguard-cli:distZip :wrapperguard-intellij:buildPlugin
 ./gradlew :wrapperguard-intellij:verifyPlugin
 npm --prefix vscode-extension ci
 npm --prefix vscode-extension test
 npm --prefix vscode-extension run parity
 npm --prefix vscode-extension run hardening
+npm --prefix vscode-extension run test:host
 npm --prefix vscode-extension run package
-```
-
-The packaging tasks build the bundled wheel. To build/copy it explicitly:
-
-```sh
 python3 scripts/build-sdk.py --copy-vscode
+python3 -m venv /absolute/user/wg-check
+/absolute/user/wg-check/bin/python -m pip install ./sdk/python 'bandit==1.9.4' 'jsonschema==4.25.1'
+/absolute/user/wg-check/bin/python -m unittest discover -s sdk/python/tests -v
+/absolute/user/wg-check/bin/python scripts/validate-integration-profiles.py
+python3 scripts/provider-smoke.py
+python3 scripts/provider-conformance.py --python /absolute/user/wg-check/bin/python
+/absolute/user/wg-check/bin/python scripts/sdk-smoke.py --sdk-python /absolute/user/wg-check/bin/python
+node vscode-extension/scripts/sdk-smoke.js --sdk-python /absolute/user/wg-check/bin/python
+node vscode-extension/scripts/provider-conformance.js --python /absolute/user/wg-check/bin/python
+/absolute/user/wg-check/bin/python -m unittest discover -s scripts/tests -v
 ```
 
-The helper selects Python 3.10+ with pip, stages clean sources, and checks package name,
-version, dependency metadata and bundled module bytes. Set `WRAPPERGUARD_BUILD_PYTHON`
-to the intended build interpreter when needed. Installing the finished SDK wheel in the
-GUI is offline; building a wheel may need the declared build backend from package indexes.
+Choose minimum/current targets using `-Pwrapperguard.verifierVersion=2025.2` or `2026.2.3`; the build defaults to minimum 2025.2; verifier defaults to 2025.3. A local IDE may be selected explicitly with `-Pwrapperguard.localIdePath=/absolute/IDE/Contents`. Native actual GUI acceptance is separate from binary verification. The wheel builder chooses modern Python/pip, verifies source/metadata and normalizes archive metadata so independently packaged hosts carry identical SDK bytes.
 
-Create a verification environment outside scanned projects:
+Real optional tools use `scripts/sdk-bandit-smoke.py`, `scripts/sdk-semgrep-smoke.py`, and `scripts/sdk-tool-smoke.py` with explicitly installed executables. The pinned CI downloader uses official assets and exact hashes. OSV sends dependency metadata; Trivy databases need disk. `scripts/sdk-ai-smoke.py` and `ai-evaluation.py` require an already-running explicit loopback model and download no weights. [Research commands/results](../research/README.md) and `benchmark-scans.py --help` record evaluation scope.
+
+### Reproduce device acceptance
+
+Build only our owned fixture with trusted Gradle8.13/JDK 21 and Android SDK 36:
 
 ```sh
-python3 -m venv /absolute/user/wg-verification
-/absolute/user/wg-verification/bin/python -m pip install ./sdk/python \
-  'bandit==1.9.4' 'jsonschema==4.25.1'
-/absolute/user/wg-verification/bin/python -m unittest discover -s sdk/python/tests -v
-/absolute/user/wg-verification/bin/python scripts/validate-integration-profiles.py
-/absolute/user/wg-verification/bin/python scripts/provider-smoke.py
-/absolute/user/wg-verification/bin/python scripts/sdk-smoke.py \
-  --sdk-python /absolute/user/wg-verification/bin/python
-node vscode-extension/scripts/sdk-smoke.js \
-  --sdk-python /absolute/user/wg-verification/bin/python
-/absolute/user/wg-verification/bin/python scripts/sdk-bandit-smoke.py \
-  --sdk-python /absolute/user/wg-verification/bin/python \
-  --bandit /absolute/user/wg-verification/bin/bandit
+gradle -p examples/android-acceptance :app:assembleDebug
+python3 scripts/android-device-acceptance.py --help
 ```
 
-For the optional real source-SAST check, use an explicitly installed Semgrep 1.181.0:
+Run the driver with explicit absolute adb/APK/SDK-Python paths, serial and new output directory as shown in [the fixture guide](../examples/android-acceptance/README.md). It installs only `com.wrapperguard.acceptance`, forwards an ephemeral host port to device loopback8765, tests secure/weak endpoints, captures UI/screenshot, removes its forward and stops its app. It does not claim a physical phone when using an emulator.
 
-```sh
-/absolute/user/wg-verification/bin/python scripts/sdk-semgrep-smoke.py \
-  --sdk-python /absolute/user/wg-verification/bin/python \
-  --semgrep /absolute/installed/semgrep
-```
+## Remaining distribution gates
 
-The Semgrep check runs trusted scanner code on generated source data. No project build
-or application backend is started. Automated local-AI regressions use loopback fake servers. A separate real-model smoke
-requires an already installed local server/model and downloads neither. Test fixtures and UI demo
-reports remain synthetic and must be identified as such.
-
-Additional real tools use explicitly installed executables:
-
-```sh
-python scripts/sdk-tool-smoke.py --sdk-python /absolute/sdk/bin/python \
-  --tool psscriptanalyzer --executable /absolute/pwsh \
-  --module /absolute/PSScriptAnalyzer/PSScriptAnalyzer.psd1
-python scripts/sdk-tool-smoke.py --sdk-python /absolute/sdk/bin/python \
-  --tool osv --executable /absolute/osv-scanner
-python scripts/sdk-tool-smoke.py --sdk-python /absolute/sdk/bin/python \
-  --tool trivy --executable /absolute/trivy --cache /absolute/user/trivy-cache
-python scripts/sdk-ai-smoke.py --sdk-python /absolute/sdk/bin/python \
-  --endpoint http://127.0.0.1:11434/v1 --model YOUR_INSTALLED_MODEL
-```
-
-The optional Linux CI downloader uses pinned official GitHub release assets and SHA-256
-values in `scripts/upstream-tools.lock.json`; it does not install product defaults.
-Trivy requires substantial free space for vulnerability databases. OSV sends fixture package
-metadata to its vulnerability service. The model smoke requires your own already-running
-loopback server; it does not pull weights or contact a cloud model.
-
-## Candidate acceptance and distribution
-
-Candidate source/CI, actual host acceptance, artifact hashes and remaining gates are
-updated as evidence is produced. The older
-[0.5 RC1](https://github.com/Sal7one/NewWrapperGaurd/releases/tag/v0.5.0-rc.1)
-remains available separately. Marketplace/PyPI publication, stable release approval,
-broader host/OS accessibility/performance matrices, active DAST and research evaluation
-remain in [the roadmap](roadmap.md).
-
-## Editor evidence
-
-[0.6 screenshots and acceptance evidence](../demo/screenshots/platform-0.6/README.md) distinguish actual isolated VS Code setup/execution/project-binding/history from synthetic rendered examples. Actual native BUILD/SYNC evidence and both production fixes are recorded separately from rendered demos. Android Studio, formal screen-reader acceptance and the wider host/OS matrix remain release work.
+Exact final-commit CI and candidate checksums, final installer reinstall, minimum/current verifier reports and signed/chosen public-channel distribution remain separate gates. Human screen-reader/independent usability review, physical hardware when required and robust research/model-quality claims remain explicitly unperformed. [Roadmap](roadmap.md) tracks those limits. GitHub candidate publication does not imply Marketplace/PyPI publication or stable1.0 acceptance.

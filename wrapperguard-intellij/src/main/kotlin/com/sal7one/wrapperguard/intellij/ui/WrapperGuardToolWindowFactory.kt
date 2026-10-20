@@ -24,7 +24,9 @@ import javax.swing.JPanel
 class WrapperGuardToolWindowFactory : ToolWindowFactory {
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
         val service = project.getService(WrapperGuardProjectService::class.java)
-        // Named args: the 2025.3 Jewel bridge deprecated the focusOnClickInside overload.
+        // Compiling against 252 binds the original (config, content) bridge overload.
+        // Newer Jewel versions retain that binary overload; the focusOnClickInside variant
+        // was introduced later and must not be selected for a minimum-platform release.
         val composeHost = JewelComposePanel(
             config = { },
             content = { WrapperGuardApp(service, project) }

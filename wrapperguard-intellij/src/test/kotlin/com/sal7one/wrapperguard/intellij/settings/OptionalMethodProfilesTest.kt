@@ -135,4 +135,142 @@ class OptionalMethodProfilesTest {
             assertNotEquals(second, OptionalMethodConnections.inputSeal(state))
         } finally { Files.deleteIfExists(report) }
     }
+    @Test fun `producer freshness and strict dependency coverage are explicit and sealed`() {
+        val manifest = Files.createTempFile("wg-producer", ".json")
+        try {
+            Files.writeString(manifest, "first producer manifest")
+            val connection = MethodConnectionState(methodId = "sca.cyclonedx", reportPath = "/user/report.json", provenanceManifestPath = manifest.toString(), provenanceMaxAgeSeconds = 3600, requireResolvedVersions = true)
+            val profile = OptionalMethodProfiles.profile(requireNotNull(SecurityMethodCatalog.find(connection.methodId)), connection)
+            assertEquals(3600, profile["reportProvenance"]!!.jsonObject["maxAgeSeconds"]!!.jsonPrimitive.int)
+            assertEquals(manifest.toString(), profile["reportProvenance"]!!.jsonObject["manifestPath"]!!.jsonPrimitive.content)
+            assertTrue(profile["dependencyCoverage"]!!.jsonObject["requireResolvedVersions"]!!.jsonPrimitive.boolean)
+            val scope = com.sal7one.wrapperguard.intellij.execution.ManagedMethodInputScopes.scope(requireNotNull(SecurityMethodCatalog.find(connection.methodId)), connection)
+            assertTrue(scope.externalFiles.contains(manifest.toRealPath().toString()))
+            val state = WrapperGuardSettings.State(methodConnections = mutableListOf(connection))
+            val before = OptionalMethodConnections.inputSeal(state)
+            Files.writeString(manifest, "changed producer manifest")
+            assertNotEquals(before, OptionalMethodConnections.inputSeal(state))
+        } finally { Files.deleteIfExists(manifest) }
+    }
+
+    @Test fun `owned HTTP audit has no executable and rejects unowned remote names secrets or scope escape`() {
+        val connection = MethodConnectionState(methodId = "dast.http-audit", mode = "runner", targetOrigin = "http://127.0.0.1:8123", targetPath = "/acceptance",
+            ownershipConfirmed = true, httpTargetUrls = mutableListOf("http://127.0.0.1:8123/acceptance/secure"), authorizationEnv = "WG_TEST_AUTH")
+        OptionalMethodProfiles.validateHttp(connection)
+        val profile = OptionalMethodProfiles.profile(requireNotNull(SecurityMethodCatalog.find(connection.methodId)), connection)
+        val runner = profile["runner"]!!.jsonObject
+        assertEquals("http-audit", runner["tool"]!!.jsonPrimitive.content)
+        assertFalse(runner.containsKey("executable"))
+        assertEquals("WG_TEST_AUTH", runner["authHeadersEnv"]!!.jsonObject["Authorization"]!!.jsonPrimitive.content)
+        assertEquals(listOf("SCAN"), profile["allowedOperations"]!!.jsonArray.map { it.jsonPrimitive.content })
+        listOf(connection.copy(ownershipConfirmed = false), connection.copy(httpTargetUrls = mutableListOf("http://localhost:8123/acceptance")),
+            connection.copy(httpTargetUrls = mutableListOf("http://127.0.0.1:8123/outside")), connection.copy(authorizationEnv = "Bearer secret"),
+            connection.copy(httpTargetUrls = mutableListOf("http://127.0.0.1:8123/acceptance?token=secret")), connection.copy(httpMaxRequests = 0)).forEach {
+            assertThrows(IllegalArgumentException::class.java) { OptionalMethodProfiles.validateHttp(it) }
+        }
+    }
+
+    @Test fun `passive capabilities exclude unsupported runners and require current SDK for new connections`() {
+        val capabilities = OptionalSdkCapabilities.decode("""{"sdkVersion":"0.4.0","providerApiVersion":1,"runners":[{"tool":"bandit","supported":true},{"tool":"semgrep","supported":false},{"tool":"http-audit","supported":true}]}""")
+        capabilities.requireCurrent()
+        assertEquals(setOf("bandit", "http-audit"), capabilities.runners)
+        assertThrows(IllegalArgumentException::class.java) { capabilities.copy(version = "0.3.0").requireCurrent() }
+        assertThrows(IllegalArgumentException::class.java) { OptionalSdkCapabilities.decode("""{"sdkVersion":"0.4.0","providerApiVersion":2,"runners":[]}""") }
+    }
+
+    @Test fun `repair only accepts the original interpreter in registered managed environment`() {
+        val temporary = Files.createTempDirectory("wg-sdk-repair").toRealPath()
+        try {
+            val environment = Files.createDirectory(temporary.resolve("sdk-owned"))
+            val python = Files.writeString(Files.createDirectory(environment.resolve("bin")).resolve("python"), "fixture")
+            val record = ManagedArtifactState(environment.toString(), "SDK environment", "fingerprint")
+            assertEquals(environment, OptionalSdkInstaller.managedEnvironment(python, temporary, listOf(record)))
+            assertThrows(IllegalArgumentException::class.java) { OptionalSdkInstaller.managedEnvironment(python, temporary, emptyList()) }
+            val link = Files.createSymbolicLink(python.parent.resolve("other"), python)
+            assertThrows(IllegalArgumentException::class.java) { OptionalSdkInstaller.managedEnvironment(link, temporary, listOf(record)) }
+        } finally { temporary.toFile().deleteRecursively() }
+    }
+
+    @Test fun `missing managed SDK is a failed provider while other enabled providers still complete`() {
+        val root = Files.createTempDirectory("wg-missing-sdk").toRealPath()
+        try {
+            val method = requireNotNull(SecurityMethodCatalog.find("sast.bandit"))
+            val permissions = com.sal7one.wrapperguard.core.vetting.ProviderPermissions(enabled = true)
+            val missing = OptionalMethodConnections.providerFor(method, MethodConnectionState(methodId = method.id,
+                pythonExecutable = root.parent.resolve("does-not-exist-python").toString(), reportPath = root.parent.resolve("does-not-exist-report.json").toString()), permissions, listOf(root))
+            val other = object : com.sal7one.wrapperguard.core.vetting.VettingProvider {
+                override val descriptor = com.sal7one.wrapperguard.core.vetting.ProviderDescriptor("other.ready", "Ready fixture", "1.0.0")
+                override fun scan(request: com.sal7one.wrapperguard.core.vetting.VettingRequest) = com.sal7one.wrapperguard.core.vetting.ProviderResult(scannedFiles = 1)
+            }
+            val report = com.sal7one.wrapperguard.core.vetting.VettingCoordinator(listOf(
+                com.sal7one.wrapperguard.core.vetting.ProviderRegistration(missing, permissions),
+                com.sal7one.wrapperguard.core.vetting.ProviderRegistration(other, permissions))).scan(root,
+                com.sal7one.wrapperguard.core.policy.ScanPolicy(), com.sal7one.wrapperguard.core.policy.ScanSettings())
+            assertEquals(com.sal7one.wrapperguard.core.vetting.ProviderRunStatus.FAILED, report.providerRuns.first { it.descriptor.id == method.providerId }.status)
+            assertEquals(com.sal7one.wrapperguard.core.vetting.ProviderRunStatus.COMPLETED, report.providerRuns.first { it.descriptor.id == "other.ready" }.status)
+            assertFalse(report.complete)
+        } finally { root.toFile().deleteRecursively() }
+    }
+
+    @Test fun `dynamic entry cannot escape or run without explicit container execution confirmation`() {
+        val connection = MethodConnectionState(methodId = "research.container-python", mode = "runner", sandboxEnabled = true,
+            entryPath = "scripts/probe.py", executionConfirmed = true, runnerExecutable = "/usr/local/bin/python", allowedOperations = mutableListOf("SCAN", "BUILD"), requestedActions = mutableListOf("BLOCK_BUILD"))
+        OptionalMethodProfiles.validateDynamicEntry(connection)
+        val profile = OptionalMethodProfiles.profile(requireNotNull(SecurityMethodCatalog.find(connection.methodId)), connection)
+        assertEquals("container-python", profile["runner"]!!.jsonObject["tool"]!!.jsonPrimitive.content)
+        assertEquals(listOf("SCAN"), profile["allowedOperations"]!!.jsonArray.map { it.jsonPrimitive.content })
+        assertEquals(listOf("WARNING"), profile["requestedActions"]!!.jsonArray.map { it.jsonPrimitive.content })
+        listOf(connection.copy(executionConfirmed = false), connection.copy(sandboxEnabled = false), connection.copy(entryPath = "../probe.py"),
+            connection.copy(entryPath = "/tmp/probe.py"), connection.copy(executionTimeoutMs = 10001)).forEach {
+            assertThrows(IllegalArgumentException::class.java) { OptionalMethodProfiles.validateDynamicEntry(it) }
+        }
+        assertThrows(IllegalArgumentException::class.java) { OptionalMethodProfiles.validateImageExecutable("/bin/../python") }
+        assertThrows(IllegalArgumentException::class.java) { OptionalMethodProfiles.validateImageExecutable("/bin/python --flag") }
+        assertTrue(OptionalSdkCapabilities.decode("""{"sdkVersion":"0.4.0","providerApiVersion":1,"runners":[]}""").sandboxTools.isEmpty())
+    }
+
+    @Test fun `container profile seals installed Docker CLI and never treats in-image tool or socket as a host file`() {
+        org.junit.Assume.assumeTrue(java.nio.file.FileSystems.getDefault().supportedFileAttributeViews().contains("unix"))
+        val temporary = Files.createTempDirectory(java.nio.file.Path.of("/tmp").toRealPath(), "wg-ctr-").toRealPath()
+        try {
+            val root = Files.createDirectory(temporary.resolve("project"))
+            val python = Files.writeString(temporary.resolve("python"), "trusted fixture").also { it.toFile().setExecutable(true) }
+            val docker = Files.writeString(temporary.resolve("docker"), "trusted fixture").also { it.toFile().setExecutable(true) }
+            val socket = temporary.resolve("docker.sock")
+            java.nio.channels.ServerSocketChannel.open(java.net.StandardProtocolFamily.UNIX).use { server ->
+                server.bind(java.net.UnixDomainSocketAddress.of(socket))
+                val method = requireNotNull(SecurityMethodCatalog.find("sast.bandit"))
+                val profilePath = Files.writeString(temporary.resolve("owned.profile.json"), "{}")
+                val connection = MethodConnectionState(methodId = method.id, mode = "runner", pythonExecutable = python.toString(), profilePath = profilePath.toString(),
+                    runnerExecutable = "/image-only/bin/bandit", sandboxEnabled = true, sandboxExecutable = docker.toString(), sandboxEndpoint = socket.toString(),
+                    sandboxImage = "example/scanner@sha256:" + "a".repeat(64), supportedSandboxTools = mutableListOf("bandit"))
+                OptionalMethodProfiles.validateSandbox(method.id, connection, listOf(root))
+                val permissions = com.sal7one.wrapperguard.core.vetting.ProviderPermissions()
+                val provider = com.sal7one.wrapperguard.core.vetting.CommandVettingProvider(OptionalMethodProfiles.command(method, connection, permissions))
+                val snapshot = com.sal7one.wrapperguard.intellij.execution.NativeProviderInputs.snapshot(listOf(com.sal7one.wrapperguard.core.vetting.ProviderRegistration(provider, permissions)),
+                    WrapperGuardSettings.State(methodConnections = mutableListOf(connection)), root)
+                assertTrue(snapshot.toolFiles.contains(docker)); assertTrue(snapshot.toolFiles.contains(python))
+                assertFalse(snapshot.toolFiles.contains(java.nio.file.Path.of(connection.runnerExecutable)))
+                assertFalse(snapshot.externalFiles.contains(socket)); assertFalse(snapshot.toolFiles.contains(socket))
+                val profile = OptionalMethodProfiles.profile(method, connection)["runner"]!!.jsonObject
+                assertEquals("/image-only/bin/bandit", profile["executable"]!!.jsonPrimitive.content)
+                assertEquals(docker.toString(), profile["sandbox"]!!.jsonObject["executable"]!!.jsonPrimitive.content)
+                assertFalse(profile["sandbox"]!!.jsonObject["allowRootfulDaemon"]!!.jsonPrimitive.boolean)
+                assertThrows(IllegalArgumentException::class.java) { OptionalMethodProfiles.validateSandbox(method.id, connection.copy(supportedSandboxTools = mutableListOf()), listOf(root)) }
+            }
+        } finally { temporary.toFile().deleteRecursively() }
+    }
+
+    @Test fun `managed SCAN only profiles are skipped before BUILD and SYNC while opaque SDKs retain their contract`() {
+        val method = requireNotNull(SecurityMethodCatalog.find("dast.http-audit"))
+        val connection = MethodConnectionState(methodId = method.id, profilePath = "/user/owned-http.profile.json", allowedOperations = mutableListOf("SCAN"))
+        val descriptor = OptionalMethodProfiles.command(method, connection, com.sal7one.wrapperguard.core.vetting.ProviderPermissions()).descriptor()
+        assertTrue(managedOperationAllowed(descriptor, listOf(connection), com.sal7one.wrapperguard.core.vetting.VettingOperation.SCAN))
+        assertFalse(managedOperationAllowed(descriptor, listOf(connection), com.sal7one.wrapperguard.core.vetting.VettingOperation.BUILD))
+        assertFalse(managedOperationAllowed(descriptor, listOf(connection), com.sal7one.wrapperguard.core.vetting.VettingOperation.SYNC))
+        assertTrue(managedOperationAllowed(descriptor, listOf(connection.copy(allowedOperations = mutableListOf("SCAN", "BUILD"))), com.sal7one.wrapperguard.core.vetting.VettingOperation.BUILD))
+        val existingSdk = descriptor.copyWithMetadata(inputScope = null)
+        assertTrue(managedOperationAllowed(existingSdk, listOf(connection), com.sal7one.wrapperguard.core.vetting.VettingOperation.BUILD))
+    }
+
 }

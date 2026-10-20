@@ -52,7 +52,7 @@ const glob=(value:string):string|undefined=>{try{validateGlob(value);return unde
 export async function configureCustomProvider(roots:string[],existing?:CommandProviderEntry,reservedIds:string[]=[],selectedRoot=roots[0]):Promise<CommandProviderEntry|undefined> {
   if(!vscode.workspace.isTrusted)throw new Error('Trust this workspace before connecting a command provider.');
   if(!roots.length)throw new Error('Open a local workspace folder first.');
-  let draft:CommandProviderEntry=existing ? {...existing,command:[...existing.command],permissions:{...existing.permissions,actions:[...existing.permissions.actions]}} : {id:'',displayName:'',version:'1.0.0',category:'OTHER',summary:'',tags:[],command:[],permissions:{...EXTERNAL_PERMISSIONS,actions:['WARNING']},projectRoots:[await realpath(selectedRoot)],inputScope:{includes:['**'],excludes:[...GENERATED_EXCLUDES],externalFiles:[]}};
+  let draft:CommandProviderEntry=existing ? {...existing,command:[...existing.command],permissions:{...existing.permissions,actions:[...existing.permissions.actions]}} : {id:'',displayName:'',version:'1.0.0',category:'OTHER',summary:'',tags:[],command:[],permissions:{...EXTERNAL_PERMISSIONS,actions:['WARNING']},projectRoots:[await realpath(selectedRoot)]};
   if(!existing){
     const id=await text('Add SDK — provider ID','',value=>!/^[a-z][a-z0-9._-]{0,79}$/.test(value) || value==='wrapperguard' || reservedIds.includes(value) || SECURITY_METHODS.some(method=>method.providerId===value)?'Use a unique lowercase ID, e.g. company.android-review.':undefined);
     if(id===undefined)return undefined;draft.id=id;
@@ -102,7 +102,7 @@ export async function configureCustomProvider(roots:string[],existing?:CommandPr
       if(!draft.command.length || !draft.command[0])throw new Error('Choose the provider executable before saving.');
       draft.command[0]=await validateExecutable(draft.command[0],roots);
       const {command,permissions,projectRoots,...metadata}=draft;validateDescriptor({...metadata,apiVersion:1});if(draft.inputScope)validateInputScope(draft.inputScope);
-      const confirm=await vscode.window.showQuickPick([{label:'Save this SDK connection',save:true},{label:'Keep editing',save:false}],{title:draft.displayName+' · '+(draft.permissions.enabled?'enabled':'disabled')+' · '+draft.permissions.actions.join(', '),placeHolder:'This trusted process can access your files. Input declarations check freshness and do not restrict process access. Outputs must follow Provider API v1.',ignoreFocusOut:true});
+      const confirm=await vscode.window.showQuickPick([{label:'Save this SDK connection',save:true},{label:'Keep editing',save:false}],{title:draft.displayName+' · '+(draft.permissions.enabled?'enabled':'disabled')+' · '+draft.permissions.actions.join(', '),placeHolder:(draft.inputScope===undefined?'Input scope is UNKNOWN; provider-specific freshness is unverified. Declare its actual read set in Project inputs. ':'')+'This trusted process can access your files. Input declarations do not restrict process access. Outputs must follow Provider API v1.',ignoreFocusOut:true});
       if(confirm?.save)return validateCommandConfiguration({apiVersion:1,providers:[draft]}).providers[0];
     }
   }

@@ -35,6 +35,7 @@ class WrapperGuardSettings : PersistentStateComponent<WrapperGuardSettings.State
         var managedSdkPython: String = "",
         var customProviders: MutableList<CustomProviderState> = mutableListOf(),
         var managedArtifacts: MutableList<ManagedArtifactState> = mutableListOf(),
+        var automation: ScanAutomationState = ScanAutomationState(),
         var historyEnabled: Boolean = false,
         var historyLimit: Int = 20
     )
@@ -69,7 +70,7 @@ class WrapperGuardSettings : PersistentStateComponent<WrapperGuardSettings.State
         val permissions = state.providers.firstOrNull { it.id == providerId }?.permissions()
             ?: if (providerId == "wrapperguard") BuiltInVettingProvider.DEFAULT_PERMISSIONS
             else ProviderPermissions(enabled = false)
-        return if (providerId in setOf("ai.external-model", "research.script-semantics")) permissions.copy(
+        return if (providerId in setOf("ai.external-model", "research.script-semantics", "research.container-python")) permissions.copy(
             actions = permissions.actions.filterNot { it == VettingAction.BLOCK_BUILD || it == VettingAction.BLOCK_SYNC }.toSet(), required = false)
         else permissions
     }

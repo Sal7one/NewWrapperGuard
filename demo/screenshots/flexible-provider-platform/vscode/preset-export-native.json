@@ -1,0 +1,21 @@
+{
+  "identity": {
+    "id": "organization.default",
+    "title": "Organization method selection",
+    "issuer": "My organization",
+    "version": "1.0.0",
+    "digest": "ef1a92ad33d9412e94fac399ec7a71c27ce3733562d2b3810011aaa50641257f"
+  },
+  "fields": [
+    "schemaVersion",
+    "id",
+    "title",
+    "version",
+    "issuer",
+    "createdAt",
+    "methodFlags",
+    "digest"
+  ],
+  "noCommandsOrGrants": true,
+  "noAnalysis": true
+}

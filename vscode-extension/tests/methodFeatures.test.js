@@ -24,6 +24,14 @@ test('turning off one built-in removes only its checks and reports configured sc
  assert.ok(!report.findings.some(f=>f.ruleId.startsWith('WG-SCRIPT')));assert.ok(report.findings.some(f=>f.ruleId==='WG-BUILD-010'));
  assert.equal(report.complete,true);assert.ok(report.notices.some(n=>n.code==='WG-METHOD-DISABLED'));
 });
+test('PowerShell modules and uppercase script extensions use the same static rules',async t=>{
+ const source="Invoke-Expression ([System.Convert]::FromBase64String('eA=='))\n";
+ const {project}=await fixture(t,{'module.psm1':source,'OTHER.PSM1':source,'DEPLOY.PS1':source});
+ const report=scanProject(project,DEFAULT_ENFORCE_POLICY,DEFAULT_SETTINGS,[]);
+ assert.equal(report.complete,true);
+ assert.deepEqual(new Set(report.findings.filter(f=>f.ruleId.startsWith('WG-SCRIPT')).map(f=>f.location.path)),new Set(['module.psm1','OTHER.PSM1','DEPLOY.PS1']));
+ assert.equal(require('../dist/scanner/fileTypeRouter').isScannable('fixture.BATS'),true);
+});
 test('turning off every built-in never yields clean zero-detector coverage',async t=>{
  const {project}=await fixture(t,{'gradlew':'#!/bin/sh\necho safe\n'});
  const report=scanProject(project,DEFAULT_ENFORCE_POLICY,{...DEFAULT_SETTINGS,methodFlags:Object.fromEntries(BUILTIN_METHOD_IDS.map(id=>[id,false]))},[]);

@@ -1,0 +1,102 @@
+{
+  "titles": [
+    "Owned-target HTTP audit — authorization",
+    "Owned-target HTTP audit — authorization",
+    "Owned HTTP target URLs",
+    "Owned HTTP target URLs — new entry",
+    "Owned HTTP target URLs",
+    "HTTP audit — Maximum requests",
+    "HTTP audit — Per-request timeout (ms)",
+    "HTTP audit — Maximum response bytes",
+    "HTTP audit — Total audit timeout (ms)",
+    "HTTP audit — authentication",
+    "Choose authentication headers",
+    "Authorization — environment variable name",
+    "Review active HTTP audit",
+    "Owned HTTP audit — SDK environment",
+    "Connect an existing SDK — choose Python",
+    "Owned target · HTTP response audit — connection summary",
+    "Owned-target HTTP audit — authorization",
+    "Owned HTTP target URLs",
+    "Owned HTTP target URLs — new entry",
+    "Owned HTTP target URLs",
+    "HTTP audit — Maximum requests",
+    "HTTP audit — Per-request timeout (ms)",
+    "HTTP audit — Maximum response bytes",
+    "HTTP audit — Total audit timeout (ms)",
+    "HTTP audit — authentication",
+    "Review active HTTP audit",
+    "Owned HTTP audit — SDK environment",
+    "Connect an existing SDK — choose Python",
+    "Owned target · HTTP response audit — connection summary"
+  ],
+  "target": "http://127.0.0.1:55321/owned",
+  "requests": 1,
+  "ownershipCancelNoRequests": true,
+  "envNameReviewCancelNoRequests": true,
+  "noSecretsCollected": true,
+  "explicitConnectRan": true,
+  "profile": {
+    "id": "dast.http-audit",
+    "displayName": "Owned target · HTTP response audit",
+    "version": "0.4.0",
+    "analysisKind": "DAST",
+    "format": "http-audit",
+    "projectRoot": "/private/tmp/wrapperguard-vscode-roadmap-dG7YNJ/project",
+    "targetScope": {
+      "origins": [
+        "http://127.0.0.1:55321"
+      ],
+      "pathPrefixes": [
+        "/owned"
+      ]
+    },
+    "runner": {
+      "tool": "http-audit",
+      "ownershipConfirmed": true,
+      "targetUrls": [
+        "http://127.0.0.1:55321/owned"
+      ],
+      "maxRequests": 16,
+      "requestTimeoutMs": 5000,
+      "maxResponseBytes": 262144,
+      "timeoutMs": 30000
+    },
+    "allowedOperations": [
+      "SCAN"
+    ],
+    "requestedActions": [
+      "WARNING"
+    ]
+  },
+  "report": {
+    "kind": "scanned",
+    "providers": [
+      {
+        "id": "wrapperguard",
+        "status": "COMPLETED"
+      },
+      {
+        "id": "dast.http-audit",
+        "status": "COMPLETED"
+      }
+    ],
+    "findings": [
+      {
+        "ruleId": "HTTPSEC-NOSNIFF/e6bbf80bcf916274caf3f616",
+        "severity": "WARN",
+        "actions": [
+          "WARNING"
+        ]
+      },
+      {
+        "ruleId": "HTTPSEC-COOKIE/e6bbf80bcf916274caf3f616",
+        "severity": "WARN",
+        "actions": [
+          "WARNING"
+        ]
+      }
+    ],
+    "focus": "dast.http-audit"
+  }
+}

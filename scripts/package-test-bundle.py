@@ -35,13 +35,19 @@ def main():
     args.output.mkdir(parents=True)
     for file in files: shutil.copy2(file, args.output / file.name)
     shutil.copytree(ROOT / 'wrapperguard-cli/build/install/wrapperguard-cli', args.output / 'cli')
-    for directory in ('docs', 'schema', 'catalog', 'examples'):
-        shutil.copytree(ROOT / directory, args.output / directory, ignore=shutil.ignore_patterns('__pycache__'))
+    for directory in ('docs', 'schema', 'catalog', 'examples', 'research'):
+        shutil.copytree(ROOT / directory, args.output / directory,
+                        ignore=shutil.ignore_patterns('__pycache__', 'build', '.gradle', '.kotlin', '.idea'))
     shutil.copytree(ROOT / 'test-fixtures/newfirstparty', args.output / 'test-fixtures/newfirstparty')
-    for name in ('HANDOVER.md', 'LICENSE', 'CHANGELOG.md'):
+    for name in ('HANDOVER.md', 'LICENSE', 'CHANGELOG.md', 'SECURITY.md', 'THIRD_PARTY_NOTICES.md'):
         shutil.copy2(ROOT / name, args.output / name)
-    screenshots = ROOT / 'demo/screenshots/platform-0.6'
-    if screenshots.is_dir(): shutil.copytree(screenshots, args.output / 'screenshots')
+    for gallery in ('platform-0.6', 'platform-0.7', 'flexible-provider-platform'):
+        screenshots = ROOT / 'demo/screenshots' / gallery
+        if screenshots.is_dir(): shutil.copytree(screenshots, args.output / 'screenshots' / gallery)
+    audit = ROOT / 'build/distribution-audit'
+    if not all((audit / name).is_file() for name in ('runtime.cdx.json', 'distribution-audit.json')):
+        parser.error('Run scripts/distribution-audit.py --output build/distribution-audit (absolute) first')
+    shutil.copytree(audit, args.output / 'distribution-audit')
     smoke = (ROOT / 'scripts/provider-smoke.py').read_text()
     smoke = smoke.replace('Path(__file__).resolve().parents[1]', 'Path(__file__).resolve().parent')
     smoke = smoke.replace('wrapperguard-cli/build/install/wrapperguard-cli/bin', 'cli/bin')
@@ -69,9 +75,10 @@ and [integration setup](docs/integrations.md) for completed evidence and remaini
    first `chmod +x cli/bin/wrapperguard-cli` on macOS/Linux.
 
 The SDK wheel installs offline; optional scanner downloads are separate choices. Direct
-snapshot runners require POSIX. Windows imports and loopback-model review remain available;
-experimental Windows helpers are not wired into active runners. Native live BUILD/SYNC
-acceptance and cooperative VS Code integrations are separate from the packaged CLI smoke.
+snapshot runners support tested POSIX/Windows boundaries; imports and loopback review
+remain independently available. Native live BUILD/SYNC acceptance and cooperative
+VS Code integrations are separate from the packaged CLI smoke. Android device evidence
+uses an Android16 emulator and an owned test target, not a mobile WrapperGuard plugin.
 Screenshots distinguish real editor setup from synthetic provider/history examples.
 ''')
     records = []

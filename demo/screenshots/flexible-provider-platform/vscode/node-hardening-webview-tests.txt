@@ -1,0 +1,944 @@
+
+> wrapperguard@0.7.0 test
+> npm run compile && node --test tests/*.test.js && npm run check:webview
+
+
+> wrapperguard@0.7.0 compile
+> tsc -p ./ && node scripts/copy-method-catalog.js
+
+TAP version 13
+# Subtest: saved enabled automation remains paused; Start waits for a future debounced trigger and coalesces changes
+ok 1 - saved enabled automation remains paused; Start waits for a future debounced trigger and coalesces changes
+  ---
+  duration_ms: 3.126334
+  type: 'test'
+  ...
+# Subtest: interval automation never replays missed runs and Pause cancels current work and future timers
+ok 2 - interval automation never replays missed runs and Pause cancels current work and future timers
+  ---
+  duration_ms: 1.622667
+  type: 'test'
+  ...
+# Subtest: readiness and acknowledgement are required, and an automatic failure pauses instead of retrying indefinitely
+ok 3 - readiness and acknowledgement are required, and an automatic failure pauses instead of retrying indefinitely
+  ---
+  duration_ms: 0.765625
+  type: 'test'
+  ...
+# Subtest: automation preferences reject workspace-style authority, invalid triggers, bounds and unreviewed provider shapes
+ok 4 - automation preferences reject workspace-style authority, invalid triggers, bounds and unreviewed provider shapes
+  ---
+  duration_ms: 0.179875
+  type: 'test'
+  ...
+# Subtest: guided SDK readiness rejects installed 0.3 and accepts 0.4 with isolated interpreter imports
+ok 5 - guided SDK readiness rejects installed 0.3 and accepts 0.4 with isolated interpreter imports
+  ---
+  duration_ms: 409.0715
+  type: 'test'
+  ...
+# Subtest: command configuration rejects unknown keys, invalid actions, duplicates, and nonabsolute executables
+ok 6 - command configuration rejects unknown keys, invalid actions, duplicates, and nonabsolute executables
+  ---
+  duration_ms: 0.679667
+  type: 'test'
+  ...
+# Subtest: configuration defaults preserve the built-in while omitted external permissions disable execution
+ok 7 - configuration defaults preserve the built-in while omitted external permissions disable execution
+  ---
+  duration_ms: 1.088667
+  type: 'test'
+  ...
+# Subtest: configuration requires trust and an external absolute file, including symlink resolution
+ok 8 - configuration requires trust and an external absolute file, including symlink resolution
+  ---
+  duration_ms: 12.553792
+  type: 'test'
+  ...
+# Subtest: command protocol sends metadata only and treats shell syntax as literal argv
+ok 9 - command protocol sends metadata only and treats shell syntax as literal argv
+  ---
+  duration_ms: 33.182166
+  type: 'test'
+  ...
+# Subtest: nonzero exits and malformed JSON expose generic failures without stderr secrets
+ok 10 - nonzero exits and malformed JSON expose generic failures without stderr secrets
+  ---
+  duration_ms: 54.99625
+  type: 'test'
+  ...
+# Subtest: provider output rejects malformed UTF-8 and configuration files obey the 64 KiB limit
+ok 11 - provider output rejects malformed UTF-8 and configuration files obey the 64 KiB limit
+  ---
+  duration_ms: 30.558375
+  type: 'test'
+  ...
+# Subtest: command output limits and abort terminate the provider
+ok 12 - command output limits and abort terminate the provider
+  ---
+  duration_ms: 51.79525
+  type: 'test'
+  ...
+# Subtest: exported API discovers disabled SDK providers without invoking them
+ok 13 - exported API discovers disabled SDK providers without invoking them
+  ---
+  duration_ms: 14.949542
+  type: 'test'
+  ...
+# Subtest: Safe Mode pauses globally enabled SDKs and command config while allowing built-in static analysis
+ok 14 - Safe Mode pauses globally enabled SDKs and command config while allowing built-in static analysis
+  ---
+  duration_ms: 8.10825
+  type: 'test'
+  ...
+# Subtest: cooperating extensions receive operation-specific gate decisions through activate exports
+ok 15 - cooperating extensions receive operation-specific gate decisions through activate exports
+  ---
+  duration_ms: 9.911334
+  type: 'test'
+  ...
+# Subtest: revoking provider grants during a gate rejects the stale decision
+ok 16 - revoking provider grants during a gate rejects the stale decision
+  ---
+  duration_ms: 7.561709
+  type: 'test'
+  ...
+# Subtest: method flags disable one known external provider without revoking unrelated grants
+ok 17 - method flags disable one known external provider without revoking unrelated grants
+  ---
+  duration_ms: 9.212125
+  type: 'test'
+  ...
+# Subtest: enabled optional method without a connection cannot claim complete coverage
+ok 18 - enabled optional method without a connection cannot claim complete coverage
+  ---
+  duration_ms: 4.827167
+  type: 'test'
+  ...
+# Subtest: canceling owned-target authorization neither enables the method nor scans other providers
+ok 19 - canceling owned-target authorization neither enables the method nor scans other providers
+  ---
+  duration_ms: 8.740458
+  type: 'test'
+  ...
+# Subtest: managed SCAN-only profiles are visibly inapplicable to gates without launching or inventing missing coverage
+ok 20 - managed SCAN-only profiles are visibly inapplicable to gates without launching or inventing missing coverage
+  ---
+  duration_ms: 69.720541
+  type: 'test'
+  ...
+# Subtest: changing an excluded managed profile during a gate rejects the stale operation decision
+ok 21 - changing an excluded managed profile during a gate rejects the stale operation decision
+  ---
+  duration_ms: 10.414042
+  type: 'test'
+  ...
+# Subtest: workspace method flag overrides are rejected and changes during a gate invalidate its decision
+ok 22 - workspace method flag overrides are rejected and changes during a gate invalidate its decision
+  ---
+  duration_ms: 6.512
+  type: 'test'
+  ...
+# Subtest: GUI provider permissions update a connected command file without opening JSON
+ok 23 - GUI provider permissions update a connected command file without opening JSON
+  ---
+  duration_ms: 84.88
+  type: 'test'
+  ...
+# Subtest: a configured external analyzer can replace every built-in while retaining disabled-run provenance
+ok 24 - a configured external analyzer can replace every built-in while retaining disabled-run provenance
+  ---
+  duration_ms: 2.34975
+  type: 'test'
+  ...
+# Subtest: AI and research alone never establish scanner coverage after built-in providers are disabled
+ok 25 - AI and research alone never establish scanner coverage after built-in providers are disabled
+  ---
+  duration_ms: 1.857
+  type: 'test'
+  ...
+# Subtest: GUI method enable resumes its prior provider grants without adding actions
+ok 26 - GUI method enable resumes its prior provider grants without adding actions
+  ---
+  duration_ms: 32.115291
+  type: 'test'
+  ...
+# Subtest: saved or externally modified workspace input marks the displayed report stale without invoking providers
+ok 27 - saved or externally modified workspace input marks the displayed report stale without invoking providers
+  ---
+  duration_ms: 3.303708
+  type: 'test'
+  ...
+# Subtest: observed source changes during a gate reject its decision, while unrelated paths do not invalidate a report
+ok 28 - observed source changes during a gate reject its decision, while unrelated paths do not invalidate a report
+  ---
+  duration_ms: 4.472333
+  type: 'test'
+  ...
+# Subtest: before/after gate seals detect saved content changes without any file watcher event
+ok 29 - before/after gate seals detect saved content changes without any file watcher event
+  ---
+  duration_ms: 2.375
+  type: 'test'
+  ...
+# Subtest: gate verifies actual recursive read bytes whose suffix is outside the candidate source patterns
+ok 30 - gate verifies actual recursive read bytes whose suffix is outside the candidate source patterns
+  ---
+  duration_ms: 9.911709
+  type: 'test'
+  ...
+# Subtest: gate seals declared external report bytes and host baseline updates without settings events
+ok 31 - gate seals declared external report bytes and host baseline updates without settings events
+  ---
+  duration_ms: 11.408875
+  type: 'test'
+  ...
+# Subtest: legacy managed profile and custom rules bytes are sealed during gates even without descriptor scope
+ok 32 - legacy managed profile and custom rules bytes are sealed during gates even without descriptor scope
+  ---
+  duration_ms: 5.841417
+  type: 'test'
+  ...
+# Subtest: multi-root API evaluates only an explicit open root and binds subsequent reports to its project
+ok 33 - multi-root API evaluates only an explicit open root and binds subsequent reports to its project
+  ---
+  duration_ms: 8.410208
+  type: 'test'
+  ...
+# Subtest: multi-root configuration inside a sibling workspace folder cannot authorize a command provider
+ok 34 - multi-root configuration inside a sibling workspace folder cannot authorize a command provider
+  ---
+  duration_ms: 1.662709
+  type: 'test'
+  ...
+# Subtest: custom research and AI categories stay advisory for coverage independently of catalog identities
+ok 35 - custom research and AI categories stay advisory for coverage independently of catalog identities
+  ---
+  duration_ms: 1.955333
+  type: 'test'
+  ...
+# Subtest: custom connection toggle preserves method presets and grants instead of inventing action authority
+ok 36 - custom connection toggle preserves method presets and grants instead of inventing action authority
+  ---
+  duration_ms: 8.852375
+  type: 'test'
+  ...
+# Subtest: project-bound preset reports are disabled elsewhere without a false missing-method coverage error
+ok 37 - project-bound preset reports are disabled elsewhere without a false missing-method coverage error
+  ---
+  duration_ms: 3.522375
+  type: 'test'
+  ...
+# Subtest: preset GUI changes only method flags and invalidates reports without running providers or changing custom grants
+ok 38 - preset GUI changes only method flags and invalidates reports without running providers or changing custom grants
+  ---
+  duration_ms: 24.179
+  type: 'test'
+  ...
+# Subtest: a persistent preset completion toast does not lock connection editing or delay focus restoration
+ok 39 - a persistent preset completion toast does not lock connection editing or delay focus restoration
+  ---
+  duration_ms: 1.272666
+  type: 'test'
+  ...
+# Subtest: history is opt-in, enabling and retention controls never run security providers, and clear preserves approvals
+ok 40 - history is opt-in, enabling and retention controls never run security providers, and clear preserves approvals
+  ---
+  duration_ms: 22.150166
+  type: 'test'
+  ...
+# Subtest: history compares complete same-scope scans and refuses changed method scope, with per-root list isolation
+ok 41 - history compares complete same-scope scans and refuses changed method scope, with per-root list isolation
+  ---
+  duration_ms: 24.882291
+  type: 'test'
+  ...
+# Subtest: malformed history never changes a gate decision or deletes the baseline
+ok 42 - malformed history never changes a gate decision or deletes the baseline
+  ---
+  duration_ms: 7.073958
+  type: 'test'
+  ...
+# Subtest: GUI can remove a missing custom executable connection without opening JSON or blocking built-in scanning
+ok 43 - GUI can remove a missing custom executable connection without opening JSON or blocking built-in scanning
+  ---
+  duration_ms: 10.380625
+  type: 'test'
+  ...
+# Subtest: saved automation cannot execute providers until reviewed Start and runs only its selected SCAN scope
+ok 44 - saved automation cannot execute providers until reviewed Start and runs only its selected SCAN scope
+  ---
+  duration_ms: 1084.943375
+  type: 'test'
+  ...
+# Subtest: enabling a provider or method and saving permissions invalidates reports without automatically executing tools
+ok 45 - enabling a provider or method and saving permissions invalidates reports without automatically executing tools
+  ---
+  duration_ms: 44.698916
+  type: 'test'
+  ...
+# Subtest: fingerprint matches the Kotlin scanner byte-for-byte
+ok 46 - fingerprint matches the Kotlin scanner byte-for-byte
+  ---
+  duration_ms: 0.509834
+  type: 'test'
+  ...
+# Subtest: fingerprint is 24 hex chars and stable
+ok 47 - fingerprint is 24 hex chars and stable
+  ---
+  duration_ms: 0.105917
+  type: 'test'
+  ...
+# Subtest: HTTP audit URL validation requires explicit numeric addresses and rejects ambiguous/external target syntax
+ok 48 - HTTP audit URL validation requires explicit numeric addresses and rejects ambiguous/external target syntax
+  ---
+  duration_ms: 3.458167
+  type: 'test'
+  ...
+# Subtest: owned HTTP audit wizard stores exact budgets and environment references after explicit ownership/review
+ok 49 - owned HTTP audit wizard stores exact budgets and environment references after explicit ownership/review
+  ---
+  duration_ms: 0.75725
+  type: 'test'
+  ...
+# Subtest: HTTP audit wizard rejects invalid budgets and token-like secret values instead of persisting them
+ok 50 - HTTP audit wizard rejects invalid budgets and token-like secret values instead of persisting them
+  ---
+  duration_ms: 0.296334
+  type: 'test'
+  ...
+# Subtest: evidence GUI saves optional provenance/version constraints without executing analyzers and rejects project manifests
+ok 51 - evidence GUI saves optional provenance/version constraints without executing analyzers and rejects project manifests
+  ---
+  duration_ms: 15.546333
+  type: 'test'
+  ...
+# Subtest: container configuration requires immutable digests and image-local executable paths
+ok 52 - container configuration requires immutable digests and image-local executable paths
+  ---
+  duration_ms: 0.515834
+  type: 'test'
+  ...
+# Subtest: container GUI cancellation performs no daemon/image action and never invents a runnable connection
+ok 53 - container GUI cancellation performs no daemon/image action and never invents a runnable connection
+  ---
+  duration_ms: 0.172917
+  type: 'test'
+  ...
+# Subtest: history saves only bounded finding metadata and provider versions, without source/messages/project path
+ok 54 - history saves only bounded finding metadata and provider versions, without source/messages/project path
+  ---
+  duration_ms: 12.364708
+  type: 'test'
+  ...
+# Subtest: history compares every fingerprint across approval changes and labels absence without declaring fixes
+ok 55 - history compares every fingerprint across approval changes and labels absence without declaring fixes
+  ---
+  duration_ms: 6.096458
+  type: 'test'
+  ...
+# Subtest: history is separated by canonical project identity and retention keeps the latest 20 by default
+ok 56 - history is separated by canonical project identity and retention keeps the latest 20 by default
+  ---
+  duration_ms: 164.252292
+  type: 'test'
+  ...
+# Subtest: history truncation records its limits and disables comparisons instead of dropping coverage silently
+ok 57 - history truncation records its limits and disables comparisons instead of dropping coverage silently
+  ---
+  duration_ms: 27.479125
+  type: 'test'
+  ...
+# Subtest: history rejects malformed, oversized, wrong-project and linked files without following unowned content
+ok 58 - history rejects malformed, oversized, wrong-project and linked files without following unowned content
+  ---
+  duration_ms: 10.293709
+  type: 'test'
+  ...
+# Subtest: history rejects project directory links and strict schema fields, and never deletes external originals
+ok 59 - history rejects project directory links and strict schema fields, and never deletes external originals
+  ---
+  duration_ms: 10.045292
+  type: 'test'
+  ...
+# Subtest: scope digest tracks methods, provider versions and rules while excluding source and imported report bytes
+ok 60 - scope digest tracks methods, provider versions and rules while excluding source and imported report bytes
+  ---
+  duration_ms: 14.591708
+  type: 'test'
+  ...
+# Subtest: history configuration identity changes with executable bytes and refuses opaque package/model identities
+ok 61 - history configuration identity changes with executable bytes and refuses opaque package/model identities
+  ---
+  duration_ms: 7.53825
+  type: 'test'
+  ...
+# Subtest: SARIF reimport identity includes producer versions, rules, extensions and config while ignoring result/source payloads
+ok 62 - SARIF reimport identity includes producer versions, rules, extensions and config while ignoring result/source payloads
+  ---
+  duration_ms: 6.999
+  type: 'test'
+  ...
+# Subtest: SDK removal requires ownership and rejects every saved reference including aliases and missing executable leaves
+ok 63 - SDK removal requires ownership and rejects every saved reference including aliases and missing executable leaves
+  ---
+  duration_ms: 16.32575
+  type: 'test'
+  ...
+# Subtest: SDK removal preserves unsafe links, unknown ownership, sibling projects and outside files
+ok 64 - SDK removal preserves unsafe links, unknown ownership, sibling projects and outside files
+  ---
+  duration_ms: 6.614541
+  type: 'test'
+  ...
+# Subtest: bundled SDK install and repair work offline in a real managed interpreter without scanner execution
+ok 65 - bundled SDK install and repair work offline in a real managed interpreter without scanner execution
+  ---
+  duration_ms: 1900.714625
+  type: 'test'
+  ...
+# Subtest: catalog has independent built-in defaults and explicit user flags reject unknown methods
+ok 66 - catalog has independent built-in defaults and explicit user flags reject unknown methods
+  ---
+  duration_ms: 0.584333
+  type: 'test'
+  ...
+# Subtest: turning off one built-in removes only its checks and reports configured scope
+ok 67 - turning off one built-in removes only its checks and reports configured scope
+  ---
+  duration_ms: 10.398625
+  type: 'test'
+  ...
+# Subtest: PowerShell modules and uppercase script extensions use the same static rules
+ok 68 - PowerShell modules and uppercase script extensions use the same static rules
+  ---
+  duration_ms: 17.307458
+  type: 'test'
+  ...
+# Subtest: turning off every built-in never yields clean zero-detector coverage
+ok 69 - turning off every built-in never yields clean zero-detector coverage
+  ---
+  duration_ms: 4.490083
+  type: 'test'
+  ...
+# Subtest: graph flag removes edges while independent source checks remain active
+ok 70 - graph flag removes edges while independent source checks remain active
+  ---
+  duration_ms: 10.269792
+  type: 'test'
+  ...
+# Subtest: Maven static rules ignore comments, validate XML and redact URL credentials
+ok 71 - Maven static rules ignore comments, validate XML and redact URL credentials
+  ---
+  duration_ms: 1.968375
+  type: 'test'
+  ...
+# Subtest: Maven malformed and disabled scope are distinguished without running Maven
+ok 72 - Maven malformed and disabled scope are distinguished without running Maven
+  ---
+  duration_ms: 5.555209
+  type: 'test'
+  ...
+# Subtest: profiles use SCAN-only warning requests and scope exact DAST targets
+ok 73 - profiles use SCAN-only warning requests and scope exact DAST targets
+  ---
+  duration_ms: 0.929833
+  type: 'test'
+  ...
+# Subtest: AI endpoint is local only and current report excludes evidence, call chains and project root
+ok 74 - AI endpoint is local only and current report excludes evidence, call chains and project root
+  ---
+  duration_ms: 1.382666
+  type: 'test'
+  ...
+# Subtest: connection wizard writes outside the workspace, respects cancellation and never runs a report producer
+ok 75 - connection wizard writes outside the workspace, respects cancellation and never runs a report producer
+  ---
+  duration_ms: 16.66575
+  type: 'test'
+  ...
+# Subtest: local AI setup is a GUI connection with minimized evidence and no action grants
+ok 76 - local AI setup is a GUI connection with minimized evidence and no action grants
+  ---
+  duration_ms: 10.959167
+  type: 'test'
+  ...
+# Subtest: file and directory traversal caps report incomplete coverage, including canonical roots
+ok 77 - file and directory traversal caps report incomplete coverage, including canonical roots
+  ---
+  duration_ms: 12.329584
+  type: 'test'
+  ...
+# Subtest: Semgrep is an independent optional runner with bundled rules by default and SARIF fallback
+ok 78 - Semgrep is an independent optional runner with bundled rules by default and SARIF fallback
+  ---
+  duration_ms: 0.318375
+  type: 'test'
+  ...
+# Subtest: current-scan AI input includes SDK-required message text without forwarding raw finding prose
+ok 79 - current-scan AI input includes SDK-required message text without forwarding raw finding prose
+  ---
+  duration_ms: 0.162625
+  type: 'test'
+  ...
+# Subtest: unreadable project directories are reported as incomplete instead of silently clean
+ok 80 - unreadable project directories are reported as incomplete instead of silently clean
+  ---
+  duration_ms: 6.782792
+  type: 'test'
+  ...
+# Subtest: canonical source and wrapper JAR symlinks do not read outside the selected project
+ok 81 - canonical source and wrapper JAR symlinks do not read outside the selected project
+  ---
+  duration_ms: 5.242917
+  type: 'test'
+  ...
+# Subtest: contained links and linked directories are skipped while an explicitly selected project alias remains supported
+ok 82 - contained links and linked directories are skipped while an explicitly selected project alias remains supported
+  ---
+  duration_ms: 7.002583
+  type: 'test'
+  ...
+# Subtest: wrapper checksums respect the configured byte budget
+ok 83 - wrapper checksums respect the configured byte budget
+  ---
+  duration_ms: 4.67075
+  type: 'test'
+  ...
+# Subtest: parent-directory links cannot expose wrapper metadata or recursively called source outside the project
+ok 84 - parent-directory links cannot expose wrapper metadata or recursively called source outside the project
+  ---
+  duration_ms: 7.7035
+  type: 'test'
+  ...
+# Subtest: Semgrep bundled pack selection is explicit, removable and mutually exclusive with custom rules
+ok 85 - Semgrep bundled pack selection is explicit, removable and mutually exclusive with custom rules
+  ---
+  duration_ms: 0.210292
+  type: 'test'
+  ...
+# Subtest: report import GUI rejects project-owned reports before persisting a connection
+ok 86 - report import GUI rejects project-owned reports before persisting a connection
+  ---
+  duration_ms: 7.401666
+  type: 'test'
+  ...
+# Subtest: PowerShell module-folder selection resolves its manifest so gate input seals receive a regular file
+ok 87 - PowerShell module-folder selection resolves its manifest so gate input seals receive a regular file
+  ---
+  duration_ms: 9.774542
+  type: 'test'
+  ...
+# Subtest: organization preset identity/digest is deterministic and export contains method data only
+ok 88 - organization preset identity/digest is deterministic and export contains method data only
+  ---
+  duration_ms: 1.088542
+  type: 'test'
+  ...
+# Subtest: tampering, executable/grant fields, unknown methods and invalid identities are rejected even with a recomputed digest
+ok 89 - tampering, executable/grant fields, unknown methods and invalid identities are rejected even with a recomputed digest
+  ---
+  duration_ms: 0.393166
+  type: 'test'
+  ...
+# Subtest: preset files are bounded passive JSON; symlinks and oversized input cannot be imported or overwritten
+ok 90 - preset files are bounded passive JSON; symlinks and oversized input cannot be imported or overwritten
+  ---
+  duration_ms: 11.744791
+  type: 'test'
+  ...
+# Subtest: ENFORCE blocks actionable ERROR findings
+ok 91 - ENFORCE blocks actionable ERROR findings
+  ---
+  duration_ms: 0.333458
+  type: 'test'
+  ...
+# Subtest: ENFORCE only reviews WARN findings
+ok 92 - ENFORCE only reviews WARN findings
+  ---
+  duration_ms: 0.091375
+  type: 'test'
+  ...
+# Subtest: INFO is always ALLOW
+ok 93 - INFO is always ALLOW
+  ---
+  duration_ms: 0.043084
+  type: 'test'
+  ...
+# Subtest: audit evidence never blocks
+ok 94 - audit evidence never blocks
+  ---
+  duration_ms: 0.039042
+  type: 'test'
+  ...
+# Subtest: unreachable findings do not block
+ok 95 - unreachable findings do not block
+  ---
+  duration_ms: 0.040709
+  type: 'test'
+  ...
+# Subtest: explicitly blocked rule ids block even at WARN
+ok 96 - explicitly blocked rule ids block even at WARN
+  ---
+  duration_ms: 0.042375
+  type: 'test'
+  ...
+# Subtest: reusable author conformance kit exercises real isolated subprocess attribution, partial/failure/timeout and cancellation paths
+ok 97 - reusable author conformance kit exercises real isolated subprocess attribution, partial/failure/timeout and cancellation paths
+  ---
+  duration_ms: 460.563958
+  type: 'test'
+  ...
+# Subtest: additive API1 metadata and declared input scopes validate strictly and registration snapshots nested lists
+ok 98 - additive API1 metadata and declared input scopes validate strictly and registration snapshots nested lists
+  ---
+  duration_ms: 1.19825
+  type: 'test'
+  ...
+# Subtest: input globs use bounded segment matching, directory exclusions, and reject executable pattern syntax
+ok 99 - input globs use bounded segment matching, directory exclusions, and reject executable pattern syntax
+  ---
+  duration_ms: 1.551125
+  type: 'test'
+  ...
+# Subtest: content seals detect same-size byte changes, additions and deletions, but ignore excluded trees and large unrelated assets
+ok 100 - content seals detect same-size byte changes, additions and deletions, but ignore excluded trees and large unrelated assets
+  ---
+  duration_ms: 21.61475
+  type: 'test'
+  ...
+# Subtest: seals enforce independent source/external byte budgets, count/depth budgets and unreadable traversal
+ok 101 - seals enforce independent source/external byte budgets, count/depth budgets and unreadable traversal
+  ---
+  duration_ms: 10.102291
+  type: 'test'
+  ...
+# Subtest: external input files must remain regular, outside every workspace root, with no links
+ok 102 - external input files must remain regular, outside every workspace root, with no links
+  ---
+  duration_ms: 6.048417
+  type: 'test'
+  ...
+# Subtest: actual scanner read tracking verifies recursive inputs with arbitrary names even after timestamps are restored
+ok 103 - actual scanner read tracking verifies recursive inputs with arbitrary names even after timestamps are restored
+  ---
+  duration_ms: 7.445541
+  type: 'test'
+  ...
+# Subtest: known source candidate seals include Android/Ktor names without requiring media assets to fit a source byte budget
+ok 104 - known source candidate seals include Android/Ktor names without requiring media assets to fit a source byte budget
+  ---
+  duration_ms: 7.108125
+  type: 'test'
+  ...
+# Subtest: literal argument GUI preserves empty arguments, spaces, quotes and shell syntax as separate argv entries
+ok 105 - literal argument GUI preserves empty arguments, spaces, quotes and shell syntax as separate argv entries
+  ---
+  duration_ms: 3.624708
+  type: 'test'
+  ...
+# Subtest: Add SDK GUI creates a disabled warning-only connection with literal argv and honest unknown scope
+ok 106 - Add SDK GUI creates a disabled warning-only connection with literal argv and honest unknown scope
+  ---
+  duration_ms: 4.140291
+  type: 'test'
+  ...
+# Subtest: editing custom SDK metadata preserves grants, literal arguments and original configuration providers
+ok 107 - editing custom SDK metadata preserves grants, literal arguments and original configuration providers
+  ---
+  duration_ms: 5.405417
+  type: 'test'
+  ...
+# Subtest: SDK executable and configuration setup rejects every workspace root, including parent aliases
+ok 108 - SDK executable and configuration setup rejects every workspace root, including parent aliases
+  ---
+  duration_ms: 6.959833
+  type: 'test'
+  ...
+# Subtest: owned storage cleanup preserves active profiles, originals, SDK environment and linked directories
+ok 109 - owned storage cleanup preserves active profiles, originals, SDK environment and linked directories
+  ---
+  duration_ms: 13.231125
+  type: 'test'
+  ...
+# Subtest: project-bound command providers stay visible but disabled for other roots and cannot bypass the adapter check
+ok 110 - project-bound command providers stay visible but disabled for other roots and cannot bypass the adapter check
+  ---
+  duration_ms: 7.660125
+  type: 'test'
+  ...
+# Subtest: missing executables for providers bound elsewhere do not invalidate the selected project configuration
+ok 111 - missing executables for providers bound elsewhere do not invalidate the selected project configuration
+  ---
+  duration_ms: 5.25425
+  type: 'test'
+  ...
+# Subtest: shared presets are immutable data-only complete method selections without embedded grants or commands
+ok 112 - shared presets are immutable data-only complete method selections without embedded grants or commands
+  ---
+  duration_ms: 0.823917
+  type: 'test'
+  ...
+# Subtest: disabled missing command providers remain discoverable, while enabled readiness failures are isolated and required gates fail closed
+ok 113 - disabled missing command providers remain discoverable, while enabled readiness failures are isolated and required gates fail closed
+  ---
+  duration_ms: 9.345333
+  type: 'test'
+  ...
+# Subtest: external providers are disabled until the user opts in and remain visible in provider runs
+ok 114 - external providers are disabled until the user opts in and remain visible in provider runs
+  ---
+  duration_ms: 1.352459
+  type: 'test'
+  ...
+# Subtest: enabled external providers have no implicit action grants; forged status and provenance are ignored
+ok 115 - enabled external providers have no implicit action grants; forged status and provenance are ignored
+  ---
+  duration_ms: 0.866875
+  type: 'test'
+  ...
+# Subtest: minimal SDK findings receive host defaults without invented report state
+ok 116 - minimal SDK findings receive host defaults without invented report state
+  ---
+  duration_ms: 0.988166
+  type: 'test'
+  ...
+# Subtest: grants clamp requested actions and respect build versus sync
+ok 117 - grants clamp requested actions and respect build versus sync
+  ---
+  duration_ms: 0.704875
+  type: 'test'
+  ...
+# Subtest: INFO, audit evidence, ML shadow, and host WARN policy never block
+ok 118 - INFO, audit evidence, ML shadow, and host WARN policy never block
+  ---
+  duration_ms: 0.945292
+  type: 'test'
+  ...
+# Subtest: host baseline applies only after external fingerprint is namespaced
+ok 119 - host baseline applies only after external fingerprint is namespaced
+  ---
+  duration_ms: 0.231625
+  type: 'test'
+  ...
+# Subtest: external identity normalizes in-root absolute paths and fingerprints unredacted evidence
+ok 120 - external identity normalizes in-root absolute paths and fingerprints unredacted evidence
+  ---
+  duration_ms: 0.166334
+  type: 'test'
+  ...
+# Subtest: required failures close only granted operation gates and optional failures remain incomplete
+ok 121 - required failures close only granted operation gates and optional failures remain incomplete
+  ---
+  duration_ms: 1.197916
+  type: 'test'
+  ...
+# Subtest: timeouts abort cooperative work, and completion timing preserves registration order
+ok 122 - timeouts abort cooperative work, and completion timing preserves registration order
+  ---
+  duration_ms: 100.657583
+  type: 'test'
+  ...
+# Subtest: provider concurrency is bounded and more than one provider runs at once
+ok 123 - provider concurrency is bounded and more than one provider runs at once
+  ---
+  duration_ms: 36.4205
+  type: 'test'
+  ...
+# Subtest: deadlines include queue time and expired queued providers are never invoked
+ok 124 - deadlines include queue time and expired queued providers are never invoked
+  ---
+  duration_ms: 140.205542
+  type: 'test'
+  ...
+# Subtest: late synchronous results fail their deadline and unresolved timed-out providers are quarantined
+ok 125 - late synchronous results fail their deadline and unresolved timed-out providers are quarantined
+  ---
+  duration_ms: 232.982208
+  type: 'test'
+  ...
+# Subtest: external SDK requests never receive host approvals
+ok 126 - external SDK requests never receive host approvals
+  ---
+  duration_ms: 0.230541
+  type: 'test'
+  ...
+# Subtest: disabled or absent providers never yield a clean report
+ok 127 - disabled or absent providers never yield a clean report
+  ---
+  duration_ms: 0.07175
+  type: 'test'
+  ...
+# Subtest: malformed results and paths are isolated as provider failure
+ok 128 - malformed results and paths are isolated as provider failure
+  ---
+  duration_ms: 0.291084
+  type: 'test'
+  ...
+# Subtest: registration rejects duplicates and reserved IDs, clones identity, and disposal cannot remove a replacement
+ok 129 - registration rejects duplicates and reserved IDs, clones identity, and disposal cannot remove a replacement
+  ---
+  duration_ms: 0.350459
+  type: 'test'
+  ...
+# Subtest: invalid grants and workspace-owned security configuration are rejected
+ok 130 - invalid grants and workspace-owned security configuration are rejected
+  ---
+  duration_ms: 0.082459
+  type: 'test'
+  ...
+# Subtest: SARIF scopes third-party rule IDs and carries effective provenance/actions with redaction
+ok 131 - SARIF scopes third-party rule IDs and carries effective provenance/actions with redaction
+  ---
+  duration_ms: 0.265208
+  type: 'test'
+  ...
+# Subtest: masks quoted secret assignments
+ok 132 - masks quoted secret assignments
+  ---
+  duration_ms: 0.694334
+  type: 'test'
+  ...
+# Subtest: masks bare secret assignments
+ok 133 - masks bare secret assignments
+  ---
+  duration_ms: 0.072209
+  type: 'test'
+  ...
+# Subtest: masks authorization bearer tokens
+ok 134 - masks authorization bearer tokens
+  ---
+  duration_ms: 0.0465
+  type: 'test'
+  ...
+# Subtest: masks url userinfo passwords
+ok 135 - masks url userinfo passwords
+  ---
+  duration_ms: 0.047125
+  type: 'test'
+  ...
+# Subtest: masks every quoted assignment in a multiline credentials block
+ok 136 - masks every quoted assignment in a multiline credentials block
+  ---
+  duration_ms: 0.203958
+  type: 'test'
+  ...
+# Subtest: shrinking a credential block does not skip the next block or its nested assignments
+ok 137 - shrinking a credential block does not skip the next block or its nested assignments
+  ---
+  duration_ms: 0.064708
+  type: 'test'
+  ...
+# Subtest: leaves benign text untouched
+ok 138 - leaves benign text untouched
+  ---
+  duration_ms: 0.550375
+  type: 'test'
+  ...
+# Subtest: is idempotent
+ok 139 - is idempotent
+  ---
+  duration_ms: 0.045875
+  type: 'test'
+  ...
+# Subtest: malicious fixture blocks with pipe-to-shell and redacted credentials
+ok 140 - malicious fixture blocks with pipe-to-shell and redacted credentials
+  ---
+  duration_ms: 11.478791
+  type: 'test'
+  ...
+# Subtest: trusted baseline suppresses blockers and drops the verdict
+ok 141 - trusted baseline suppresses blockers and drops the verdict
+  ---
+  duration_ms: 4.905167
+  type: 'test'
+  ...
+# Subtest: credential block evidence and fingerprints do not expose or depend on usernames
+ok 142 - credential block evidence and fingerprints do not expose or depend on usernames
+  ---
+  duration_ms: 4.241417
+  type: 'test'
+  ...
+# Subtest: repo-shipped wrapperguard:ignore is untrusted (finding still emitted)
+ok 143 - repo-shipped wrapperguard:ignore is untrusted (finding still emitted)
+  ---
+  duration_ms: 1.776125
+  type: 'test'
+  ...
+# Subtest: bare ignore marker produces informational audit evidence while malicious commands still block
+ok 144 - bare ignore marker produces informational audit evidence while malicious commands still block
+  ---
+  duration_ms: 2.9595
+  type: 'test'
+  ...
+# Subtest: clean fixture passes
+ok 145 - clean fixture passes
+  ---
+  duration_ms: 3.445875
+  type: 'test'
+  ...
+# Subtest: call chains produce edges
+ok 146 - call chains produce edges
+  ---
+  duration_ms: 4.681
+  type: 'test'
+  ...
+# Subtest: color assignments, quoted prose, arguments and comments are not network commands
+ok 147 - color assignments, quoted prose, arguments and comments are not network commands
+  ---
+  duration_ms: 1.853708
+  type: 'test'
+  ...
+# Subtest: real command tokens, wrappers, separators and substitutions keep evidence
+ok 148 - real command tokens, wrappers, separators and substitutions keep evidence
+  ---
+  duration_ms: 0.568084
+  type: 'test'
+  ...
+# Subtest: deep substitution is bounded and conservatively reports network code
+ok 149 - deep substitution is bounded and conservatively reports network code
+  ---
+  duration_ms: 0.100208
+  type: 'test'
+  ...
+# Subtest: external nightly artifact path stays unresolved and incomplete
+ok 150 - external nightly artifact path stays unresolved and incomplete
+  ---
+  duration_ms: 6.651041
+  type: 'test'
+  ...
+# Subtest: history webview actions resolve only host-owned records and reject forged paths, identities and history filenames
+ok 151 - history webview actions resolve only host-owned records and reject forged paths, identities and history filenames
+  ---
+  duration_ms: 1.315584
+  type: 'test'
+  ...
+# Subtest: a reloaded webview requests host state before showing connections or history
+ok 152 - a reloaded webview requests host state before showing connections or history
+  ---
+  duration_ms: 0.167041
+  type: 'test'
+  ...
+1..152
+# tests 152
+# suites 0
+# pass 152
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1974.085334
+
+> wrapperguard@0.7.0 check:webview
+> node scripts/check-webview.js
+
+Embedded webview syntax, version, render states and active-only counts/graph checks passed.
+
+> wrapperguard@0.7.0 hardening
+> node scripts/hardening.js
+
+PASS oversized line skipped with notice
+PASS null-byte content skipped
+PASS UTF-16LE PowerShell analyzed
+PASS symlink loop terminates
+PASS deep tree pruned

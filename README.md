@@ -4,8 +4,8 @@ A security vetting workspace for **Android Studio, IntelliJ IDEA, VS Code and CI
 Review application source, build inputs and dependency findings together. Choose the
 analyzers you need and control whether each can warn, alert, stop a build or stop Gradle sync.
 
-**Current development version: 0.6.0 · Python integration SDK: 0.3.0 · Provider API: 1.**
-The 0.6.0 candidate is pending release acceptance; 0.5.0 RC1 remains available. See [verification](docs/verification.md) for test builds, completed checks
+**Current development version: 0.7.0 · Python integration SDK: 0.4.0 · Provider API: 1.**
+The 0.7.0 candidate is undergoing final release acceptance; published 0.6.0 RC1 remains available. See [verification](docs/verification.md) for test builds, completed checks
 and outstanding release work, and [the changelog](CHANGELOG.md) for published history.
 
 ## Start in the IDE
@@ -20,22 +20,22 @@ and outstanding release work, and [the changelog](CHANGELOG.md) for published hi
 4. Use **Research** (**Research & AI** in VS Code) for script behavior signals and local AI explanations.
    Both remain advisory and cannot stop a build or synchronization.
 
-The [setup guide](docs/integrations.md) explains each connection, Windows report imports,
+The [setup guide](docs/integrations.md) explains each connection, Windows direct runners and report imports,
 local model setup and the difference between source analysis and dependency checks.
 The [demo](demo/README.md) and [screenshot gallery](demo/index.html) use clearly labeled,
 fictional data for interface review.
 
 ## Choose the methods
 
-The shared [method catalog](catalog/security-methods.json) contains **17 independently controlled methods**:
+The shared [method catalog](catalog/security-methods.json) contains **19 independently controlled methods**:
 
 | Category | Included connections |
 |---|---|
 | Built-in | Wrapper integrity, script rules, Gradle rules, version catalogs, script graph, Maven POM rules |
 | SAST | Semgrep for Kotlin/Java, Bandit for Python, PSScriptAnalyzer for PowerShell, SARIF and Sonar reports |
 | Supply chain | Trivy, OSV-Scanner and CycloneDX vulnerability findings |
-| DAST | ZAP reports restricted to explicit application targets |
-| Research | Bounded static Python/PowerShell behavior signals |
+| DAST | Scoped ZAP reports and explicit owned-target HTTP header/cookie audits |
+| Research | Static Python/PowerShell signals and optional isolated Python execution |
 | AI | Advisory explanations from a user-configured local model server |
 
 Only the six built-in static groups start enabled. Optional tools, models and external

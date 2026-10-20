@@ -1,0 +1,59 @@
+{
+  "trace": [
+    {
+      "focused": "overview",
+      "active": "overview",
+      "current": "page",
+      "focusVisible": true
+    },
+    {
+      "focused": "findings",
+      "active": "findings",
+      "current": "page",
+      "focusVisible": true
+    },
+    {
+      "focused": "graph",
+      "active": "graph",
+      "current": "page",
+      "focusVisible": true
+    },
+    {
+      "focused": "policy",
+      "active": "policy",
+      "current": "page",
+      "focusVisible": true
+    },
+    {
+      "focused": "tools",
+      "active": "tools",
+      "current": "page",
+      "focusVisible": true
+    },
+    {
+      "focused": "research",
+      "active": "research",
+      "current": "page",
+      "focusVisible": true
+    },
+    {
+      "focused": "history",
+      "active": "history",
+      "current": "page",
+      "focusVisible": true
+    },
+    {
+      "focused": "automation",
+      "active": "automation",
+      "current": "page",
+      "focusVisible": true
+    }
+  ],
+  "homeEnd": true,
+  "width": {
+    "viewport": 301,
+    "document": 301,
+    "body": 301
+  },
+  "axNodes": 213
+}

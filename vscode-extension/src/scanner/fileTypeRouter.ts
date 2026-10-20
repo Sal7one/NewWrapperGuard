@@ -15,10 +15,10 @@ export type AnalyzerKey =
 export function rulesFor(fileName: string): AnalyzerKey[] {
   if (fileName === 'pom.xml') return ['maven'];
   const dot = fileName.lastIndexOf('.');
-  const extension = dot >= 0 ? fileName.slice(dot + 1) : '';
+  const extension = dot >= 0 ? fileName.slice(dot + 1).toLowerCase() : '';
   if (fileName === 'gradlew' || extension === 'sh') return ['unix'];
   if (fileName === 'gradlew.bat' || extension === 'bat' || extension === 'cmd') return ['windows'];
-  if (extension === 'ps1') return ['powershell'];
+  if (extension === 'ps1' || extension === 'psm1') return ['powershell'];
   if (fileName === 'gradle-wrapper.properties') return ['wrapper-props'];
   if (fileName === 'settings.gradle' || fileName === 'settings.gradle.kts') return ['settings'];
   if (fileName.startsWith('init.') && (fileName.endsWith('.gradle') || fileName.endsWith('.gradle.kts'))) return ['init'];
@@ -33,14 +33,14 @@ export function rulesFor(fileName: string): AnalyzerKey[] {
 /** Faithful port of FileTypeRouter.isScannable. */
 export function isScannable(name: string): boolean {
   const dot = name.lastIndexOf('.');
-  const extension = dot >= 0 ? name.slice(dot + 1) : '';
+  const extension = dot >= 0 ? name.slice(dot + 1).toLowerCase() : '';
   return (
     name === 'gradlew' ||
     name === 'gradlew.bat' ||
     name === 'gradle-wrapper.properties' ||
     name === 'libs.versions.toml' ||
     name === 'pom.xml' ||
-    ['sh', 'bash', 'zsh', 'ps1', 'bat', 'cmd', 'gradle', 'kts'].includes(extension) ||
+    ['sh', 'bash', 'zsh', 'bats', 'ps1', 'psm1', 'bat', 'cmd', 'gradle', 'kts'].includes(extension) ||
     name.startsWith('settings.gradle') ||
     name.startsWith('build.gradle') ||
     name.startsWith('init.gradle')

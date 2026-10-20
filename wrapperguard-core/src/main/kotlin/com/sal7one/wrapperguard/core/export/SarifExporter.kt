@@ -1,5 +1,6 @@
 package com.sal7one.wrapperguard.core.export
 
+import com.sal7one.wrapperguard.core.AppVersion
 import com.sal7one.wrapperguard.core.model.FindingStatus
 import com.sal7one.wrapperguard.core.model.Finding
 import com.sal7one.wrapperguard.core.model.ScanReport
@@ -66,7 +67,7 @@ object SarifExporter {
                     put("tool", buildJsonObject {
                         put("driver", buildJsonObject {
                             put("name", "WrapperGuard")
-                            put("version", "0.6.0")
+                            put("version", AppVersion.current)
                             put("rules", buildJsonArray { rules.forEach { add(it) } })
                         })
                     })

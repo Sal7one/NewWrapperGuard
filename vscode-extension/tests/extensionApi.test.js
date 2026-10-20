@@ -21,7 +21,7 @@ const vscode={
   },
   window:{createStatusBarItem:()=>({show(){},dispose(){}}),createOutputChannel:()=>({appendLine(){},dispose(){}}),
     registerWebviewViewProvider:(_id,provider)=>{env.ui=provider;return disposable();},withProgress:async(_options,callback)=>callback(),
-    showErrorMessage:async()=>{},showWarningMessage:async()=>{},showInformationMessage:async()=>{},showQuickPick:async()=>env.picks?.shift(),showInputBox:async()=>env.inputs?.shift()
+    showErrorMessage:async()=>{},showWarningMessage:async()=>{},showInformationMessage:async()=>env.info?.(),showQuickPick:async()=>env.picks?.shift(),showInputBox:async()=>env.inputs?.shift()
   }
 };
 const original=Module._load;
@@ -33,7 +33,7 @@ const provider=scan=>({descriptor:{id:'example',displayName:'Example',version:'1
 const grant={enabled:true,actions:['BLOCK_BUILD'],required:true,timeoutMs:30000};
 async function fixture(t,trusted=true,settings={}) {
   const dir=await fs.mkdtemp(path.join(os.tmpdir(),'wg-api-'));env.project=path.join(dir,'project');await fs.mkdir(env.project);await fs.writeFile(path.join(env.project,'gradlew'),'#!/bin/sh\necho safe\n');
-  env.extraProjects=[];env.storage=path.join(dir,'storage');env.settings=settings;env.trusted=trusted;env.overrides=undefined;env.changed=undefined;env.picks=[];env.inputs=[];
+  env.extraProjects=[];env.storage=path.join(dir,'storage');env.settings=settings;env.trusted=trusted;env.overrides=undefined;env.changed=undefined;env.picks=[];env.inputs=[];env.info=undefined;
   const context={globalStorageUri:uri(path.join(dir,'storage')),subscriptions:[]};const api=activate(context);
   t.after(async()=>{for(const subscription of context.subscriptions)subscription.dispose?.();await fs.rm(dir,{recursive:true,force:true});});return api;
 }
@@ -71,6 +71,26 @@ test('method flags disable one known external provider without revoking unrelate
 test('enabled optional method without a connection cannot claim complete coverage',async t=>{
   const api=await fixture(t,true,{methodFlags:{'sast.bandit':true}});const report=await api.evaluate('SCAN');
   assert.equal(report.complete,false);assert.equal(report.verdict,'INCOMPLETE');assert.ok(report.notices.some(n=>n.code==='WG-METHOD-NOT-CONNECTED'));
+});
+test('canceling owned-target authorization neither enables the method nor scans other providers',async t=>{
+  const api=await fixture(t,true,{providerPermissions:{example:{...grant,actions:['WARNING']}}});let calls=0;
+  api.registerProvider(provider(()=>{calls++;return{findings:[]};}));await api.evaluate('SCAN');const before=calls;
+  let restored;const finished=new Promise(resolve=>{restored=resolve;});env.ui.restoreControlFocus=restored;
+  env.picks=[{owned:false}];env.ui.handlers.configureMethod('dast.http-audit');await finished;
+  assert.equal(calls,before);assert.equal(env.settings.methodFlags?.['dast.http-audit'],undefined);
+  await assert.rejects(fs.access(path.join(env.storage,'integrations','dast.http-audit.profile.json')),error=>error.code==='ENOENT');
+});
+test('managed SCAN-only profiles are visibly inapplicable to gates without launching or inventing missing coverage',async t=>{
+  const api=await fixture(t,true,{methodFlags:{'dast.http-audit':true}});const generated=path.join(env.storage,'integrations');await fs.mkdir(generated,{recursive:true});const directory=await fs.realpath(generated);const profile=path.join(directory,'dast.http-audit.profile.json');const config=path.join(directory,'providers.json');
+  await fs.writeFile(profile,JSON.stringify({id:'dast.http-audit',allowedOperations:['SCAN']}));await fs.writeFile(config,JSON.stringify({apiVersion:1,providers:[{id:'dast.http-audit',displayName:'Owned audit',version:'0.4.0',inputScope:{externalFiles:[profile]},command:[process.execPath,'-I','-m','wrapperguard_sdk','--profile',profile],permissions:{enabled:true,required:false,actions:['WARNING'],timeoutMs:1000}}]}));
+  for(const operation of ['BUILD','SYNC']){const report=await api.evaluate(operation);assert.equal(report.complete,true);const run=report.providerRuns.find(run=>run.descriptor.id==='dast.http-audit');assert.equal(run.status,'DISABLED');assert.match(run.message,new RegExp(operation));assert.ok(report.notices.some(notice=>notice.code==='WG-PROVIDER-OPERATION-SCOPE'));assert.ok(!report.notices.some(notice=>notice.code==='WG-METHOD-NOT-CONNECTED'));}
+  const scan=await api.evaluate('SCAN');assert.equal(scan.providerRuns.find(run=>run.descriptor.id==='dast.http-audit').status,'FAILED','The stand-in executable must be attempted for the declared SCAN operation.');assert.equal(scan.complete,false);
+  const external=path.join(path.dirname(env.project),'external-providers.json');await fs.rename(config,external);env.settings.providerConfigPath=external;const opaque=await api.evaluate('BUILD');assert.equal(opaque.providerRuns.find(run=>run.descriptor.id==='dast.http-audit').status,'FAILED','An externally owned command does not inherit generated-profile applicability.');assert.equal(opaque.complete,false);
+});
+test('changing an excluded managed profile during a gate rejects the stale operation decision',async t=>{
+  const api=await fixture(t,true,{methodFlags:{'dast.http-audit':true},providerPermissions:{example:{...grant,actions:['WARNING']}}});const generated=path.join(env.storage,'integrations');await fs.mkdir(generated,{recursive:true});const directory=await fs.realpath(generated);const profile=path.join(directory,'dast.http-audit.profile.json');
+  await fs.writeFile(profile,JSON.stringify({id:'dast.http-audit',allowedOperations:['SCAN']}));await fs.writeFile(path.join(directory,'providers.json'),JSON.stringify({apiVersion:1,providers:[{id:'dast.http-audit',displayName:'Owned audit',version:'0.4.0',inputScope:{externalFiles:[profile]},command:[process.execPath,'-I','-m','wrapperguard_sdk','--profile',profile],permissions:{enabled:true,required:false,actions:['WARNING'],timeoutMs:1000}}]}));
+  api.registerProvider(provider(async request=>{if(request.operation==='BUILD')await fs.writeFile(profile,JSON.stringify({id:'dast.http-audit',allowedOperations:['SCAN','BUILD']}));return{findings:[]};}));await assert.rejects(api.gate('BUILD'),/Security inputs.*changed during evaluation/);
 });
 test('workspace method flag overrides are rejected and changes during a gate invalidate its decision',async t=>{
   const api=await fixture(t,true,{providerPermissions:{example:grant}});
@@ -156,6 +176,10 @@ test('project-bound preset reports are disabled elsewhere without a false missin
 });
 test('preset GUI changes only method flags and invalidates reports without running providers or changing custom grants',async t=>{
  const api=await fixture(t,true,{providerPermissions:{example:{...grant,actions:['WARNING']}}});let calls=0;api.registerProvider(provider(()=>{calls++;return{findings:[]};}));await api.evaluate();const before=calls;const grants=structuredClone(env.settings.providerPermissions);const preset=require('../dist/methods/presets').SECURITY_PRESETS.find(item=>item.id==='supply-chain');env.picks=[{preset},{apply:true}];env.ui.handlers.applyPreset();for(let i=0;i<60&&!env.settings.methodFlags?.['sca.trivy'];i++)await new Promise(resolve=>setTimeout(resolve,5));env.changed({affectsConfiguration:()=>true});await new Promise(resolve=>setTimeout(resolve,15));assert.deepEqual(env.settings.methodFlags,{...preset.methodFlags});assert.deepEqual(env.settings.providerPermissions,grants);assert.equal(calls,before);assert.equal(env.ui.lastState.report.stale,true);
+});
+test('a persistent preset completion toast does not lock connection editing or delay focus restoration',async t=>{
+ await fixture(t);env.info=()=>new Promise(()=>{});const preset=require('../dist/methods/presets').SECURITY_PRESETS[0];env.picks=[{preset},{apply:true}];let restored;const finished=new Promise(resolve=>{restored=resolve;});env.ui.restoreControlFocus=restored;env.ui.handlers.applyPreset();await Promise.race([finished,new Promise((_,reject)=>setTimeout(()=>reject(new Error('Completion toast retained the setup lock.')),500))]);assert.deepEqual(env.settings.methodFlags,{...preset.methodFlags});
+ env.picks=[{preset},{apply:true}];let again;const next=new Promise(resolve=>{again=resolve;});env.ui.restoreControlFocus=again;env.ui.handlers.applyPreset();await Promise.race([next,new Promise((_,reject)=>setTimeout(()=>reject(new Error('Connection editing remained locked.')),500))]);
 });
 test('history is opt-in, enabling and retention controls never run security providers, and clear preserves approvals',async t=>{
  const api=await fixture(t);await api.evaluate();await assert.rejects(fs.stat(path.join(env.storage,'history')),{code:'ENOENT'});env.ui.handlers.historyEnabled(true);for(let i=0;i<60&&!env.settings.historyEnabled;i++)await new Promise(resolve=>setTimeout(resolve,5));assert.equal(env.settings.historyEnabled,true);assert.equal(env.ui.lastHistory.entries.length,0);

@@ -326,7 +326,7 @@ let pendingFocus = null;
 function rememberFocus() {
   const active=document.activeElement;if(!active||active===document.body||!active.getAttribute)return;
   const card=active.closest && active.closest('[data-provider-id]');
-  const kind=['custom-toggle','custom-edit','custom-remove','custom-permissions','method-toggle','method-configure','method-permissions','method-disconnect','method-evidence','method-docs','history-compare'].find(function(name){return active.classList.contains(name);});
+  const kind=['custom-toggle','custom-edit','custom-remove','custom-permissions','method-toggle','method-configure','method-permissions','method-disconnect','method-evidence','method-docs','history-compare','apply-preset','import-preset','export-preset'].find(function(name){return active.classList.contains(name);});
   if(active.id||kind)pendingFocus={id:active.id,kind:kind,provider:card&&card.getAttribute('data-provider-id'),method:active.getAttribute('data-method'),history:active.getAttribute('data-history')};
 }
 function restoreFocus(force) {
@@ -357,7 +357,7 @@ function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 function byId(id) { return document.getElementById(id); }
-function post(type, finding) { vscode.postMessage({ type: type, finding: finding }); }
+function post(type, finding) { rememberFocus(); vscode.postMessage({ type: type, finding: finding }); }
 
 function hlLine(raw) {
   let s = esc(raw);
@@ -477,7 +477,7 @@ function renderMethods(research) {
   let html = '<div class="page-head"><div class="page-heading"><h1>' + (research ? 'Research &amp; AI' : 'Security tools') + '</h1><p>' + (research ? 'Explainable experiments. Your model. Your decision.' : 'Choose the checks that fit your project.') + '</p></div>' + (research?'<span class="badge">User Settings</span>':'<div class="btn-row"><button class="btn btn-ghost apply-preset">Choose preset</button><button class="btn btn-ghost import-preset">Import preset</button><button class="btn btn-ghost export-preset">Export preset</button></div>') + '</div>';
   html += '<div class="methods-intro"><div><h2>' + (research ? 'Better evidence, with clear limits' : 'One workspace. Independent methods.') + '</h2><p>' + (research ? 'Research ideas become separate, removable providers. The semantic method decodes literal script data and highlights risky behavior without executing it. External AI needs a model provider you connect; no trained model is bundled.' : 'Start with local checks for Android, Gradle and Maven projects. Add language scanners, dependency checks or a web security report when you need them. Each connection keeps its own permissions and can be turned off at any time.') + '</p></div><div class="method-summary">' + enabled + ' enabled · ' + disabled + ' disabled</div></div>';
   if (research) html += '<div class="research-flow"><div><strong><span class="research-step">01</span>Read source safely</strong><p>Literal data only. Bound the file, decode and output budgets.</p></div><div><strong><span class="research-step">02</span>Inspect behavior</strong><p>Expose encoding layers and execution patterns as reviewable evidence.</p></div><div><strong><span class="research-step">03</span>Keep authority explicit</strong><p>Research starts with warnings. Model output never grants itself build permissions.</p></div></div>';
-  const groups = [['BUILT_IN','Built-in checks','Local deterministic rules · no SDK setup'],['SAST','Source analysis','Scripts, Python and scanner reports'],['SUPPLY_CHAIN','Supply chain','Dependency findings for Gradle, Maven and other ecosystems'],['DAST','Web & API security','Explicit target scope for imported results'],['RESEARCH','Research methods','Experimental, separate from the default scanner'],['AI','AI & models','Bring a provider and validate it against your own data']];
+  const groups = [['BUILT_IN','Built-in checks','Local deterministic rules · no SDK setup'],['SAST','Source analysis','Scripts, Python and scanner reports'],['SUPPLY_CHAIN','Supply chain','Dependency findings for Gradle, Maven and other ecosystems'],['DAST','Web & API security','Import scoped reports or explicitly authorize bounded requests to owned targets'],['RESEARCH','Research methods','Experimental, separate from the default scanner'],['AI','AI & models','Bring a provider and validate it against your own data']];
   groups.forEach(function(group) {
     const entries = methods.filter(function(m) { return m.category===group[0]; });
     if (!entries.length) return;
@@ -544,6 +544,7 @@ function renderAutomation() {
   html+='<div class="overview-status '+(view.running?'ok':'warn')+'" role="status" aria-live="polite"><strong>'+esc(view.status)+'</strong></div>';
   if(view.error)html+='<div class="empty-note err" role="alert">'+esc(view.error)+'</div>';
   html+='<div class="panel-card" style="margin-top:14px"><div class="panel-title">This editor session<span class="badge">SCAN only</span></div><div class="policy-row"><span>Project</span><span>'+esc(view.project || state.selectedProject || 'Choose an open project')+'</span></div><div class="policy-row"><span>After changes</span><span>'+(view.onChanges?view.debounceMs+' ms debounce':'Off')+'</span></div><div class="policy-row"><span>Interval</span><span>'+(view.intervalMinutes?view.intervalMinutes+' minutes':'Off')+'</span></div><div class="policy-row"><span>Providers</span><span>'+esc(view.providerIds.join(', ') || 'None selected')+'</span></div><div class="policy-row"><span>Last automatic scan</span><span>'+esc(view.lastRun?new Date(view.lastRun).toLocaleString():'Not run')+'</span></div></div>';
+  if(view.providerIds.length){html+='<div class="panel-card" style="margin-top:14px"><div class="panel-title">Reviewed provider declarations</div>';view.providerIds.forEach(function(id){const policy=(view.policies || {})[id];html+='<div class="policy-row"><span>'+esc(id)+'</span><span>'+esc(policy?'Network: '+policy.network+' · Cost: '+policy.cost+' · '+(policy.acknowledged?'Reviewed':'Review needed'):'Review settings before Start')+'</span></div>';});html+='</div>';}
   html+='<p class="method-note">Saving preferences, enabling a method or reloading the editor leaves automation paused. Start reviews the selected providers and their network/cost declarations; no immediate or missed scans run. Automatic scans never launch builds, synchronization, downloads or tool installation. Declarations describe your review and do not restrict trusted tool code. Settings, connection and project changes pause the session.</p>';
   panel.innerHTML=html;byId('automationConfigure').addEventListener('click',function(){post('automation-configure');});byId('automationSession').addEventListener('click',function(){post(view.running?'automation-pause':'automation-start');});
 }

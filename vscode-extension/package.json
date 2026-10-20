@@ -4,6 +4,7 @@
   "description": "Local security vetting with a built-in static scanner and user-authorized providers.",
   "version": "0.7.0",
   "publisher": "sal7one",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/Sal7one/NewWrapperGaurd"

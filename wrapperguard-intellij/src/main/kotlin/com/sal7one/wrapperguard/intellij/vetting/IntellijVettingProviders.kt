@@ -12,6 +12,7 @@ import com.sal7one.wrapperguard.intellij.settings.buildScanSettings
 import com.sal7one.wrapperguard.intellij.settings.OptionalMethodConnections
 import com.sal7one.wrapperguard.intellij.settings.CustomProviders
 import com.sal7one.wrapperguard.intellij.settings.OptionalMethodProfiles
+import com.sal7one.wrapperguard.intellij.settings.managedOperationAllowed
 import com.sal7one.wrapperguard.intellij.demo.WrapperGuardDemo
 import com.sal7one.wrapperguard.rules.RepositoryScanner
 import java.nio.file.Path
@@ -81,11 +82,29 @@ object IntellijVettingProviders {
         }
     }
 
-    fun scan(project: Project, root: Path, policy: ScanPolicy, operation: VettingOperation): ScanReport {
+    @JvmOverloads
+    fun scan(project: Project, root: Path, policy: ScanPolicy, operation: VettingOperation, automaticIds: Set<String>? = null): ScanReport {
         if (WrapperGuardDemo.enabled) return WrapperGuardDemo.loadReport()
         val trusted = TrustedProjects.isProjectTrusted(project)
         val report = com.sal7one.wrapperguard.intellij.settings.ManagedStorage.withUse {
-            VettingCoordinator(registrations(project, root)).scan(root, policy, buildScanSettings(), operation = operation)
+            require(automaticIds == null || operation == VettingOperation.SCAN) { "Automation is restricted to SCAN." }
+            val connections = WrapperGuardSettings.getInstance().state.methodConnections
+            val excluded = mutableSetOf<String>()
+            val providers = registrations(project, root).map { registration ->
+                if (!managedOperationAllowed(registration.provider.descriptor, connections, operation)) {
+                    excluded += registration.provider.descriptor.id
+                    registration.copy(permissions = registration.permissions.copy(enabled = false))
+                } else if (automaticIds == null || registration.provider.descriptor.id in automaticIds) registration
+                else registration.copy(permissions = registration.permissions.copy(enabled = false))
+            }
+            val selectedSettings = if (automaticIds == null) buildScanSettings() else com.sal7one.wrapperguard.intellij.settings.automationSettings(buildScanSettings(), automaticIds)
+            val settings = selectedSettings.copy(methodFlags = selectedSettings.methodFlags + com.sal7one.wrapperguard.core.methods.SecurityMethodCatalog.methods.filter { it.providerId in excluded }.associate { it.id to false })
+            VettingCoordinator(providers).scan(root, policy, settings, operation = operation).let { output ->
+                val notices = output.notices.toMutableList()
+                if (automaticIds != null) notices += ScanNotice("WG-AUTOMATED-SCAN", "Automatic SCAN selected only: ${automaticIds.sorted().joinToString(", ")}. Other providers were not invoked. This selection does not grant build/sync authority.")
+                if (excluded.isNotEmpty()) notices += ScanNotice("WG-PROVIDER-OPERATION-SKIPPED", "Managed connections exclude ${operation.name}: ${excluded.sorted().joinToString(", ")}. No SDK or analyzer was started for those connections.")
+                output.copy(notices = notices)
+            }
         }
         project.getService(com.sal7one.wrapperguard.intellij.WrapperGuardProjectService::class.java).observeReportInputs(report)
         return if (trusted) report else report.copy(

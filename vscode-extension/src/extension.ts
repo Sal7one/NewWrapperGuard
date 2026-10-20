@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { managedOperationScope } from './methods/operationScope';
 import { buildSettings, scanWorkspaceNative } from './scanner/entry';
 import { toSarif } from './scanner/sarif';
 import { WrapperGuardWebviewProvider, openFindingInEditor, findingFileUri } from './webviewUi';
@@ -55,7 +56,7 @@ export function activate(context: vscode.ExtensionContext): VettingApi {
     throw new Error('Choose an open workspace folder for this evaluation.');
   };
   const registry = new ProviderRegistry({
-    descriptor: { id:'wrapperguard', displayName:'WrapperGuard built-in scanner', version:'0.6.0', apiVersion:1 },
+    descriptor: { id:'wrapperguard', displayName:'WrapperGuard built-in scanner', version:require('../package.json').version, apiVersion:1 },
     scan: async request => {
       const {report} = await scanWorkspaceNative(vscode.Uri.file(request.projectRoot),undefined,request);
       return {findings:report.findings,edges:report.edges,scannedFiles:report.scannedFiles,complete:report.complete,notices:report.notices};
@@ -182,16 +183,19 @@ export function activate(context: vscode.ExtensionContext): VettingApi {
         if (Array.isArray(data)) baseline = data.filter(e => e && typeof e.fingerprint === 'string' && (e.ruleId === undefined || typeof e.ruleId === 'string'));
       } catch { /* An absent baseline grants no approvals. */ }
       const allProviders=[...registered,...commands.providers];
+      const operationScope=managedOperationScope(operation,commands.sources,managedConfigPath,effectivePermissions);
+      for(const id of operationScope.excluded){effectivePermissions[id]={...effectivePermissions[id],enabled:false};const method=SECURITY_METHODS.find(method=>method.providerId===id);if(method)settings.methodFlags={...settings.methodFlags,[method.id]:false};}
       let historyBefore:ReturnType<typeof historyScope>|undefined;let historyLimit=20;
       try{const preferences=historyPreferences();historyLimit=preferences.limit;if(preferences.enabled)historyBefore=historyScope(settings,allProviders,effectivePermissions,commands.sources,path.dirname(managedConfigPath));}catch{historyError='History preferences are invalid. This scan still uses the configured security policy.';}
-      const scopes=()=>hostInputScopes(allProviders,effectivePermissions,commands.sources.map(source=>source.file),path.dirname(managedConfigPath),baselineUri.fsPath);
+      const scopes=()=>[...hostInputScopes(allProviders,effectivePermissions,commands.sources.map(source=>source.file),path.dirname(managedConfigPath),baselineUri.fsPath),...(operationScope.files.length?[{externalFiles:operationScope.files}]:[])];
       const before=operation==='SCAN'?undefined:captureInputSeal(root.fsPath,scopes(),workspaceRoots());
       const observed=new ObservedReadSet(root.fsPath);
       const report = await observeProjectReads(observed.observe,()=>vscode.window.withProgress(
         { location: vscode.ProgressLocation.Notification, title: 'WrapperGuard: Scanning workspace' },
         () => evaluateProviders({projectRoot:root.fsPath,policy:DEFAULT_ENFORCE_POLICY,settings,baseline,operation,signal:automatic?.signal??new AbortController().signal},
-          {providers:[...registered,...commands.providers],permissions:effectivePermissions,concurrency:4,notApplicableProviders:commands.notApplicableIds})
+          {providers:[...registered,...commands.providers],permissions:effectivePermissions,concurrency:4,notApplicableProviders:[...commands.notApplicableIds,...operationScope.excluded]})
       ));
+      for(const id of operationScope.excluded){const run=report.providerRuns?.find(run=>run.descriptor.id===id);if(run)run.message='Not applicable to '+operation+'; this connection does not support that operation.';report.notices.push({code:'WG-PROVIDER-OPERATION-SCOPE',message:'Provider '+id+' is outside the configured '+operation+' operation scope.'});}
       if(automatic)report.notices.push({code:'WG-AUTOMATED-SCAN',message:'Automatic SCAN scope includes only the reviewed providers: '+automatic.ids.join(', ')+'. No build or sync was launched.'});
       const connectedIds=new Set([...registered,...commands.providers].map(item=>item.descriptor.id));
       if (!vscode.workspace.isTrusted && (configPath || pausedSdk.size)) {
@@ -202,7 +206,7 @@ export function activate(context: vscode.ExtensionContext): VettingApi {
       }
       let changed=generation !== configurationGeneration;
       for (const source of commands.sources) if (source.contents !== await readFile(source.file,'utf8')) changed=true;
-      if(before&&(!sealsEqual(before,captureInputSeal(root.fsPath,scopes(),workspaceRoots()))||!observed.verify()))changed=true;
+      if(!operationScope.verify()||before&&(!sealsEqual(before,captureInputSeal(root.fsPath,scopes(),workspaceRoots()))||!observed.verify()))changed=true;
       if (changed) {
         throw new Error('Security inputs or provider permissions changed during evaluation. Run the gate again.');
       }
@@ -232,8 +236,10 @@ export function activate(context: vscode.ExtensionContext): VettingApi {
     const method=methodById(id); if (!method || method.category === 'BUILT_IN') return;
     if (changingConnections) return;
     changingConnections=true;invalidate();
+    let connected=false;
     try {
       if (await configureIntegration(context,method,managedConfigPath,state.get().kind === 'scanned' ? (state.get() as Extract<ScanState,{kind:'scanned'}>).report : undefined,selectedRoot()?.fsPath)) {
+        connected=true;
         const config=vscode.workspace.getConfiguration('wrapperGuard');
         const flags=validateMethodFlags(userSetting(config.inspect<Record<string,boolean>>('methodFlags'),{}));
         invalidate(); await config.update('methodFlags',{...flags,[id]:true},vscode.ConfigurationTarget.Global);
@@ -241,7 +247,7 @@ export function activate(context: vscode.ExtensionContext): VettingApi {
       }
     } catch (error) { void vscode.window.showErrorMessage('WrapperGuard: ' + (error instanceof Error ? error.message : String(error))); }
     finally { changingConnections=false;invalidate(); }
-    await refreshMethodViews(); await scan();
+    await refreshMethodViews(); if(connected)await scan();
   };
   const toggleMethod = async (id: string, enabled: boolean): Promise<void> => {
     if (changingConnections) { await refreshMethodViews();return; }
@@ -445,7 +451,7 @@ export function activate(context: vscode.ExtensionContext): VettingApi {
       const enabled=SECURITY_METHODS.filter(method=>preset.methodFlags[method.id]);
       const confirm=await vscode.window.showQuickPick([{label:'Apply method selection',description:enabled.map(method=>method.title).join(', '),apply:true},{label:'Cancel',description:'Keep current method selection',apply:false}],{title:preset.title+' · '+enabled.length+' enabled methods',placeHolder:preset.notice+' Review setup and run a scan afterward.',ignoreFocusOut:true});
       if(!confirm?.apply)return;invalidate();await vscode.workspace.getConfiguration('wrapperGuard').update('methodFlags',{...preset.methodFlags},vscode.ConfigurationTarget.Global);await refreshMethodViews();
-      await vscode.window.showInformationMessage(preset.title+' selected. Review connection readiness, then run a scan. No new permissions or installations were added.');
+      void vscode.window.showInformationMessage(preset.title+' selected. Review connection readiness, then run a scan. No new permissions or installations were added.');
     }catch(error){void vscode.window.showErrorMessage('WrapperGuard: '+(error instanceof Error?error.message:String(error)));}
     finally{changingConnections=false;await refreshMethodViews();}
   };
@@ -455,7 +461,7 @@ export function activate(context: vscode.ExtensionContext): VettingApi {
       const config=vscode.workspace.getConfiguration('wrapperGuard');const current=validateMethodFlags(userSetting(config.inspect('methodFlags'),{}));
       const flags=Object.fromEntries(SECURITY_METHODS.map(method=>[method.id,current[method.id]??method.defaultEnabled]));
       if(action==='export')await exportPreset(flags);
-      else{const preset=await importPreset(flags);if(preset){invalidate();await config.update('methodFlags',{...current,...preset.methodFlags},vscode.ConfigurationTarget.Global);await vscode.window.showInformationMessage(preset.title+' applied. Review connection readiness and scan explicitly. No permissions or tools changed.');}}
+      else{const preset=await importPreset(flags);if(preset){invalidate();await config.update('methodFlags',{...current,...preset.methodFlags},vscode.ConfigurationTarget.Global);void vscode.window.showInformationMessage(preset.title+' applied. Review connection readiness and scan explicitly. No permissions or tools changed.');}}
     }catch(error){void vscode.window.showErrorMessage('WrapperGuard preset: '+(error instanceof Error?error.message:String(error)));}
     finally{changingConnections=false;await refreshMethodViews();}
   };

@@ -1,0 +1,55 @@
+name: Pinned Android and Ktor source rule review
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: research-rule-review-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  semgrep-source-review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install explicit trusted SDK and pinned Semgrep
+        run: python -m pip install ./sdk/python semgrep==1.181.0
+      - name: Source identity, path and result minimization regressions
+        run: python -m unittest discover -s scripts/tests -p test_research_rule_review.py -v
+      - name: Acquire only pinned benign Android and Ktor source subsets
+        shell: python
+        run: |
+          import json, os, pathlib, subprocess, sys
+          base = pathlib.Path(os.environ['RUNNER_TEMP'])
+          manifest = json.loads(pathlib.Path('research/corpus.lock.json').read_text())
+          selected = [source for source in manifest['sources'] if source['id'] in {'now-in-android','ktor-samples'}]
+          assert len(selected) == 2 and all(source['label'] == 'benign-project' for source in selected)
+          lock = base / 'benign-review.lock.json'
+          lock.write_text(json.dumps({'schemaVersion':1,'sources':selected}))
+          subprocess.run([sys.executable,'scripts/research-corpus.py','--fetch','--lock',str(lock),
+              '--directory',str(base / 'source-review-inputs')],check=True,timeout=180)
+      - name: Review all five local packs independently through fixed SDK snapshots
+        shell: python
+        run: |
+          import os, pathlib, shutil, subprocess, sys
+          base = pathlib.Path(os.environ['RUNNER_TEMP'])
+          subprocess.run([sys.executable,'scripts/research-rule-review.py',
+              '--directory',str(base / 'source-review-inputs'),'--sdk-python',sys.executable,
+              '--semgrep',shutil.which('semgrep'),'--timeout-seconds','120',
+              '--output',str(base / 'source-rule-review.json')],check=True,timeout=1300)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pinned-android-ktor-rule-review
+          # Source bytes, evidence, messages and acquired trees are never published.
+          path: ${{ runner.temp }}/source-rule-review.json

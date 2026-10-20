@@ -18,12 +18,16 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
 
     intellijPlatform {
-        // Target 2025.3 for development; sinceBuild=252 keeps the plugin installable on 2025.2+,
-        // which is the minimum platform version that exposes the com.intellij.modules.compose module.
-        // NB: from 2025.3 the IntelliJ Platform Gradle Plugin requires intellijIdea() (IC/ideaIC
-        // is no longer published as a Maven artifact).
+        // Compile against the oldest supported runtime: Compose/Jewel inline functions embed
+        // their platform ABI in this plugin. sinceBuild alone cannot make newer inlined APIs
+        // compatible with 252. A local override is for development/host acceptance only;
+        // release CI builds this default and verifies the same artifact on minimum/current IDEs.
         val localIdePath = providers.gradleProperty("wrapperguard.localIdePath").orNull
-        if (localIdePath != null) local(localIdePath) else intellijIdea("2025.3")
+        val platformVersion = providers.gradleProperty("wrapperguard.platformVersion").getOrElse("2025.2")
+        if (localIdePath != null) local(localIdePath)
+        else if (platformVersion.startsWith("2025.2")) intellijIdeaCommunity(platformVersion)
+        // IC artifacts were replaced by the unified IDEA distribution starting in 2025.3.
+        else intellijIdea(platformVersion)
 
         bundledPlugin("com.intellij.gradle")
 
@@ -73,6 +77,9 @@ val buildIntegrationSdk by tasks.registering(Exec::class) {
 
 tasks.processResources {
     dependsOn(buildIntegrationSdk)
+    from(rootProject.files("LICENSE", "THIRD_PARTY_NOTICES.md")) {
+        into("META-INF")
+    }
     from(rootProject.file("build/sdk/wrapperguard_sdk-0.4.0-py3-none-any.whl")) {
         into("integrations")
     }

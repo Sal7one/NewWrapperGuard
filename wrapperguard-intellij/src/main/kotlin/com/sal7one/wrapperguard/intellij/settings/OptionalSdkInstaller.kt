@@ -19,7 +19,7 @@ internal fun <T> methodProgress(project: Project, title: String, work: (Progress
 
 /** Explicit UI bootstrap: trusted Python + bundled wheel, no repository install hooks. */
 internal object OptionalSdkInstaller {
-    private const val WHEEL = "wrapperguard_sdk-0.3.0-py3-none-any.whl"
+    private const val WHEEL = "wrapperguard_sdk-0.4.0-py3-none-any.whl"
     fun install(project: Project, basePython: String, bandit: Boolean, semgrep: Boolean, indicator: ProgressIndicator): Path = ManagedStorage.withUse {
         installEnvironment(project, basePython, bandit, semgrep, indicator)
     }
@@ -49,10 +49,51 @@ internal object OptionalSdkInstaller {
             indicator.text = "Downloading Semgrep 1.181.0 and its dependencies from PyPI"
             run(listOf(managedPython.toString(), "-I", "-m", "pip", "--isolated", "install", "--disable-pip-version-check", "--index-url", "https://pypi.org/simple", "semgrep==1.181.0"), indicator, 300)
         }
+        OptionalSdkCapabilities.probe(managedPython.toString()).requireCurrent()
         ManagedStorage.registerCreated(directory, "SDK environment")
         WrapperGuardSettings.getInstance().state.managedSdkPython = managedPython.toString()
         OptionalMethodConnections.changed()
         return managedPython
+    }
+
+    fun repair(project: Project, selectedPython: String, bandit: Boolean, semgrep: Boolean, indicator: ProgressIndicator): Path = ManagedStorage.withMaintenance {
+        val python = OptionalMethodProfiles.checkedPath(selectedPython, OptionalMethodConnections.roots(project), executable = true)
+        val environment = managedEnvironment(python, OptionalMethodConnections.directory().toRealPath(), WrapperGuardSettings.getInstance().state.managedArtifacts)
+        val wheel = Files.createTempFile(environment, "wrapperguard-repair-", ".whl")
+        // pip validates the distribution filename, so preserve the bundled wheel name in a temporary subdirectory.
+        Files.delete(wheel)
+        val staging = Files.createTempDirectory(environment, "wrapperguard-repair-")
+        val archive = staging.resolve(WHEEL)
+        try {
+            OptionalSdkInstaller::class.java.getResourceAsStream("/integrations/$WHEEL")?.use { Files.copy(it, archive) }
+                ?: error("This plugin package is missing its bundled SDK wheel.")
+            indicator.text = "Repairing the bundled SDK offline in the selected managed environment"
+            run(listOf(python.toString(), "-I", "-m", "pip", "--isolated", "install", "--no-index", "--no-deps", "--force-reinstall", "--disable-pip-version-check", archive.toString()), indicator, 120)
+            if (bandit) {
+                indicator.text = "Updating managed Bandit from PyPI"
+                run(listOf(python.toString(), "-I", "-m", "pip", "--isolated", "install", "--upgrade", "--disable-pip-version-check", "--index-url", "https://pypi.org/simple", "bandit==1.9.4"), indicator, 180)
+            }
+            if (semgrep) {
+                require(!System.getProperty("os.name").startsWith("Windows")) { "Semgrep direct execution is unavailable on Windows; import its report instead." }
+                indicator.text = "Updating managed Semgrep from PyPI"
+                run(listOf(python.toString(), "-I", "-m", "pip", "--isolated", "install", "--upgrade", "--disable-pip-version-check", "--index-url", "https://pypi.org/simple", "semgrep==1.181.0"), indicator, 300)
+            }
+            OptionalSdkCapabilities.probe(python.toString()).requireCurrent()
+        } finally {
+            Files.deleteIfExists(archive); Files.deleteIfExists(staging)
+            runCatching { ManagedStorage.refreshOwned(environment) }
+            OptionalMethodConnections.changed()
+        }
+        python
+    }
+
+    internal fun managedEnvironment(python: Path, root: Path, records: List<ManagedArtifactState>): Path {
+        val selected = python.toAbsolutePath().normalize()
+        val environment = selected.parent?.parent ?: error("Choose a managed SDK Python executable.")
+        require(environment.parent == root && !Files.isSymbolicLink(environment) && environment.toRealPath() == environment &&
+            records.any { it.kind == "SDK environment" && it.path == environment.toString() }) { "Repair is limited to registered environments created by WrapperGuard. Create a new environment for other Python installations." }
+        require(selected.parent.fileName.toString() in setOf("bin", "Scripts") && selected.fileName.toString() in setOf("python", "python.exe") && Files.isRegularFile(selected) && !Files.isSymbolicLink(selected)) { "Choose the Python executable in the registered managed environment." }
+        return environment
     }
 
     private fun run(arguments: List<String>, indicator: ProgressIndicator, seconds: Int) {

@@ -28,11 +28,22 @@ internal data class ArtifactFingerprint(val digest: String, val bytes: Long)
 internal object ManagedStorage {
     private val usage = ReentrantReadWriteLock()
     fun <T> withUse(work: () -> T): T = usage.read(work)
+    fun <T> withMaintenance(work: () -> T): T {
+        require(usage.writeLock().tryLock()) { "An analysis or setup operation is running. Wait for it to finish before maintenance." }
+        try { return work() } finally { usage.writeLock().unlock() }
+    }
+    fun refreshOwned(path: Path) {
+        val actual = path.toAbsolutePath().normalize()
+        val state = WrapperGuardSettings.getInstance().state
+        val record = state.managedArtifacts.firstOrNull { it.path == actual.toString() } ?: error("Unregistered artifacts are preserved.")
+        require(actual.parent == OptionalMethodConnections.directory().toRealPath() && !Files.isSymbolicLink(actual))
+        record.fingerprint = fingerprint(actual).digest
+    }
 
     fun registerCreated(path: Path, kind: String) {
         val root = OptionalMethodConnections.directory().toRealPath()
         val actual = path.toAbsolutePath().normalize()
-        require(actual.parent == root && kind in setOf("SDK environment", "Method profile", "AI input"))
+        require(actual.parent == root && kind in setOf("SDK environment", "Method profile", "AI input", "Tool cache"))
         val fingerprint = runCatching { fingerprint(actual) }.getOrNull() ?: return // Preserve artifacts exceeding inventory bounds.
         val state = WrapperGuardSettings.getInstance().state
         synchronized(state) {
@@ -44,7 +55,7 @@ internal object ManagedStorage {
     /** Original reports, selected executables and active environments are retained regardless of provider enablement. */
     internal fun activePaths(state: WrapperGuardSettings.State): List<Path> {
         val values = mutableListOf(state.managedSdkPython, state.providerConfigurationPath, state.managedProviderConfigurationPath)
-        state.methodConnections.forEach { values.addAll(listOf(it.pythonExecutable, it.runnerExecutable, it.modulePath, it.rulesPath, it.reportPath, it.profilePath, it.configurationPath, it.cachePath)) }
+        state.methodConnections.forEach { values.addAll(listOf(it.pythonExecutable, it.runnerExecutable, it.modulePath, it.rulesPath, it.reportPath, it.provenanceManifestPath, it.profilePath, it.configurationPath, it.cachePath)) }
         state.customProviders.forEach { values.addAll(listOf(it.executable) + it.arguments + it.externalFiles) }
         // Preserve references in the original user configuration as well as GUI connections.
         if (state.providerConfigurationPath.isNotBlank()) runCatching {
@@ -106,6 +117,46 @@ internal object ManagedStorage {
                 }, !referenced && owned)
             }.sortedWith(compareByDescending<ManagedArtifact> { it.removable }.thenBy { it.path.fileName.toString() })
         }
+    }
+
+    fun clearToolCaches(): Int = withMaintenance {
+        val state = WrapperGuardSettings.getInstance().state
+        require(state.providerConfigurationPath.isBlank() && state.customProviders.none { custom -> state.providers.any { it.id == custom.id && it.enabled } && (custom.kind == "sdk" || !custom.scopeDeclared) }) { "Private or original provider configuration may reference managed caches. Preserve them until those connections are disconnected." }
+        val root = OptionalMethodConnections.directory().toRealPath()
+        val records = state.managedArtifacts.filter { it.kind == "Tool cache" }
+        require(records.isNotEmpty()) { "No registered tool caches exist. Legacy or original cache directories are preserved." }
+        val active = activePaths(state)
+        records.forEach { record ->
+            val path = Path.of(record.path)
+            require(path.parent == root && path.fileName.toString().startsWith("cache-") && !Files.isSymbolicLink(path))
+            require(active.none { it != path && it.startsWith(path) }) { "A selected report, file, SDK or process references a cache item; it was preserved." }
+            require(state.customProviders.none { custom -> (listOf(custom.executable) + custom.arguments + custom.externalFiles).any { runCatching { Path.of(it).toAbsolutePath().normalize() == path }.getOrDefault(false) } }) { "A custom provider references this cache; disconnect it before cleanup." }
+            record.fingerprint = clearCache(root, record, active.filterNot { it == path })
+        }
+        records.size
+    }
+
+    internal fun clearCache(root: Path, record: ManagedArtifactState, protected: List<Path>): String {
+        val path = Path.of(record.path).toAbsolutePath().normalize()
+        require(record.kind == "Tool cache" && path.parent == root && path.fileName.toString().matches(Regex("cache-[0-9a-f-]{36}")) && !Files.isSymbolicLink(path)) { "Only registered UUID tool caches may be cleared." }
+        require(protected.none { it == path || it.startsWith(path) }) { "Referenced user files or processes inside this cache are preserved." }
+        val snapshot = record.copy(fingerprint = fingerprint(path).digest)
+        removeOwned(root, snapshot, protected)
+        Files.createDirectory(path)
+        return fingerprint(path).digest
+    }
+
+    fun removeUnusedDefaultSdk() = withMaintenance {
+        val state = WrapperGuardSettings.getInstance().state
+        require(state.managedSdkPython.isNotBlank()) { "There is no default managed SDK environment." }
+        val root = OptionalMethodConnections.directory().toRealPath()
+        val environment = OptionalSdkInstaller.managedEnvironment(Path.of(state.managedSdkPython), root, state.managedArtifacts)
+        val record = state.managedArtifacts.first { it.path == environment.toString() }
+        val active = activePaths(state.copy(managedSdkPython = ""))
+        require(active.none { it == environment || it.startsWith(environment) }) { "This environment is referenced by a saved connection or process. Disconnect those connections and stop its tools before removal." }
+        removeOwned(root, record, active)
+        state.managedSdkPython = ""; state.managedArtifacts.removeAll { it.path == record.path }
+        OptionalMethodConnections.changed()
     }
 
     fun cleanup(paths: Set<Path>): Int {
@@ -188,12 +239,29 @@ internal class ManagedStorageDialog(private val project: Project, private val it
         override fun isCellEditable(row: Int, column: Int) = column == 0 && items[row].removable
     }
     init {
-        items.forEach { model.addRow(arrayOf(false, it.path.fileName.toString(), it.kind, "${it.bytes / 1024} KiB", it.status)) }
+        items.forEach { model.addRow(arrayOf<Any>(false, it.path.fileName.toString(), it.kind, "${it.bytes / 1024} KiB", it.status)) }
         title = "WrapperGuard managed storage"; setOKButtonText("Remove selected orphans"); init()
         isOKActionEnabled = items.any { it.removable }
     }
     override fun createCenterPanel(): JComponent = JPanel(BorderLayout(0, 12)).apply {
-        add(JBLabel("<html>Only unchanged, registered files created by WrapperGuard can be removed.<br>Active connections, original user files and unknown artifacts are preserved. Analysis and setup pause cleanup.</html>"), BorderLayout.NORTH)
+        add(JPanel(BorderLayout(0, 8)).apply {
+            add(JBLabel("<html>Only registered artifacts created by WrapperGuard can be removed. Original user files and unknown artifacts are preserved.<br>Analysis/setup prevent maintenance. Tool-cache clearing is explicit and may require future database downloads.</html>"), BorderLayout.NORTH)
+            add(JPanel(java.awt.FlowLayout(java.awt.FlowLayout.LEADING)).apply {
+                add(JButton("Install / repair SDK…").apply { addActionListener { InstallOptionalSdkDialog(project).showAndGet() } })
+                add(JButton("Clear owned tool caches…").apply { addActionListener {
+                    if (com.intellij.openapi.ui.Messages.showYesNoDialog(project, "Clear only registered WrapperGuard tool caches? Original and legacy cache directories remain untouched. Vulnerability databases may download again on the next explicit scan.", "Clear owned caches", com.intellij.openapi.ui.Messages.getQuestionIcon()) != com.intellij.openapi.ui.Messages.YES) return@addActionListener
+                    project.getService(NativeScanAutomation::class.java).pause("Paused · cache maintenance")
+                    methodProgress(project, "Clearing owned tool caches") { ManagedStorage.clearToolCaches() }
+                        .onSuccess { close(OK_EXIT_CODE) }.onFailure { setErrorText(it.message ?: "Caches were preserved.") }
+                } })
+                add(JButton("Remove unused default SDK…").apply { addActionListener {
+                    if (com.intellij.openapi.ui.Messages.showYesNoDialog(project, "Remove the default managed SDK only if no saved connection or process references it? Disconnect method/custom connections first. Original Python installations are preserved.", "Remove unused managed SDK", com.intellij.openapi.ui.Messages.getQuestionIcon()) != com.intellij.openapi.ui.Messages.YES) return@addActionListener
+                    project.getService(NativeScanAutomation::class.java).pause("Paused · SDK maintenance")
+                    methodProgress(project, "Removing unused managed SDK") { ManagedStorage.removeUnusedDefaultSdk() }
+                        .onSuccess { close(OK_EXIT_CODE) }.onFailure { setErrorText(it.message ?: "The environment was preserved.") }
+                } })
+            }, BorderLayout.SOUTH)
+        }, BorderLayout.NORTH)
         add(JBScrollPane(JBTable(model).apply { accessibleContext.accessibleName = "Managed storage inventory"; columnModel.getColumn(0).preferredWidth = 52 }), BorderLayout.CENTER)
         preferredSize = Dimension(850, 390)
     }

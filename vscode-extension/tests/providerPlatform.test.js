@@ -49,13 +49,13 @@ test('literal argument GUI preserves empty arguments, spaces, quotes and shell s
  assert.deepEqual(await custom.editLiteralList('Args',['existing']),['existing','hello world','$(touch nope); "quoted"','']);
  ui.picks=[items=>items.find(item=>item.action==='edit'&&item.index===1),'remove','done'];assert.deepEqual(await custom.editLiteralList('Args',['one','two']),['one']);
 });
-test('Add SDK GUI creates an optional disabled warning-only connection with explicit argv and input scope',async t=>{
+test('Add SDK GUI creates a disabled warning-only connection with literal argv and honest unknown scope',async t=>{
  const{root}=await fixture(t);ui.inputs=['company.review','Company review','arg with spaces'];ui.files=[[{fsPath:process.execPath}]];ui.picks=['executable','arguments','add','done','save',items=>items.find(item=>item.save)];
- const value=await custom.configureCustomProvider([root]);assert.deepEqual(value.command,[process.execPath,'arg with spaces']);assert.equal(value.permissions.enabled,false);assert.equal(value.permissions.required,false);assert.deepEqual(value.permissions.actions,['WARNING']);assert.deepEqual(value.inputScope.includes,['**']);assert.ok(value.inputScope.excludes.includes('**/node_modules/**'));
+ const value=await custom.configureCustomProvider([root]);assert.deepEqual(value.command,[process.execPath,'arg with spaces']);assert.equal(value.permissions.enabled,false);assert.equal(value.permissions.required,false);assert.deepEqual(value.permissions.actions,['WARNING']);assert.equal(value.inputScope,undefined);
 });
 test('editing custom SDK metadata preserves grants, literal arguments and original configuration providers',async t=>{
  const{root,base}=await fixture(t);const existing=entry();existing.permissions={...permissions,enabled:true,actions:['BLOCK_BUILD'],required:true};ui.picks=['identity','save',items=>items.find(item=>item.save)];ui.inputs=['Renamed SDK','2'];
- const value=await custom.configureCustomProvider([root],existing);assert.equal(value.displayName,'Renamed SDK');assert.deepEqual(value.command,existing.command);assert.deepEqual(value.permissions,existing.permissions);
+ const value=await custom.configureCustomProvider([root],existing);assert.equal(value.displayName,'Renamed SDK');assert.deepEqual(value.command,existing.command);assert.deepEqual(value.permissions,existing.permissions);assert.deepEqual(value.inputScope,existing.inputScope);
  const file=path.join(base,'storage/providers.json');const another={...entry(),id:'company.other'};await custom.writeProviderConfiguration(file,{apiVersion:1,providers:[another,value]},[root]);const config=JSON.parse(await fsp.readFile(file,'utf8'));assert.deepEqual(config.providers.map(item=>item.id),['company.other','company.audit']);assert.deepEqual(config.providers[1].command,value.command);
 });
 test('SDK executable and configuration setup rejects every workspace root, including parent aliases',async t=>{

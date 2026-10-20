@@ -32,7 +32,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Build, test and package all JVM modules
-        run: ./gradlew build :wrapperguard-cli:installDist :wrapperguard-intellij:buildPlugin
+        run: ./gradlew build :wrapperguard-cli:installDist :wrapperguard-cli:distZip :wrapperguard-intellij:buildPlugin
       - name: Verify IntelliJ binary compatibility
         run: ./gradlew :wrapperguard-intellij:verifyPlugin
       - name: Installed CLI and provider protocol smoke
@@ -55,6 +55,18 @@ jobs:
       - name: VS Code unit tests
         working-directory: vscode-extension
         run: npm test
+      - name: Package VS Code for cross-distribution review
+        working-directory: vscode-extension
+        run: npm run package
+      - name: Distribution inventory regressions
+        run: python -m unittest discover -s scripts/tests -p test_distribution_audit.py -v
+      - name: Audit actual packaged runtime closure, licenses and identical SDKs
+        run: python scripts/distribution-audit.py --output "$RUNNER_TEMP/distribution-audit"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: packaged-runtime-audit
+          path: ${{ runner.temp }}/distribution-audit/*.json
       - uses: actions/upload-artifact@v4
         with:
           name: wrapperguard-plugin

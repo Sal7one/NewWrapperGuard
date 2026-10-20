@@ -73,7 +73,7 @@ providers qualify; catalog AI/research methods alone do not establish analysis c
 Zero detectors, missing explicitly requested connections and real scan failures remain
 incomplete. Required failure blocking still depends on relevant grants and policy.
 
-The [setup guide](integrations.md) covers GUI-managed connections, SDK 0.3.0 profiles,
+The [setup guide](integrations.md) covers GUI-managed connections, SDK 0.4.0 profiles,
 source SAST, dependency analysis and advisory research/AI. Custom providers need not use
 the Python SDK or adopt a particular algorithm to share the host interface.
 

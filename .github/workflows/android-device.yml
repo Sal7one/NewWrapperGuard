@@ -66,21 +66,41 @@ jobs:
           path: android-apk
       - name: Install the integration SDK
         run: python -m pip install ./sdk/python
+      - name: Reject blank device evidence before emulator acceptance
+        run: python -m unittest discover -s scripts/tests -p test_android_device_acceptance.py -v
+      - name: Reclaim unused SDK build components on this fresh runtime-only hosted runner
+        shell: python
+        run: |
+          import os, pathlib, shutil
+          assert os.environ.get('RUNNER_ENVIRONMENT') == 'github-hosted' and os.environ.get('RUNNER_OS') == 'Linux'
+          sdk = pathlib.Path(os.environ['ANDROID_SDK_ROOT']).resolve()
+          assert sdk.is_absolute() and sdk.name == 'sdk' and len(sdk.parts) > 3
+          # The APK was built in a separate job. Keep command-line tools, emulator,
+          # platform-tools and images; only unused preinstalled build/NDK inputs go.
+          removed = []
+          for name in ('ndk', 'ndk-bundle', 'cmake', 'build-tools', 'platforms', 'sources'):
+              path = sdk / name
+              assert path.parent == sdk and not path.is_symlink()
+              if path.exists(): shutil.rmtree(path); removed.append(name)
+          print({'removedUnusedSdkComponents':removed,'freeBytes':shutil.disk_usage(sdk).free})
+          assert shutil.disk_usage(sdk).free >= 12*1024**3, 'Standard rendered Android image needs at least12GiB free before provisioning'
       - name: Provision an isolated Android 16 virtual device
         run: |
           export ANDROID_AVD_HOME="$RUNNER_TEMP/wrapperguard-avds"
           test -e /dev/kvm
           sudo chmod a+rw /dev/kvm
           df -h
-          sdkmanager 'system-images;android-36;aosp_atd;x86_64'
+          # ATD disables hardware rendering and cannot validate a real screenshot.
+          # https://developer.android.com/studio/test/managed-devices#use-atd
+          sdkmanager 'system-images;android-36;default;x86_64'
           mkdir -p "$ANDROID_AVD_HOME"
-          echo no | avdmanager create avd --name wrapperguard-acceptance --path "$ANDROID_AVD_HOME/wrapperguard-acceptance.avd" --package 'system-images;android-36;aosp_atd;x86_64' --device pixel_6
+          echo no | avdmanager create avd --name wrapperguard-acceptance --path "$ANDROID_AVD_HOME/wrapperguard-acceptance.avd" --package 'system-images;android-36;default;x86_64' --device pixel_6
           python - <<'PY'
           import os, pathlib
           directory = pathlib.Path(os.environ['ANDROID_AVD_HOME'])
           (directory / 'wrapperguard-acceptance.ini').write_text('avd.ini.encoding=UTF-8\npath=' + str(directory / 'wrapperguard-acceptance.avd') + '\ntarget=android-36\n')
           PY
-          "$ANDROID_SDK_ROOT/emulator/emulator" -avd wrapperguard-acceptance -no-window -no-audio -no-snapshot -no-boot-anim -gpu swiftshader_indirect > "$RUNNER_TEMP/emulator.log" 2>&1 &
+          "$ANDROID_SDK_ROOT/emulator/emulator" -avd wrapperguard-acceptance -no-window -no-audio -no-snapshot -no-boot-anim -gpu swiftshader > "$RUNNER_TEMP/emulator.log" 2>&1 &
           timeout 180 adb wait-for-device
       - name: Test real device runtime, accessibility tree and SDK response audit
         run: |

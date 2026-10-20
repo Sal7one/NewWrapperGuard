@@ -5,10 +5,10 @@ import { isWithin } from '../providers/customSetup';
 import { validateExecutable } from './setup';
 export interface ContainerSandbox {engine:'docker';executable:string;endpoint:string;image:string;allowRootfulDaemon:boolean;memoryMiB:number;cpus:number;pidsLimit:number}
 export function validatePinnedImage(image:string):void {
-  if(typeof image!=='string'||image.length>300||!/^(?:[a-z0-9][a-z0-9./:_-]*@)?sha256:[0-9a-f]{64}$/.test(image))throw new Error('Choose an already installed image by exact sha256 digest. Tags and automatic pulls are not allowed.');
+  if(typeof image!=='string'||!/^(?:[a-z0-9][a-z0-9._:/-]{0,199}@)?sha256:[0-9a-f]{64}$/.test(image))throw new Error('Choose an already installed image by exact sha256 digest. Tags and automatic pulls are not allowed.');
 }
 export function validateImageToolPath(file:string):void {
-  if(!file.startsWith('/')||file.length>4096||/[\u0000-\u0020\u007f\\]/.test(file)||file.split('/').slice(1).some(part=>!part||part==='.'||part==='..'))throw new Error('Use an absolute executable path inside the selected Linux image.');
+  if(!file.startsWith('/')||file.length>1024||/[\u0000-\u0020\u007f\\,]/.test(file)||file.split('/').slice(1).some(part=>!part||part==='.'||part==='..'))throw new Error('Use an absolute executable path inside the selected Linux image.');
 }
 export async function configureContainerSandbox(roots:string[]):Promise<ContainerSandbox|undefined> {
   if(process.platform==='win32')throw new Error('This optional Docker adapter requires a POSIX host with an explicit Unix socket. Use a supported Linux/WSL host for container analysis.');

@@ -36,9 +36,9 @@ and the host independently caps every action. Review the plan before enabling a 
   --plan --project /absolute/project
 ```
 
-Direct snapshot runners require POSIX; Windows users can import reports. ZAP's `.invalid`
+Direct snapshot runners support tested POSIX/Windows boundaries; report imports remain independently available. ZAP's `.invalid`
 origin is deliberately fictional and must be replaced with an explicitly authorized target.
-No active DAST runner exists. AI requires a local server/model and an outside-project host
+The separate HTTP audit makes bounded GET requests to an explicitly owned numeric-IP endpoint; it never discovers or starts a target. AI requires a local server/model and an outside-project host
 report; no model download occurs. Report imports do not prove current coverage.
 
 [Full setup guide](../../docs/integrations.md) · [Profile schema](../../schema/wrapperguard-integration-profile.schema.json)

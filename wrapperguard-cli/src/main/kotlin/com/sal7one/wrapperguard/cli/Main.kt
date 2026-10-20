@@ -1,5 +1,6 @@
 package com.sal7one.wrapperguard.cli
 
+import com.sal7one.wrapperguard.core.AppVersion
 import com.sal7one.wrapperguard.core.methods.MethodConfiguration
 import com.sal7one.wrapperguard.core.export.SarifExporter
 import com.sal7one.wrapperguard.core.model.BaselineEntry
@@ -33,7 +34,7 @@ internal fun runCli(args: Array<String>, output: PrintStream = System.out, error
     return try {
         val options = CliOptions.parse(args)
         if (options.help) { output.println(HELP); return 0 }
-        if (options.version) { output.println("WrapperGuard 0.6.0"); return 0 }
+        if (options.version) { output.println("WrapperGuard ${AppVersion.current}"); return 0 }
         val root = options.project.toRealPath()
         require(Files.isDirectory(root))
         // Snapshot trusted settings before parsing: changes between load and first scope seal
@@ -193,7 +194,7 @@ private val HOST_KNOWN_SCOPE = ProviderInputScope(
 )
 
 private val HELP = """
-    WrapperGuard 0.6.0 — provider-based build and sync vetting
+    WrapperGuard ${AppVersion.current} — provider-based build and sync vetting
     Usage: wrapperguard-cli [options] [project-directory]
 
       --providers <absolute-file>  User-owned JSON configuration outside the project
