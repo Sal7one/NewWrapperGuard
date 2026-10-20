@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="320" viewBox="0 0 1280 320" fill="none" role="img" aria-labelledby="title desc">
+  <title id="title">WrapperGuard</title>
+  <desc id="desc">Your security tools. One developer workspace. Android Studio, IntelliJ IDEA, VS Code and CLI/CI.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1280" y2="320" gradientUnits="userSpaceOnUse"><stop stop-color="#11111D"/><stop offset="1" stop-color="#1B1631"/></linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientTransform="translate(1038 154) rotate(90) scale(230 330)" gradientUnits="userSpaceOnUse"><stop stop-color="#7C5CFC" stop-opacity=".25"/><stop offset="1" stop-color="#7C5CFC" stop-opacity="0"/></radialGradient>
+    <linearGradient id="shield" x1="982" y1="99" x2="1088" y2="217" gradientUnits="userSpaceOnUse"><stop stop-color="#D1C5FF"/><stop offset="1" stop-color="#8C75F5"/></linearGradient>
+  </defs>
+  <rect x="1" y="1" width="1278" height="318" rx="24" fill="url(#background)" stroke="#373047"/>
+  <rect x="1" y="1" width="1278" height="318" rx="24" fill="url(#glow)"/>
+  <g font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif">
+    <text x="52" y="55" fill="#B9A8FF" font-size="14" font-weight="700" letter-spacing="3">WRAPPERGUARD</text>
+    <text x="48" y="124" fill="#F6F3FF" font-size="51" font-weight="700" letter-spacing="-1.8">Your security tools.</text>
+    <text x="48" y="184" fill="#F6F3FF" font-size="51" font-weight="700" letter-spacing="-1.8">One developer workspace.</text>
+    <g fill="#1F1B30" stroke="#4C415F"><rect x="50" y="234" width="150" height="35" rx="17.5"/><rect x="211" y="234" width="135" height="35" rx="17.5"/><rect x="357" y="234" width="104" height="35" rx="17.5"/><rect x="472" y="234" width="96" height="35" rx="17.5"/></g>
+    <g fill="#DAD4E8" font-size="14" font-weight="500" text-anchor="middle"><text x="125" y="256">Android Studio</text><text x="278.5" y="256">IntelliJ IDEA</text><text x="409" y="256">VS Code</text><text x="520" y="256">CLI / CI</text></g>
+  </g>
+  <g stroke="#9E89F4"><circle cx="1038" cy="158" r="126" opacity=".12"/><circle cx="1038" cy="158" r="95" opacity=".17"/><circle cx="1038" cy="158" r="64" opacity=".22"/></g>
+  <path d="m1038 99-49 20v39c0 33 21 56 49 72 28-16 49-39 49-72v-39l-49-20Z" fill="#27203F" stroke="url(#shield)" stroke-width="4" stroke-linejoin="round"/>
+  <path d="m1015 161 17 17 33-39" stroke="url(#shield)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="#201A31" stroke="#5D4C7A"><rect x="873" y="73" width="73" height="52" rx="10"/><rect x="1133" y="101" width="73" height="52" rx="10"/><rect x="904" y="218" width="73" height="52" rx="10"/><rect x="1113" y="221" width="73" height="52" rx="10"/></g>
+  <g stroke="#A997D7" stroke-width="3" stroke-linecap="round" opacity=".8"><path d="m895 91-7 8 7 8m27-16 7 8-7 8m-14-18-5 20"/><path d="M1152 120h33m-33 10h22"/><path d="M924 237h33m-33 10h22"/><path d="m1134 241 7 7 15-16"/></g>
+  <g fill="#BFAEFF"><circle cx="947" cy="163" r="3"/><circle cx="1096" cy="78" r="3"/><circle cx="1118" cy="184" r="3"/></g>
+</svg>
