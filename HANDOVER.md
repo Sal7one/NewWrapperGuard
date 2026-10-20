@@ -1,14 +1,20 @@
-# WrapperGuard frozen release handover
+# WrapperGuard release handover
 
-**Work stopped at the user's request on 2026-10-20.** The user accepted a partial roadmap and requested documentation, a release and handover. Do not resume implementation, research or platform fixes unless the user asks. This file is the restart record, not an instruction to keep working.
+**Merge/release checkpoint: 2026-10-20.** After accepting the partial roadmap, the user explicitly resumed work only to merge all PRs into master and create a release. No broader implementation, research or platform-fix work is implied. Resume deferred roadmap items only when requested.
 
-Candidate **v0.7.0-rc.1** contains app **0.7.0**, SDK **0.4.0**, provider **API 1 / schema 1**. The [release](https://github.com/Sal7one/NewWrapperGaurd/releases/tag/v0.7.0-rc.1) and its `RELEASE-MANIFEST.json` identify the actual tag, build source, documentation source, assets and checksums. Verify them before reproducing or republishing anything. Preserve earlier releases.
+## Master merge and RC2
 
-## Frozen build and provenance
+[PR #4](https://github.com/Sal7one/NewWrapperGaurd/pull/4) merged normally into master at **980561993ca284e3e2fff9ef43cf0d2831a278a9** on **2026-10-20T20:26:22Z**. [PR #3](https://github.com/Sal7one/NewWrapperGaurd/pull/3), with the identical head, was recorded as merged into the same commit at 20:26:24Z. No open PRs remained at this checkpoint. All source changes from both branches are integrated.
+
+Candidate **v0.7.0-rc.2** contains app **0.7.0**, SDK **0.4.0**, provider **API 1 / schema 1**. The [RC2 release](https://github.com/Sal7one/NewWrapperGaurd/releases/tag/v0.7.0-rc.2) and its `RELEASE-MANIFEST.json` identify actual uploaded packages, hashes, build source and documentation/tag source. Main master CI is [39491977070](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39491977070); host compatibility is [39491977067](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39491977067). Final release metadata records their actual outcomes, without treating pending or failed jobs as passes. The RC2 bundle is assembled with its own RC2 label; the workflow's internal RC1-labeled acceptance bundle is not renamed and misrepresented.
+
+The merged tree equals the frozen RC1 tag's tree. This checkpoint only updates docs. If the RC2 tag includes this later documentation commit, the manifest distinguishes **binary build source 9805619** from **documentation/bundle source**, with an unchanged-production-source proof. This is not a new feature or a claim that a docs-only commit was separately compiled in CI. Preserve all earlier releases.
+
+## Historical RC1 build and provenance
 
 The accepted installer set was built by [CI 39485233803](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39485233803), branch head **ce1a2c48294cc9bc2771f8d74ac6096867bf8dd8**, tested checkout **1c69fa84019eae80d6c1d3ad05c73e796d73721c**. Later source changes are documentation and an application-only test fixture; they change no production source. Release metadata keeps the installer build commit separate from the final documentation/tag commit. The refreshed bundle uses the audited CI installer bytes and current guides; it does not claim a new CI build of the documentation commit.
 
-## Completed acceptance
+## Recorded acceptance baseline
 
 - Main CI passed: minimum-platform build, 234 JVM tests, Python SDK matrix, Node checks, conformance/parity and runtime audit. Local suites also passed 158 Node and 53 script cases.
 - The delivered ce1 bundle passed 348 checksum records, hidden-workflow delivery, offline Markdown closure and exact CLI ZIP byte/mode checks. All host SDK wheels are identical; the backend is pinned to setuptools 84.2.1. Actual packaged CLI gate checks passed on macOS/JDK 21 as well as Linux CI.
@@ -28,7 +34,7 @@ Human screen-reader/independent usability review, physical-phone acceptance, pub
 
 ## Resume only when requested
 
-1. Read this file, the release manifest and [verification](docs/verification.md). Check the actual GitHub tag/assets and PR #3 state before assuming publication or merge status. Do not publish a duplicate release.
+1. Read this file, the release manifest and [verification](docs/verification.md). Check actual tag/assets before assuming publication state; PRs #3 and #4 were merged at the recorded master checkpoint. Do not publish a duplicate release.
 2. Inspect the working tree and preserve local changes. Read the manifest's source identities and historical failed reports before reopening a specific deferred item.
 3. Choose a narrow scope with the user. Keep optional tools independently replaceable and retain the trust/authority invariants below.
 

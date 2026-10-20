@@ -1,6 +1,6 @@
 # Roadmap and release gates
 
-**Frozen on 2026-10-20 at the user's request.** The user accepted a partial roadmap and requested release/handover, then a stop. App **0.7.0**, SDK **0.4.0**, provider **API 1 / schema 1**. The [release manifest](https://github.com/Sal7one/NewWrapperGaurd/releases/tag/v0.7.0-rc.1) identifies actual build/tag/asset provenance. No roadmap item should be resumed automatically. [Verification](verification.md) gives tests; [handover](../HANDOVER.md) records the restart context.
+**Master/RC2 checkpoint: 2026-10-20.** The user resumed work to merge all PRs and create a release. PRs #3 and #4 are merged into **9805619**; no open PRs remained at that checkpoint. The broader partial roadmap stays paused. App **0.7.0**, SDK **0.4.0**, provider **API 1 / schema 1**. [RC2 release metadata](https://github.com/Sal7one/NewWrapperGaurd/releases/tag/v0.7.0-rc.2) records actual package/build/doc identities and test results. [Verification](verification.md) gives tests; [handover](../HANDOVER.md) gives restart context.
 
 ## Implemented and tested
 
@@ -20,11 +20,11 @@
 | Resources | Real-project source subsets, generated 4096 files, byte/file/depth caps and cancellation driver | Repeatable p50/p95/RSS JSON and resource CI; incomplete results never counted clean |
 | Distribution preparation | Runtime SBOM/license/known-advisory checks, vulnerability reporting, reproducible wheel byte identity and bundle tooling | ce1 main CI, pinned wheel, hidden upload/download roundtrip, 348 checksum records and standalone macOS/Linux gate checks passed |
 
-## Frozen release scope
+## Release scope and merged source
 
-The candidate uses audited ce1 CI installer bytes, current documentation and explicit source-equivalence/build provenance. Minimum IDEA 2025.2 runtime, actual Studio 261 startup/Tools/paused automation, six VS Code hosts and the owned Android emulator fixture are accepted within their recorded scope. No failed test is waived or relabeled.
+RC2 uses the merged master build and current documentation with explicit source-equivalence/build provenance; RC1 retains its original audited ce1 CI installer bytes. Minimum IDEA 2025.2 runtime, actual Studio 261 startup/Tools/paused automation, six VS Code hosts and the owned Android emulator fixture are accepted within their recorded scope. No failed test is waived or relabeled.
 
-The newer IDEA 262 runtime follow-up is deferred unless its in-flight result is already recorded in release metadata. At ce1 the binary verifiers passed, while unrelated Ultimate project post-startup initialization prevented two test bodies. The d611 application-only fixture preserves those assertions and all heavy guard tests; local six-case preflight passed. Full newer-host lifecycle acceptance is not claimed. PR #3 merge status is recorded separately from release publication.
+The newer IDEA 262 runtime follow-up is deferred unless its in-flight result is already recorded in release metadata. At ce1 the binary verifiers passed, while unrelated Ultimate project post-startup initialization prevented two test bodies. The d611 application-only fixture preserves those assertions and all heavy guard tests; local six-case preflight passed. Full newer-host lifecycle acceptance is not claimed. PRs #3 and #4 are merged; publication and actual supported-host evidence remain separate records.
 
 ## Deferred roadmap — resume only when requested
 

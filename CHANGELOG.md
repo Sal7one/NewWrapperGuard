@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.0 — Release candidate 2
+
+- Integrate PRs #4 and #3 into master through normal and indirect merges at 9805619; no open PRs remain at the merge checkpoint.
+- Package the merged source with current handover/test guides and explicit build-versus-documentation provenance; preserve RC1 assets.
+- Keep the accepted partial feature scope and deferred accessibility, physical-device, publication-channel and research work unchanged. Release metadata records actual CI/host results.
+
 ## 0.7.0 — Release candidate 1
 
 Frozen partial-roadmap snapshot at the user’s request (2026-10-20). Installer-build and final documentation/tag provenance are recorded separately in release metadata. Further roadmap work is stopped.

@@ -5,10 +5,10 @@ Review application source, build inputs and dependency findings together. Choose
 analyzers you need and control whether each can warn, alert, stop a build or stop Gradle sync.
 
 **Current development version: 0.7.0 · Python integration SDK: 0.4.0 · Provider API: 1.**
-The **0.7.0 RC1 snapshot is frozen at the user’s request with a partial roadmap**.
-[Release builds and checksums](https://github.com/Sal7one/NewWrapperGaurd/releases/tag/v0.7.0-rc.1)
+The **0.7.0 RC2 checkpoint integrates all PRs into master**; the remaining feature roadmap stays paused.
+[Release builds and checksums](https://github.com/Sal7one/NewWrapperGaurd/releases/tag/v0.7.0-rc.2)
 identify the accepted artifact set. See [verification](docs/verification.md) for real install/test
-instructions and [the handover](HANDOVER.md) for exact provenance and deferred work. Development is stopped until requested.
+instructions and [the handover](HANDOVER.md) for exact provenance and deferred work. Further feature work resumes only when requested.
 [The changelog](CHANGELOG.md) records product changes.
 
 ## Start in the IDE

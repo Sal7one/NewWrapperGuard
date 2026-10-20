@@ -1,6 +1,6 @@
 # Build and acceptance verification
 
-App **0.7.0**, SDK **0.4.0**, provider **API 1 / schema 1**; frozen candidate **v0.7.0-rc.1**. The user accepted a partial roadmap and stopped further development. Accepted installers come from ce1 main CI 39485233803, tested checkout **1c69fa84019eae80d6c1d3ad05c73e796d73721c**. The tag additionally records documentation/test-only changes. Release `RELEASE-MANIFEST.json` separates installer-build, bundle/documentation and tag commits; no new CI pass is implied for a documentation-only commit. [Handover](../HANDOVER.md) records completed and deferred scope.
+App **0.7.0**, SDK **0.4.0**, provider **API 1 / schema 1**; candidate **v0.7.0-rc.2**. PRs #3/#4 are merged at master **980561993ca284e3e2fff9ef43cf0d2831a278a9**. Fresh main CI is **39491977070**; RC2 release metadata records actual completed tests and asset hashes. The package build source and any later documentation/tag commit are recorded separately; no new CI pass is implied for a docs-only commit. RC1's original ce1 artifacts and evidence remain historical. The wider partial roadmap stays paused. [Handover](../HANDOVER.md) records exact scope.
 
 The **acceptance bundle** supports standalone manual installation and `CHECK-GATES.py` with JDK 21/Python 3.10+. The **source build, regression suites and Android driver commands below require a full Git checkout** of the recorded source. The bundle includes fixture sources/workflows, but does not include every repository script or Git history.
 
@@ -147,12 +147,12 @@ Use a clean committed full checkout and build all four packages from that exact 
 
 ```sh
 python3 scripts/distribution-audit.py --output "$PWD/build/distribution-audit" --query-osv
-python3 scripts/package-test-bundle.py --tag v0.7.0-rc.1 \
-  --output /absolute/new/persistent/wrapperguard-0.7.0-rc.1
+python3 scripts/package-test-bundle.py --tag v0.7.0-rc.2 \
+  --output /absolute/new/persistent/wrapperguard-0.7.0-rc.2
 ```
 
 Both output directories must be new. The audit checks shipped runtime closure, licenses, source/wheel identity and matching SDKs. Optional live OSV queries send five dependency identities/versions; no advisories is not proof of no vulnerabilities. The packager captures audited artifact bytes, extracts CLI from that ZIP, validates offline Markdown destinations and rejects dirty source or changed hashes.
 
 Final CI must pass standalone packaged `CHECK-GATES.py`, upload hidden workflow files, download the delivered artifact and verify both `SHA256SUMS` and `BUNDLE-SHA256SUMS.txt`. Artifact transport can drop loose-file executable modes; use the nested ZIP or restore the CLI launcher's mode for manual tests.
 
-First check whether the intended canonical 0.7 release/tag is already present and verified; if so, use it rather than republishing. The user accepted this frozen partial prerelease from the recorded verified ce1 installer build. Its refreshed documentation bundle and tag include only documentation/test-fixture changes; manifest provenance distinguishes those commits from the actual artifact build. For a future full-scope release, require current PR checks, the complete native matrix, source-appropriate installer acceptance and final merged-source CI. Verify source identities, uploaded hashes and real test instructions. Human screen-reader/usability review, physical hardware, signing/public channels and research/model quality remain deferred [roadmap](roadmap.md) work. Do not resume automatically.
+First check whether the intended canonical 0.7 release/tag is already present and verified; if so, use it rather than republishing. RC1 retains its verified ce1 installer build. RC2 uses the merged master build and records its actual completed validation in release metadata. Its refreshed documentation bundle and tag include only documentation/test-fixture changes; manifest provenance distinguishes those commits from the actual artifact build. For a future full-scope release, require current PR checks, the complete native matrix, source-appropriate installer acceptance and final merged-source CI. Verify source identities, uploaded hashes and real test instructions. Human screen-reader/usability review, physical hardware, signing/public channels and research/model quality remain deferred [roadmap](roadmap.md) work. Do not resume automatically.
