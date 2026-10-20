@@ -11,7 +11,7 @@ permissions:
 
 concurrency:
   group: android-device-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   android-build:
@@ -46,8 +46,6 @@ jobs:
     needs: android-build
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    env:
-      ANDROID_AVD_HOME: ${{ runner.temp }}/wrapperguard-avds
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -70,6 +68,7 @@ jobs:
         run: python -m pip install ./sdk/python
       - name: Provision an isolated Android 16 virtual device
         run: |
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/wrapperguard-avds"
           test -e /dev/kvm
           sudo chmod a+rw /dev/kvm
           df -h
@@ -93,3 +92,6 @@ jobs:
           path: |
             ${{ runner.temp }}/android-evidence/
             ${{ runner.temp }}/emulator.log
+      - name: Stop only the acceptance emulator
+        if: always()
+        run: adb -s emulator-5554 emu kill || true
