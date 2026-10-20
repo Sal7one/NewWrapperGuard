@@ -18,18 +18,19 @@
 | Integrations | Shared provider conformance and reviewed Python/PowerShell/Gradle/Maven/GitHub CLI recipes | Installed JVM and real VS Code host acceptance; recipes never grant execution authority |
 | Research | Pinned 77-source static corpus, limitations/misses, two real local models and reproducible metadata-only results | [Research record](../research/README.md); weak signal coverage and unreliable model prose explicitly retained |
 | Resources | Real-project source subsets, generated 4096 files, byte/file/depth caps and cancellation driver | Repeatable p50/p95/RSS JSON and resource CI; incomplete results never counted clean |
-| Distribution preparation | Runtime SBOM/license/known-advisory checks, vulnerability reporting, reproducible wheel byte identity and bundle tooling | ce1 main CI, pinned wheel, hidden upload/download roundtrip, 348 checksum records and standalone macOS/Linux gate checks passed |
+| Distribution preparation | Runtime SBOM/license/known-advisory checks, vulnerability reporting, reproducible wheel byte identity and bundle tooling | Merged master main CI, 234 JVM cases, pinned wheel, hidden upload/download roundtrip and 348 delivered checksum records passed; identical CLI retains actual macOS/Linux gate proof |
 
 ## Release scope and merged source
 
-RC2 uses the merged master build and current documentation with explicit source-equivalence/build provenance; RC1 retains its original audited ce1 CI installer bytes. Minimum IDEA 2025.2 runtime, actual Studio 261 startup/Tools/paused automation, six VS Code hosts and the owned Android emulator fixture are accepted within their recorded scope. No failed test is waived or relabeled.
+RC2 uses the merged master build and current documentation with explicit source-equivalence/build provenance; RC1 retains its original audited ce1 CI installer bytes. IDEA 2025.2/2026.2.2/2026.2.3 each passed all six descriptor/component cases with zero failures/errors/skips, and all three binary verifiers are compatible with zero internal API usages. Actual Studio 261 startup/Tools/paused automation, six VS Code hosts and the owned Android emulator fixture are accepted within their recorded scope. No failed test is waived or relabeled.
 
-The newer IDEA 262 runtime follow-up is deferred unless its in-flight result is already recorded in release metadata. At ce1 the binary verifiers passed, while unrelated Ultimate project post-startup initialization prevented two test bodies. The d611 application-only fixture preserves those assertions and all heavy guard tests; local six-case preflight passed. Full newer-host lifecycle acceptance is not claimed. PRs #3 and #4 are merged; publication and actual supported-host evidence remain separate records.
+The merged-source matrix closes the descriptor/component fixture follow-up. Earlier ce1 failures remain recorded; the application-only fixture preserves all assertions and all heavy guard tests. Full newer-host project lifecycle acceptance is not claimed. PRs #3 and #4 are merged; publication and actual supported-host evidence remain separate records.
 
 ## Deferred roadmap — resume only when requested
 
 | Area | Current status | Next evidence / work |
 |---|---|---|
+| Newer IDE project lifecycle | Three-target descriptor/component and binary checks passed; actual Studio 261 startup/Tools/PAUSED proof retained | Install the released package on each chosen newer host and repeat live project startup, build/sync veto, cancellation, upgrade and removal acceptance |
 | Accessibility and usability | Actual keyboard, AX tree, four themes, narrow layout, focus/cancel/error checks passed | Human screen-reader session and independent usability review; fix issues they reveal |
 | Physical device | Emulator result recorded; no physical-device acceptance recorded | When hardware is available, run the same owned-fixture driver against an explicitly selected authorized device and retain separate evidence |
 | Public channels and signing | GitHub/manual installer path supported; Marketplace/PyPI credentials and publisher signing not configured | Choose channels, configure publisher identity/credentials/signing where supported, and validate real install/update behavior |

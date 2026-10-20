@@ -5,7 +5,7 @@ Review application source, build inputs and dependency findings together. Choose
 analyzers you need and control whether each can warn, alert, stop a build or stop Gradle sync.
 
 **Current development version: 0.7.0 · Python integration SDK: 0.4.0 · Provider API: 1.**
-The **0.7.0 RC2 checkpoint integrates all PRs into master**; the remaining feature roadmap stays paused.
+The **0.7.0 RC2 checkpoint (2026-10-20) integrates all PRs into master**; the remaining feature roadmap stays paused.
 [Release builds and checksums](https://github.com/Sal7one/NewWrapperGaurd/releases/tag/v0.7.0-rc.2)
 identify the accepted artifact set. See [verification](docs/verification.md) for real install/test
 instructions and [the handover](HANDOVER.md) for exact provenance and deferred work. Further feature work resumes only when requested.

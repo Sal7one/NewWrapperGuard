@@ -6,9 +6,15 @@
 
 [PR #4](https://github.com/Sal7one/NewWrapperGaurd/pull/4) merged normally into master at **980561993ca284e3e2fff9ef43cf0d2831a278a9** on **2026-10-20T20:26:22Z**. [PR #3](https://github.com/Sal7one/NewWrapperGaurd/pull/3), with the identical head, was recorded as merged into the same commit at 20:26:24Z. No open PRs remained at this checkpoint. All source changes from both branches are integrated.
 
-Candidate **v0.7.0-rc.2** contains app **0.7.0**, SDK **0.4.0**, provider **API 1 / schema 1**. The [RC2 release](https://github.com/Sal7one/NewWrapperGaurd/releases/tag/v0.7.0-rc.2) and its `RELEASE-MANIFEST.json` identify actual uploaded packages, hashes, build source and documentation/tag source. Main master CI is [39491977070](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39491977070); host compatibility is [39491977067](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39491977067). Final release metadata records their actual outcomes, without treating pending or failed jobs as passes. The RC2 bundle is assembled with its own RC2 label; the workflow's internal RC1-labeled acceptance bundle is not renamed and misrepresented.
+Candidate **v0.7.0-rc.2** contains app **0.7.0**, SDK **0.4.0**, provider **API 1 / schema 1**. The [RC2 release](https://github.com/Sal7one/NewWrapperGaurd/releases/tag/v0.7.0-rc.2) and its `RELEASE-MANIFEST.json` identify uploaded packages, hashes, build source and documentation/tag source. Main master CI [39491977070](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39491977070) passed, including **234 JVM cases with zero failures/errors/skips**, Python 3.10/3.12/3.14, Node, parity, conformance, runtime audit and the delivered-file checksum roundtrip. The RC2 bundle is assembled with its own RC2 label; the workflow's internal RC1-labeled acceptance bundle is retained only as build evidence.
 
-The merged tree equals the frozen RC1 tag's tree. This checkpoint only updates docs. If the RC2 tag includes this later documentation commit, the manifest distinguishes **binary build source 9805619** from **documentation/bundle source**, with an unchanged-production-source proof. This is not a new feature or a claim that a docs-only commit was separately compiled in CI. Preserve all earlier releases.
+The merged tree equals the frozen RC1 tag's tree. Later RC2 checkpoint commits only update five Markdown guides. The manifest distinguishes **binary build source 9805619** from the **documentation/bundle source**, with a complete changed-path proof. Preserve all earlier releases.
+
+Six real VS Code jobs passed **48 cases** on minimum/current editors across Linux/macOS/Windows. Its new VSIX changes only five README source links; all runtime entries and the SDK wheel match the accepted package. The new native ZIP, CLI ZIP and SDK wheel are byte-identical to the earlier actual-host-tested artifacts. Existing Studio 261 startup/Tools/PAUSED evidence keeps its original ce1 identity and limited scope; it is not relabeled as a new launch.
+
+Native host workflow [39491977067](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39491977067) passed **six descriptor/component cases on each of IDEA 2025.2, 2026.2.2 and 2026.2.3**, with zero failures/errors/skips and exact target-matched frameworks in both configurations. All three binary verifiers are compatible, with zero internal API usages. Minimum platform reports 4 deprecated/25 experimental usages; both 262 targets report 84 deprecated/12 experimental usages. Raw reports and exact case names are preserved. This closes the application-only fixture follow-up, while full newer-IDE project lifecycle acceptance remains separate.
+
+Fresh master Android [39491977008](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39491977008) passed on attempt 1: directly inspected unobscured owned UI, eight owned nodes, secure endpoint zero findings and weak endpoint three expected findings. Its APK/PNG hashes and unmodified evidence are in the RC2 acceptance archive. Windows scanners, Docker isolation, source rules, corpus and resource workflows also passed on the merged source. This remains emulator/agent evidence, not a physical-phone or human accessibility review.
 
 ## Historical RC1 build and provenance
 
@@ -26,7 +32,7 @@ The accepted installer set was built by [CI 39485233803](https://github.com/Sal7
 
 ## Deferred work and known limits
 
-The newer IDEA 2026.2.2/2026.2.3 runtime suites at ce1 failed in an unrelated Ultimate project post-startup extension before the two descriptor/component test bodies. The d611 follow-up moves those two project-free cases to the official `ApplicationRule`, preserving every assertion and all heavy project/build/sync tests. All six local cached-253 preflight cases passed. Consult release acceptance metadata for any completed remote follow-up; do not assume full newer-IDE startup/build/sync acceptance from binary verification alone. No further fixes are authorized by this handover.
+The ce1 newer-IDE fixture failures remain historical: an unrelated Ultimate project post-startup extension prevented two test bodies. The application-only `ApplicationRule` follow-up preserves every assertion and all heavy project/build/sync tests; the merged-source six-case matrix now passes on all three target IDEs. These component tests do not establish full newer-IDE startup/build/sync acceptance. That broader lifecycle work remains deferred; no further fixes are authorized by this handover.
 
 Human screen-reader/independent usability review, physical-phone acceptance, publisher signing, Marketplace/PyPI channels, broader detection evaluation and reliable AI explanation quality remain deferred. Research retains known misses, limited labels and incorrect/injected model prose. No complete-security, paper-parity or stable-1.0 claim is made. [Roadmap](docs/roadmap.md) records the remaining work.
 
@@ -42,7 +48,7 @@ All owned Studio processes were stopped; original profile properties were restor
 
 ## Workspace and tools
 
-This session uses `/private/tmp/wrapperguard-optional-methods` on `codex/flexible-provider-platform`; original repository `/Users/salehalanazi/Repos/NewWrapperGaurd`, remote `Sal7one/NewWrapperGaurd`. Use explicit workdirs; the original Documents workspace encountered macOS privacy restrictions. Root owns Git changes and publication; coordinate shared Gradle runs.
+The persistent repository is `/Users/salehalanazi/Repos/NewWrapperGaurd`, branch `master`, remote `Sal7one/NewWrapperGaurd`. Release work used `/private/tmp/wrapperguard-optional-methods`; use explicit workdirs because the original Documents workspace encountered macOS privacy restrictions. Root owns Git changes and publication; coordinate shared Gradle runs.
 
 | Tool or evidence | Location / rule |
 | --- | --- |
@@ -50,7 +56,8 @@ This session uses `/private/tmp/wrapperguard-optional-methods` on `codex/flexibl
 | Python | Python 3.10+ with pip; `/opt/homebrew/bin/python3.12`; SDK test environment `/private/tmp/wrapperguard-runtime-venv/bin/python` |
 | Node | Node 22+; `npm --prefix vscode-extension ci` before local checks |
 | Actual Studio | `/Applications/Android Studio.app`; disposable profile `/private/tmp/wrapperguard-studio-acceptance-736707cf/` |
-| Current temporary package review | `/private/tmp/wrapperguard-release-audit-a97dcd1/`; nested bundle, four verified packages and `verification.json` retained |
+| Persistent releases | `/Users/salehalanazi/Repos/NewWrapperGaurd/build/releases/`; preserve RC1 and RC2 bundles, flat publication assets and publication records |
+| Merged-source evidence | `/private/tmp/wrapperguard-ci-review-master-9805619/` and `/private/tmp/wrapperguard-final-vscode-matrix-master-9805619/`; final release evidence archive preserves the accepted reports |
 | Script log | `/private/tmp/wrapperguard-scripts-final-53.log` |
 | Research | Tracked `research/results/2026-10-20/`; acquired inert sources stay outside Git at `/private/tmp/wrapperguard-research-final` |
 

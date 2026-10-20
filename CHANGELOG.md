@@ -4,6 +4,7 @@
 
 - Integrate PRs #4 and #3 into master through normal and indirect merges at 9805619; no open PRs remain at the merge checkpoint.
 - Package the merged source with current handover/test guides and explicit build-versus-documentation provenance; preserve RC1 assets.
+- Validate the merged build with 234 JVM cases, 48 VS Code host cases, all six native descriptor/component cases on each of IDEA 2025.2/2026.2.2/2026.2.3, and fresh Android emulator acceptance. All three native binary verifiers are compatible with zero internal API usages; deprecated/experimental API notices remain recorded.
 - Keep the accepted partial feature scope and deferred accessibility, physical-device, publication-channel and research work unchanged. Release metadata records actual CI/host results.
 
 ## 0.7.0 — Release candidate 1
