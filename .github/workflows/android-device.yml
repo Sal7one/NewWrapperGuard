@@ -27,6 +27,11 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
+      - name: Provision Android command-line tools and emulator
+        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+        with:
+          packages: 'platform-tools emulator'
+          log-accepted-android-sdk-licenses: 'false'
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.13'
@@ -42,11 +47,11 @@ jobs:
           sudo chmod a+rw /dev/kvm
           sdkmanager 'system-images;android-36;google_apis;x86_64'
           echo no | avdmanager create avd --name wrapperguard-acceptance --package 'system-images;android-36;google_apis;x86_64' --device pixel_6
-          "$ANDROID_HOME/emulator/emulator" -avd wrapperguard-acceptance -no-window -no-audio -no-snapshot -no-boot-anim -gpu swiftshader_indirect > "$RUNNER_TEMP/emulator.log" 2>&1 &
+          "$ANDROID_SDK_ROOT/emulator/emulator" -avd wrapperguard-acceptance -no-window -no-audio -no-snapshot -no-boot-anim -gpu swiftshader_indirect > "$RUNNER_TEMP/emulator.log" 2>&1 &
           timeout 180 adb wait-for-device
       - name: Test real device runtime, accessibility tree and SDK response audit
         run: |
-          python scripts/android-device-acceptance.py --adb "$ANDROID_HOME/platform-tools/adb" --serial emulator-5554 --apk examples/android-acceptance/app/build/outputs/apk/debug/app-debug.apk --output "$RUNNER_TEMP/android-evidence" --sdk-python "$(command -v python)"
+          python scripts/android-device-acceptance.py --adb "$ANDROID_SDK_ROOT/platform-tools/adb" --serial emulator-5554 --apk examples/android-acceptance/app/build/outputs/apk/debug/app-debug.apk --output "$RUNNER_TEMP/android-evidence" --sdk-python "$(command -v python)"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+import re
 import stat
 import tempfile
 import time
@@ -144,12 +145,21 @@ def run_bandit(profile: IntegrationProfile, project_root: Path) -> tuple[dict, l
 def _rebase(document: object, snapshot: Path) -> object:
     """Map only actual snapshot-prefixed source paths back to project-relative locations."""
     prefixes = (str(snapshot) + os.sep, snapshot.as_uri() + "/")
+    # Go scanners such as OSV emit slash-separated Windows drive paths while
+    # Path uses backslashes. Match only the exact owned root + separator, using
+    # Windows case semantics, never an arbitrary absolute source path.
+    windows_root = (str(snapshot).replace("\\", "/").rstrip("/") + "/"
+                    if re.match(r"^[A-Za-z]:[\\/]", str(snapshot)) else None)
     def visit(value: object, depth: int) -> object:
         if depth > 128:
             raise ValueError("Report nesting exceeds limit")
         if isinstance(value, str):
+            if windows_root is not None:
+                portable = value.replace("\\", "/")
+                if portable.casefold().startswith(windows_root.casefold()):
+                    return portable[len(windows_root):] or "./"
             for prefix in prefixes:
-                if value.startswith(prefix):
+                if value.startswith(prefix) or windows_root is not None and value.casefold().startswith(prefix.casefold()):
                     return value[len(prefix):].replace(os.sep, "/") or "./"
             return value
         if isinstance(value, list):
