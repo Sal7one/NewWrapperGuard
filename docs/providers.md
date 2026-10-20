@@ -248,7 +248,7 @@ analyzer's detection accuracy, OS isolation, remote dependencies or licensing. E
 runtime deadline/output/action clipping and cancellation regressions remain required.
 
 Shared [presets](../catalog/security-presets.json) change method flags only after review.
-They never install tools, enable commands, grant blockers or trigger an analysis. An enabled
+They never install tools, change saved provider permissions, grant blockers or trigger an analysis. A reviewed true flag can restore eligibility for an already enabled/granted connection that a false flag had masked. An enabled
 method with no connected enabled provider makes coverage incomplete. A provider intentionally bound to another selected project is disabled there and does not create a missing-connection failure.
 
 ## Optional local history

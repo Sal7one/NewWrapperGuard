@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "headSha": "76312ace4306c906c329e408346a59d2e893f3c7",
+  "workflowRun": 39459625955,
+  "url": "https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39459625955",
+  "artifactVerification": "All six immutable host artifacts report API1, expected editor/platform and all eight required cases.",
+  "allSixJobsCompleteAndSuccessful": true,
+  "jobs": [
+    {
+      "conclusion": "success",
+      "id": 118755379882,
+      "name": "VS Code 1.95.0 on macos-latest",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 118755379916,
+      "name": "VS Code 1.142.0 on macos-latest",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 118755379993,
+      "name": "VS Code 1.95.0 on windows-latest",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 118755379995,
+      "name": "VS Code 1.142.0 on ubuntu-latest",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 118755380061,
+      "name": "VS Code 1.142.0 on windows-latest",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "id": 118755380320,
+      "name": "VS Code 1.95.0 on ubuntu-latest",
+      "status": "completed"
+    }
+  ],
+  "artifacts": [
+    {
+      "artifactId": 12281857512,
+      "artifact": "vscode-host-macos-latest-1.142.0.zip",
+      "artifactSha256": "350b239ea99fada6adbe6eca758ca04db9b3fc1f19181b8aba2acc9822b8040f",
+      "evidenceSha256": "f494a50d649b939067e569c6f4f02dfb8aa4200d872ebd289645faacf397b754",
+      "platform": "darwin",
+      "vscodeVersion": "1.142.0",
+      "caseCount": 8,
+      "passed": true
+    },
+    {
+      "artifactId": 12281384340,
+      "artifact": "vscode-host-macos-latest-1.95.0.zip",
+      "artifactSha256": "aaaba0858d9902938277ae69a6489e32fbde4fd1f1609470c06202e79fdd1b83",
+      "evidenceSha256": "f27e41ccc29b63b40f16dad4e9cde23803fac2847e48a9c9cbf87233497bbe22",
+      "platform": "darwin",
+      "vscodeVersion": "1.95.0",
+      "caseCount": 8,
+      "passed": true
+    },
+    {
+      "artifactId": 12281877524,
+      "artifact": "vscode-host-ubuntu-latest-1.142.0.zip",
+      "artifactSha256": "1a23c95e1574b7af2b8bed5630798541bd46364ec4a64f21a1bf75fdf64aeeae",
+      "evidenceSha256": "bd73f3d328afa0ac0b46acf33aa9186f9ae4b655e181d01f79c7e2b2cefad755",
+      "platform": "linux",
+      "vscodeVersion": "1.142.0",
+      "caseCount": 8,
+      "passed": true
+    },
+    {
+      "artifactId": 12281673939,
+      "artifact": "vscode-host-ubuntu-latest-1.95.0.zip",
+      "artifactSha256": "881944668fc7e7044895c35617957cd777aa236858a03095aa034f1b34475f55",
+      "evidenceSha256": "724a9f943a511a934867087063595e7f11e608e4e5954900ee809808da55943c",
+      "platform": "linux",
+      "vscodeVersion": "1.95.0",
+      "caseCount": 8,
+      "passed": true
+    },
+    {
+      "artifactId": 12282216530,
+      "artifact": "vscode-host-windows-latest-1.142.0.zip",
+      "artifactSha256": "3dc4481a49feb60d6202f5d0dfdb038c870b01052d60ffa613896a29a0b174d8",
+      "evidenceSha256": "d30e8f5e7b57850081bdd3c28a09bdb1ec291f9f5576b9458043de612962ff95",
+      "platform": "win32",
+      "vscodeVersion": "1.142.0",
+      "caseCount": 8,
+      "passed": true
+    },
+    {
+      "artifactId": 12282640672,
+      "artifact": "vscode-host-windows-latest-1.95.0.zip",
+      "artifactSha256": "c16037ca817d9a017f9c558a0cffd4e4d63190ee5714b0254d4072e6544645cc",
+      "evidenceSha256": "9c00a830662a9e5b3ab0fa31140f60b04fe3cedeb0bf9e3f21a4853b0e4ad5b3",
+      "platform": "win32",
+      "vscodeVersion": "1.95.0",
+      "caseCount": 8,
+      "passed": true
+    }
+  ]
+}

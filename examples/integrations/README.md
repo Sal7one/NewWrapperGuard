@@ -23,11 +23,13 @@ Keep host provider grants separate from these analysis profiles.
 | [osv.profile.json](osv.profile.json) | Import OSV-Scanner dependency findings |
 | [osv-runner.profile.json](osv-runner.profile.json) | Inspect selected dependency inputs without transitive resolution |
 | [zap.profile.json](zap.profile.json) | Import ZAP results within exact target scope |
+| [owned-http-audit.profile.json](owned-http-audit.profile.json) | Bounded GET header/cookie audit of an explicitly owned numeric-IP/path target |
+| [container-python.profile.json](container-python.profile.json) | Advisory selected-entry Python execution in the separately reviewed local immutable-image Docker boundary |
 | [script-semantics.profile.json](script-semantics.profile.json) | Run bounded, advisory Python/PowerShell behavior checks |
 | [ai-review.profile.json](ai-review.profile.json) | Explain existing findings with a configured loopback model |
 | [host-providers.example.json](host-providers.example.json) | Register two profiles; external providers start disabled |
 
-Profiles default to SCAN and WARNING. `projectRoot` optionally binds a profile to one canonical project. GUI-created report and AI connections are project-bound. Bundled Semgrep `rulePacks` and an external `rulesPath` are mutually exclusive. Advisory methods request no blocking authority,
+Ordinary analysis profiles default to SCAN and WARNING; advisory research/AI profiles request no actions. The HTTP audit and container research examples are SCAN-only. All 17 analysis profiles and the separate host-provider example are validated by `scripts/validate-integration-profiles.py`. `projectRoot` optionally binds a profile to one canonical project. GUI-created report and AI connections are project-bound. Bundled Semgrep `rulePacks` and an external `rulesPath` are mutually exclusive. Advisory methods request no blocking authority,
 and the host independently caps every action. Review the plan before enabling a connection:
 
 ```sh

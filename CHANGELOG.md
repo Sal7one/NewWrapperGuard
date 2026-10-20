@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.7.0 — Release candidate
+## 0.7.0 — Unreleased candidate work
 
 - Add reviewed per-session debounced/scheduled SCAN automation, with independent provider network/cost declarations, explicit Start/Pause and no immediate execution on save/start.
 - Add optional bounded owned-target HTTP header/cookie audits, exact numeric-IP/path scope and authentication environment-variable names.
@@ -11,6 +11,8 @@
 - Add minimum/current real VS Code hosts on three OSes, IntelliJ verifier matrix, real Android Studio upgrade/removal and Android 16 emulator acceptance.
 - Add pinned 77-source static research acquisition, honest missed-signal reporting, two real local-model diagnostic evaluations, resource budgets and runtime dependency/license inventory.
 - Fix PowerShell module/uppercase extension coverage, shell assignment false positives, canceled setup execution, UI focus recovery and SCAN-only managed-provider gate applicability.
+- Compile native releases against the minimum IntelliJ 2025.2 platform; handle the exact released Jewel factory signatures and exercise the real factory on minimum/intermediate/current runtimes.
+- Retain actual six-job VS Code host results and inspected Android emulator UI/HTTP evidence, including separately labeled rejected earlier captures. Final candidate packaging and publication remain pending.
 
 ## 0.6.0 — Release candidate 1 (2026-10-20)
 

@@ -36,7 +36,7 @@ code and prospective real projects. Report false alarms per project, missed beha
 latency, unsupported inputs and drift alongside detection metrics. Tiny synthetic fixtures
 can verify parser behavior and regressions; they cannot establish real-world detection quality.
 
-Current regressions use inert fixtures and generated examples. A separately pinned77-source real corpus and two actual local-model diagnostic runs now have [reproducible records](../research/README.md), including substantial misses and incorrect/injection-contaminated explanations. Real Bandit and Semgrep smoke tests
+Current regressions use inert fixtures and generated examples. A separately pinned 77-source real corpus and two actual local-model diagnostic runs now have [reproducible records](../research/README.md), including substantial misses and incorrect/injection-contaminated explanations. Real Bandit and Semgrep smoke tests
 verify their integration and selected rules, rather than measuring malware-classification
 accuracy. No corpus payloads or models are bundled, and there is no population false-positive rate or claim of research-paper parity. The [verification record](verification.md) separates those checks.
 

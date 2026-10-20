@@ -1,6 +1,6 @@
 # Build and acceptance verification
 
-Checkpoint **2026-10-20**: app **0.7.0**, SDK **0.4.0**, provider **API 1 / schema 1**. This is candidate acceptance work. The previous [0.6.0 RC1 release](https://github.com/Sal7one/NewWrapperGaurd/releases/tag/v0.6.0-rc.1) remains unchanged. Final release metadata/checksums identify the packaged commit; earlier CI is evidence for its recorded checkpoint only.
+Checkpoint **2026-10-20**, runtime source **`76312ac`**: app **0.7.0**, SDK **0.4.0**, provider **API 1 / schema 1**. This is candidate acceptance work. The previous [0.6.0 RC1 release](https://github.com/Sal7one/NewWrapperGaurd/releases/tag/v0.6.0-rc.1) remains unchanged. No 0.7 release or final acceptance bundle exists yet. Final release metadata/checksums identify the packaged commit; earlier CI is evidence for its recorded checkpoint only. [Handover](../HANDOVER.md) has the exact branch/CI state and ordered continuation procedure.
 
 ## Install and test the build
 
@@ -11,7 +11,7 @@ Checkpoint **2026-10-20**: app **0.7.0**, SDK **0.4.0**, provider **API 1 / sche
 | CLI | `wrapperguard-cli/build/install/wrapperguard-cli/bin/wrapperguard-cli` | JDK 21; use `:wrapperguard-cli:installDist` |
 | SDK | `build/sdk/wrapperguard_sdk-0.4.0-py3-none-any.whl` | Offline install into a dedicated trusted Python 3.10+ environment |
 
-The packaged test bundle includes installers, CLI, wheel, docs, inert source fixtures, checksums and `CHECK-GATES.py`. Verify its `SHA256SUMS` before installation. It is not a mobile WrapperGuard app: Android Studio/VS Code/CLI run on the development machine, while the separate Android acceptance app supplies a controlled device endpoint.
+The bundle generator includes installers, CLI, wheel, docs, inert source fixtures, checksums and `CHECK-GATES.py`. The published 0.6 bundle is historical; generate a new 0.7 bundle only after the remaining gates pass. Verify its `SHA256SUMS` before installation. It is not a mobile WrapperGuard app: Android Studio/VS Code/CLI run on the development machine, while the separate Android acceptance app supplies a controlled device endpoint.
 
 ### Ten-minute source-analysis check
 
@@ -44,27 +44,30 @@ wrapperguard-cli/build/install/wrapperguard-cli/bin/wrapperguard-cli \
   --operation build --enforce --json
 ```
 
-Exit2 means active granted blockers, exit1 invalid/incomplete input without a blocker, exit0 completed configured scope without blockers. INFO/audit/research output cannot block. The bundle's `CHECK-GATES.py` exercises actual provider behavior and action clipping.
+Exit 2 means active granted blockers, exit 1 invalid/incomplete input without a blocker, and exit 0 completed configured scope without blockers. INFO/audit output and bundled advisory research/AI methods cannot block; a custom provider category alone does not remove its explicitly granted authority. The bundle's `CHECK-GATES.py` exercises actual provider behavior and action clipping.
 
 ## Recorded evidence
 
+The exact-source workflows below all use branch head `76312ace4306c906c329e408346a59d2e893f3c7`. GitHub PR checkout commits can differ from the head; retain both identities from the evidence. The overall host workflow failed its two newer native runtime tasks; passing binary verifiers do not override those failures.
+
 | Check | Verified checkpoint | Scope |
 |---|---|---|
-| JVM | Core 96, rules 45, CLI 8, native 85 tests passed locally |234 tests; minimum-built [a7 CI](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39456452541) also passed before the final bridge adapter |
-| VS Code |156 tests,5 hardening checks, webview checks,8 actual local host cases | Real installed VS Code1.116; keyboard/AX/four themes/narrow/focus/cancel |
-| Python SDK |148 tests locally,9 Windows-only skips | Windows-specific boundaries run in actual Windows CI |
-| Windows / official scanners | [3877542 platform run](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39452049023) passed | Actual five scanners plus Python 3.10/3.12/3.14 boundary matrix |
-| Container isolation | [3877542 Docker run](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39452049100) passed | Real no-network/privilege/resource/root-clock/SDK-kill cleanup acceptance; inert selected entries |
-| VS Code host matrix | All six jobs passed at [5b71265](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39450889378) | Minimum1.95.0 and current 1.142.0, Windows/macOS/Linux;8 real extension-host cases each |
-| IntelliJ | Minimum2025.2 and current2026.2.3 compatible at a7; final adapter/runtime matrix adds2026.2.2 | Minimum:8 deprecated/27 experimental/6 generated internal usages; current:88 deprecated/18 experimental/0 internal. Final matrix invokes the real factory in each runtime |
-| Android Studio | Actual2026.1.1 / AI261 install0.5→0.6/restart/removal, clean/blocked Run/Sync passed | Separate isolated profile, real marker checks and dialogs; new0.7 SDK/automation acceptance also exercised |
-| Device | [Android16/API36 emulator passed](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39450889177) | Launch, UI/screenshot, owned loopback server, SDK secure0 findings/weak3 findings; physical phone not connected |
-| Provider conformance | Installed JVM and actual TS bridge cases passed | Healthy/malformed/partial/deadline/cancel/action/attribution cases and descendant death |
-| Resource evaluation | Four real-project subsets plus4096 generated files; five caps/cancel checks passed; [Linux CI passed](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39454719440) | Latency/RSS/completion recorded; Android subset legitimately incomplete, Python native scope limited |
-| Research |77 pinned sources and two real local model runs; [static corpus](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39454719459) and [real source rules](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39454719789) passed | Misses, unsupported inputs, label bias and incorrect/injected model prose retained; no population accuracy claim |
-| Distribution | Runtime audit/SBOM and embedded wheel/license checks | Current final artifacts must pass after build; live advisory databases are time-sensitive |
+| JVM | 234 local tests: core 96, rules 45, CLI 8, native 85 | Main [76312ac CI](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39459625691) passed, including minimum build/test/package, conformance, parity and distribution audit. Local native tests used cached 2025.3 and do not replace minimum-built acceptance |
+| VS Code | 156 Node tests, five hardening checks, webview checks, eight actual local host cases | Installed VS Code 1.116; keyboard/AX/four themes/narrow/focus/cancel checks |
+| Python SDK | 148 tests locally, nine Windows-only skips | Actual Windows-specific boundary checks run separately; main Python matrix 3.10/3.12/3.14 is in CI |
+| Windows / official scanners | [76312ac platform run](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39459625654) passed | Five actual scanners plus Python 3.10/3.12/3.14 process/file boundaries |
+| Container isolation | [76312ac Docker run](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39459625784) passed | Real no-network/privilege/resource/root-clock/SDK-kill cleanup acceptance; inert selected entries |
+| VS Code host matrix | All six jobs / 48 cases passed in [76312ac host run](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39459625955) | Minimum 1.95.0 and current 1.142.0, Windows/macOS/Linux; eight real cases each. [Preserved JSON](../demo/screenshots/flexible-provider-platform/vscode/host-matrix-76312ac/acceptance-summary.json) |
+| IntelliJ | All three binary verifiers passed; minimum six-case actual runtime suite passed; newer two runtime tasks failed before cases ran, at JUnit listener startup | Immediate blocker: diagnose and fix 2026.2.2 and 2026.2.3 runtime task failures, then require six actual Jewel runtime tests each. Earlier a7 endpoints were compatible: minimum eight deprecated/27 experimental/six generated internal usages; current 88 deprecated/18 experimental/no internal usages |
+| Android Studio | Actual 2026.1.1 / AI-261 install 0.5→0.6/restart/removal and clean/blocked Run/Sync passed; 0.7 SDK/automation and a7 minimum ZIP exercised | Isolated profile, real markers/dialogs/Tools. Final 76312ac CI minimum-built ZIP still needs final install/smoke |
+| Android device | [76312ac Android 16/API 36 emulator](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39459625818) passed | Actual unmodified clean 720×1280 PNG inspected; owned UI/foreground/no-modal gate passed; secure endpoint zero findings and weak endpoint three. APK SHA independently verified. No physical device or human visual review |
+| Script regressions | 46 passed | Includes Mac zombie-group cleanup and rejection of blank/obscured device captures |
+| Provider conformance | Installed JVM and actual TS bridge cases passed | Healthy/malformed/partial/deadline/cancel/action/attribution and descendant-death cases |
+| Resource evaluation | Four real-project subsets, 4096 generated files, five caps/cancel checks; [76312ac Linux CI](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39459625897) passed | Latency/RSS/completion recorded; Android subset legitimately incomplete and Python native scope limited |
+| Research | 77 pinned sources/two real local models; [76312ac corpus](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39459625866) and [source rules](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39459625620) passed | Misses, unsupported inputs, label bias and incorrect/injected prose retained; no population accuracy claim |
+| Distribution | Runtime audit/SBOM, embedded wheel and license checks implemented | Rebuild final artifacts and rerun audit; existing local audit describes an older native package. Live advisory results are time-sensitive |
 
-Actual captures and machine-readable evidence are in [Android Studio0.6](../demo/screenshots/platform-0.6/android-studio/), [native/VS Code gallery](../demo/screenshots/flexible-provider-platform/) and [Android device](../demo/screenshots/platform-0.7/android-device/evidence.json). Synthetic demo renders remain separately labeled. A CI PR merge commit can differ from its branch head; device JSON records both identities.
+Actual captures and machine-readable evidence are in [Android Studio 0.6](../demo/screenshots/platform-0.6/android-studio/), [native/VS Code gallery](../demo/screenshots/flexible-provider-platform/), [0.7 index](../demo/screenshots/platform-0.7/README.md) and [accepted Android device record](../demo/screenshots/platform-0.7/android-device/evidence.json). The old ATD run had a black image, and the next run had a System UI ANR modal; both were rejected and retained under `research/diagnostics/2026-10-20/`. Only the final clean image is accepted. Synthetic demo renders remain separately labeled.
 
 ## Reproduce automated checks
 
@@ -92,7 +95,7 @@ node vscode-extension/scripts/provider-conformance.js --python /absolute/user/wg
 /absolute/user/wg-check/bin/python -m unittest discover -s scripts/tests -v
 ```
 
-Choose minimum/current targets using `-Pwrapperguard.verifierVersion=2025.2` or `2026.2.3`; the build defaults to minimum 2025.2; verifier defaults to 2025.3. A local IDE may be selected explicitly with `-Pwrapperguard.localIdePath=/absolute/IDE/Contents`. Native actual GUI acceptance is separate from binary verification. The wheel builder chooses modern Python/pip, verifies source/metadata and normalizes archive metadata so independently packaged hosts carry identical SDK bytes.
+Choose targets using `-Pwrapperguard.verifierVersion=2025.2`, `2026.2.2` or `2026.2.3`; the build defaults to minimum 2025.2 and the verifier defaults to 2025.3. Keep release compilation at 2025.2: compiling against a newer cached SDK can inline Compose APIs absent from the minimum runtime. A local IDE may be selected explicitly with `-Pwrapperguard.localIdePath=/absolute/IDE/Contents`. Native actual GUI acceptance is separate from binary verification. The wheel builder chooses modern Python/pip, verifies source/metadata and normalizes archive metadata so independently packaged hosts carry identical SDK bytes.
 
 Real optional tools use `scripts/sdk-bandit-smoke.py`, `scripts/sdk-semgrep-smoke.py`, and `scripts/sdk-tool-smoke.py` with explicitly installed executables. The pinned CI downloader uses official assets and exact hashes. OSV sends dependency metadata; Trivy databases need disk. `scripts/sdk-ai-smoke.py` and `ai-evaluation.py` require an already-running explicit loopback model and download no weights. [Research commands/results](../research/README.md) and `benchmark-scans.py --help` record evaluation scope.
 
@@ -109,6 +112,23 @@ Run the driver with explicit absolute adb/APK/SDK-Python paths, serial and new o
 
 ## Remaining distribution gates
 
-Exact final-commit CI and candidate checksums, final installer reinstall, minimum/current verifier reports and signed/chosen public-channel distribution remain separate gates. Human screen-reader/independent usability review, physical hardware when required and robust research/model-quality claims remain explicitly unperformed. [Roadmap](roadmap.md) tracks those limits. GitHub candidate publication does not imply Marketplace/PyPI publication or stable1.0 acceptance.
+The two failed newer native runtime tasks are the immediate release blocker. Both stopped before product cases at `JUnit5TestSessionListener` initialization with missing `com.intellij.util.Java11Shim`; investigate target testing-artifact/classpath alignment, as described in the [handover diagnosis](../HANDOVER.md#immediate-blocker-newer-native-test-runtime-startup). Main exact-source CI passed. A corrected native matrix, final installer reinstall, matching package audit/checksums, PR #3 merge and 0.7 candidate publication remain pending at this checkpoint. The [handover runbook](../HANDOVER.md#resume-in-this-order) records the sequence and CI artifact names. Documentation changes can alter package bytes; rebuild the final VSIX and regenerate the audit after incorporating them.
 
-The final compatibility matrix also runs the minimum-compiled Jewel factory inside each selected IDE runtime, including2026.2.2 whose upstream bridge removed a legacy overload. Reproduce with `:wrapperguard-intellij:testJewelBridgeRuntime -Pwrapperguard.bridgeRuntimeVersion=2026.2.2`. Reflection selects only exact known public signatures; real invocation failures stay visible and are not retried as a different factory. The full script-regression suite now has46 passing tests, including Mac zombie-group cleanup and rejected blank/obscured UI captures.
+The native matrix runs the minimum-compiled Jewel factory inside each selected IDE runtime, including 2026.2.2 whose upstream bridge removed a legacy overload. Reproduce one target with:
+
+```sh
+./gradlew :wrapperguard-intellij:testJewelBridgeRuntime \
+  -Pwrapperguard.bridgeRuntimeVersion=2026.2.2
+```
+
+Each target must report six passing tests without skips. Exact public signatures are selected at the compatibility boundary; invocation failures stay visible instead of being retried through another factory. Binary-verifier warnings and actual-runtime results must both be retained.
+
+After building all four packages from the clean final committed source:
+
+```sh
+python3 scripts/distribution-audit.py --output "$PWD/build/distribution-audit" --query-osv
+python3 scripts/package-test-bundle.py --tag v0.7.0-rc.1 \
+  --output /absolute/new/persistent/wrapperguard-0.7.0-rc.1
+```
+
+The output directory must be new. Packaging rejects dirty source or artifact hashes changed after audit. The proposed candidate tag is not a published release. Human screen-reader/independent usability review, physical hardware when required, chosen public-channel signing/publication and robust research/model-quality claims remain explicitly unperformed. [Roadmap](roadmap.md) tracks those limits. GitHub candidate publication does not imply Marketplace/PyPI publication or stable 1.0 acceptance.

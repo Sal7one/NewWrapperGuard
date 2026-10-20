@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.sal7one.wrapperguard.intellij.execution.GuardSmokeTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-20T16:50:38.092Z" hostname="runnervmxehtw" time="8.641">
+  <properties/>
+  <testcase name="testDescriptorLoadsBundledComposeWithoutRequiringLaterAggregateAlias" classname="com.sal7one.wrapperguard.intellij.execution.GuardSmokeTest" time="8.231"/>
+  <testcase name="testBundledJewelBridgeCreatesAnActualPanelThroughCompatibilityBoundary" classname="com.sal7one.wrapperguard.intellij.execution.GuardSmokeTest" time="0.41"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

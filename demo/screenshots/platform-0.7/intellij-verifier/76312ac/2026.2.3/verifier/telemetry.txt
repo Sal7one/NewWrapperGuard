@@ -1,0 +1,9 @@
+Plugin ID: com.sal7one.wrapperguard.next
+Plugin Version: 0.7.0
+Descriptor parsed in: 312 ms
+Descriptor parsed (raw ms): 312
+Plugin size (bytes): 3935918
+Verified classes in plugin artifact: 425
+Verification time: 2 m 4 s 997 ms
+Verification time (raw ms): 124997
+

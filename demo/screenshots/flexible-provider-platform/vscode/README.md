@@ -18,4 +18,32 @@ The 300px panel passed document overflow checks and Tab/Enter activation across 
 
 These checks are CDP accessibility-tree and keyboard sanity tests, not a formal human VoiceOver audit. They do not prove local Docker daemon/image readiness, release-package installation, or minimum/current editor compatibility; those have separate acceptance and CI evidence. No personal editor profile was used.
 
-Final 0.7.0 archive checks loaded the packaged scanner with its bundled SAX runtime and produced the expected static Maven finding without executing project code. The [strict distribution audit](distribution-audit.json) checks runtime closure, matching SDK bytes, license files, and CLI ZIP contents; [CycloneDX inventory](runtime.cdx.json) and [packaged-runtime validation](packaged-runtime-validation.json) record that scope. Seven audit regressions passed. This offline inventory does not claim that dependency databases have no advisories. The native archive hash will change if the compatibility build is rebuilt; rerun the audit against each final artifact set.
+Recorded 0.7.0 archive checkpoint checks loaded the packaged scanner with its bundled SAX runtime and produced the expected static Maven finding without executing project code. The [strict distribution audit](distribution-audit.json) checks runtime closure, matching SDK bytes, license files, and CLI ZIP contents; [CycloneDX inventory](runtime.cdx.json) and [packaged-runtime validation](packaged-runtime-validation.json) record that scope. Seven audit regressions passed. This offline inventory does not claim that dependency databases have no advisories. Those files retain their original checkpoint hashes; rerun the audit against a rebuilt final artifact set.
+
+## Six final CI host jobs
+
+All six VS Code jobs in [run 39459625955](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39459625955)
+passed at source **`76312ace4306c906c329e408346a59d2e893f3c7`**. The
+[acceptance summary](host-matrix-76312ac/acceptance-summary.json) records job conclusions,
+artifact IDs, artifact ZIP hashes and the individual evidence hashes. The seven JSON
+files were copied byte for byte from the verified downloads; ZIPs are not duplicated here.
+
+| CI platform | Minimum 1.95.0 | Current 1.142.0 |
+| --- | --- | --- |
+| macOS | [8 passed cases](host-matrix-76312ac/vscode-host-macos-latest-1.95.0.json) | [8 passed cases](host-matrix-76312ac/vscode-host-macos-latest-1.142.0.json) |
+| Linux | [8 passed cases](host-matrix-76312ac/vscode-host-ubuntu-latest-1.95.0.json) | [8 passed cases](host-matrix-76312ac/vscode-host-ubuntu-latest-1.142.0.json) |
+| Windows | [8 passed cases](host-matrix-76312ac/vscode-host-windows-latest-1.95.0.json) | [8 passed cases](host-matrix-76312ac/vscode-host-windows-latest-1.142.0.json) |
+
+The **48 host cases** cover activation/API 1 with two roots, disabled/default grants and
+no implicit execution, SDK attribution/action clipping, independent build/sync authority,
+explicit root binding, isolated repairable missing tools, before/after declared-input
+seals and opening the contributed webview. The matching local Node suite passed 156
+tests. These are actual editor processes using inert fixtures; they do not measure
+analyzer accuracy or formal human accessibility acceptance.
+
+The earlier local GUI screenshots and archive audits above keep their own source
+checkpoints. This matrix does not relabel them as captures from `76312ac` or assert results
+for the workflow's separate native-IDE jobs. The separate
+[Android acceptance record](../../../../examples/android-acceptance/README.md#acceptance-status)
+now includes a passing emulator UI/rendering gate and agent image review; human review
+and physical-phone acceptance remain unperformed.

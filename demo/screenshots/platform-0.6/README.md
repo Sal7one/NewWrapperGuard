@@ -15,7 +15,7 @@ A process-locked test UI agent activated the actual Swing **Trust Project** and 
 | [Analysis tools](intellij/tools.png) | Actual optional-tool connections, setup, method presets and managed storage controls; no synthetic provider findings. |
 | [History opt-in](intellij/history-opt-in.png) | Actual default-off local history and its privacy/retention controls, before enabling recording. |
 
-[Host evidence and scope](intellij/acceptance-evidence.txt). The actual-host run found and corrected the missing before-run extension registration and worker-thread dialog creation; focused registry and EDT regressions cover both. Android Studio, other IDE releases and a formal assistive-technology audit remain separate acceptance work. The provider builder's horizontal alignment was corrected after capture; a clipped pre-correction capture is intentionally excluded from this gallery.
+[Host evidence and scope](intellij/acceptance-evidence.txt). The actual-host run found and corrected the missing before-run extension registration and worker-thread dialog creation; focused registry and EDT regressions cover both. Later [actual Android Studio acceptance](android-studio/) covers its recorded install/upgrade/removal and clean/blocked Run/Sync flows. The [0.7 evidence index](../platform-0.7/README.md) records newer SDK/automation/device work and native host compatibility. A formal human assistive-technology audit remains unperformed; these earlier captures keep their original source and package identities. The provider builder's horizontal alignment was corrected after capture; a clipped pre-correction capture is intentionally excluded from this gallery.
 
 ## Actual VS Code acceptance
 

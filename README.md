@@ -7,6 +7,10 @@ analyzers you need and control whether each can warn, alert, stop a build or sto
 **Current development version: 0.7.0 · Python integration SDK: 0.4.0 · Provider API: 1.**
 The 0.7.0 candidate is undergoing final release acceptance; published 0.6.0 RC1 remains available. See [verification](docs/verification.md) for test builds, completed checks
 and outstanding release work, and [the changelog](CHANGELOG.md) for published history.
+Runtime source is `76312ac`; the [handover](HANDOVER.md) records the exact branches, passing
+checks and remaining gates. Main CI, Android 16 emulator acceptance and all six VS Code
+host jobs passed. Two newer native test runtimes failed during harness startup and must be fixed and
+rerun before 0.7 publication.
 
 ## Start in the IDE
 
@@ -78,8 +82,9 @@ npm --prefix vscode-extension run package
 ```
 
 An explicitly installed development IDE can be selected with
-`-Pwrapperguard.localIdePath=/path/to/IDE/Contents`. The default verifier targets
-IntelliJ IDEA 2025.3; the minimum plugin platform build is 252.
+`-Pwrapperguard.localIdePath=/path/to/IDE/Contents`. Release compilation defaults to
+IntelliJ IDEA **2025.2** (platform 252); the default verifier targets 2025.3. The host
+matrix separately checks 2025.2, 2026.2.2 and 2026.2.3, including actual Jewel factory calls.
 [Verification instructions](docs/verification.md) cover SDK packaging, installed-host
 checks, real analyzer smoke tests and artifact inspection.
 
@@ -112,4 +117,5 @@ user files outside the project.
 [Product and OSS references](docs/product-inspiration.md) · [Provider API](docs/providers.md) · [Research rationale](docs/research.md) ·
 [Engineering handover](HANDOVER.md) · [Roadmap and remaining work](docs/roadmap.md) · [Apache-2.0 license](LICENSE)
 
-[0.6 platform screenshots and actual editor acceptance](demo/screenshots/platform-0.6/README.md)
+[0.7 real-host and Android evidence](demo/screenshots/platform-0.7/README.md) ·
+[Earlier 0.6 platform screenshots](demo/screenshots/platform-0.6/README.md)
