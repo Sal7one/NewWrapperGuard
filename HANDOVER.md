@@ -1,48 +1,38 @@
-# WrapperGuard release runbook
+# WrapperGuard frozen release handover
 
-Evidence checkpoint: **2026-10-20**, branch head **`a97dcd19133e9b70b64bc88ae30835822712dbed`**, tested PR merge **`9b48d88d2bd70deb6e8f39f43e4e1dc97f2344c2`**. App **0.7.0**, SDK **0.4.0**, provider **API 1 / schema 1**. The candidate name is **`v0.7.0-rc.1`**. Canonical release metadata, checksums and `SOURCE-COMMIT.txt` identify an actual publication; a branch, test bundle or older successful run does not establish one.
+**Work stopped at the user's request on 2026-10-20.** The user accepted a partial roadmap and requested documentation, a release and handover. Do not resume implementation, research or platform fixes unless the user asks. This file is the restart record, not an instruction to keep working.
 
-First inspect the canonical 0.7 tag/release and its source/assets. If the intended candidate or a superseding verified 0.7 release already exists, use it and do not republish it. For unfinished branch work, [PR #3 checks](https://github.com/Sal7one/NewWrapperGaurd/pull/3/checks) are authoritative for the current head. Historical evidence keeps its original source and package identities.
+Candidate **v0.7.0-rc.1** contains app **0.7.0**, SDK **0.4.0**, provider **API 1 / schema 1**. The [release](https://github.com/Sal7one/NewWrapperGaurd/releases/tag/v0.7.0-rc.1) and its `RELEASE-MANIFEST.json` identify the actual tag, build source, documentation source, assets and checksums. Verify them before reproducing or republishing anything. Preserve earlier releases.
 
-## Archived pre-fix evidence: a97dcd1
+## Frozen build and provenance
 
-| Archived evidence at a97dcd1 | Recorded result |
-| --- | --- |
-| [Main CI 39480825937](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39480825937) | Passed: JVM build, Python 3.10/3.12/3.14, conformance/parity, distribution audit and standalone bundle gate tests |
-| [Host matrix 39480826114](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39480826114) | Six VS Code jobs / 48 cases and minimum native 2025.2 passed. Both 262 native targets passed five of six cases; the enabled-plugin assertion failed. All three binary verifiers were compatible |
-| [Actual Android Studio](demo/screenshots/platform-0.7/android-studio/minimum-a97dcd1/evidence.json) | Exact minimum-built a97 ZIP passed real Studio 261 startup, Tools and persisted PAUSED automation review |
-| [Android emulator](demo/screenshots/platform-0.7/android-device/a97dcd1/README.md) | Actual Android 16/API 36 owned activity and HTTP audit passed; unmodified rendered PNG directly inspected; APK hash independently matched |
-| Regression and package review | 158 Node and 53 script cases passed, including seven offline-link/CLI-integrity cases. The a97 nested bundle passed 288 checksums and 28 Markdown destination checks |
+The accepted installer set was built by [CI 39485233803](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39485233803), branch head **ce1a2c48294cc9bc2771f8d74ac6096867bf8dd8**, tested checkout **1c69fa84019eae80d6c1d3ad05c73e796d73721c**. Later source changes are documentation and an application-only test fixture; they change no production source. Release metadata keeps the installer build commit separate from the final documentation/tag commit. The refreshed bundle uses the audited CI installer bytes and current guides; it does not claim a new CI build of the documentation commit.
 
-At that checkpoint the blocker was the newer native runtime matrix. [Raw a97 reports](demo/screenshots/platform-0.7/intellij-verifier/a97dcd1/README.md) preserve both five-of-six failures. Jewel component creation passed; the test runtime could not register the Gradle/WrapperGuard dependency chain because the product module `smRunner` remained unresolved. Adding individual jars did not solve product-module registration. Earlier `76312ac` listener-startup failures are a separate historical stage.
+## Completed acceptance
 
-The follow-up in this source selects **IntelliJ Platform Gradle Plugin 2.18.1**. The [upstream 2.18 fix](https://github.com/JetBrains/intellij-platform-gradle-plugin/releases/tag/2.18.0) makes `TestIdeTask` use product-info bundled-plugin classpaths and resolve module aliases. Exact target-framework build assertions remain in both custom test configurations. A small Java `ToolWindowFactory` entry point inherits the platform's internal JVM defaults directly, avoiding Kotlin-generated forwarding overrides; Kotlin retains the content/failure boundary. Source-matched green matrix results and released evidence determine closure. The [cached 253 local preflight](demo/screenshots/platform-0.7/intellij-verifier/local-253-ipgp2181/README.md) passed all six cases with zero failures/errors/skips; it is preflight evidence, not minimum 252 or 262 acceptance. Require **six actual cases per native target, zero failures/errors/skips**, plus retained binary-verifier reports; no waivers or exclusions.
+- Main CI passed: minimum-platform build, 234 JVM tests, Python SDK matrix, Node checks, conformance/parity and runtime audit. Local suites also passed 158 Node and 53 script cases.
+- The delivered ce1 bundle passed 348 checksum records, hidden-workflow delivery, offline Markdown closure and exact CLI ZIP byte/mode checks. All host SDK wheels are identical; the backend is pinned to setuptools 84.2.1. Actual packaged CLI gate checks passed on macOS/JDK 21 as well as Linux CI.
+- Minimum IDEA 2025.2 passed six real descriptor/component cases with no failures/errors/skips. All three binary verifiers were compatible; minimum internal usages fell from six to zero after the Java factory boundary.
+- The exact ce1 native ZIP passed real Android Studio 2026.1.1 / AI-261 startup, Tools rendering and persisted selections with a new session PAUSED. No Start/Scan/server was activated in this final smoke. Ordinary reopen sync is not a repeat of all build/sync guard tests. Earlier real guard/lifecycle evidence retains its own source identity.
+- Six ce1 VS Code host jobs passed all 48 cases on 1.95.0/1.142.0 across Linux/macOS/Windows. Its runtime payload matches the actual installed eight-case acceptance checkpoint; only documentation links and reviewed SDK generator metadata differ from earlier packages. The test-only d611 follow-up also passed all six VS Code jobs.
+- Android 16/API 36 emulator acceptance passed with an unobscured actual PNG: secure endpoint zero findings, weak endpoint three expected findings. The first System UI ANR capture remains rejected. The fixture APK is a controlled HTTP target, not the IDE plugin.
+- Windows scanners/process boundaries, Linux Docker isolation, static corpus, source rules and resource checks passed. A Windows pip download truncated before tests; its single job retry passed. Failed attempts are preserved, not counted as successes.
 
-This source pins **setuptools 84.2.1**, includes hidden files in the generated-artifact upload, and downloads/checks both delivered checksum manifests. The a97 expanded artifact omitted its hidden workflow file; its nested ZIP remained intact. Its SDK archive changed only WHEEL/RECORD generator metadata from 84.2.0 to 84.2.1; runtime files were identical. Source-matched final artifacts and the delivery roundtrip are release criteria.
+## Deferred work and known limits
 
-At follow-up `ce1a2c4`, [main CI](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39485233803) passed, including the delivered bundle roundtrip; 348 checksums and the offline guide closure were independently checked. The packaged CLI passed on actual macOS as well as Linux CI. All six VS Code jobs / 48 cases passed with runtime-equivalent VSIX bytes. Android acceptance passed on a fresh runtime-job retry; its first System UI ANR capture remains rejected. A truncated pip download required one Windows job retry before tests ran. Both retries retain their failed attempt records.
+The newer IDEA 2026.2.2/2026.2.3 runtime suites at ce1 failed in an unrelated Ultimate project post-startup extension before the two descriptor/component test bodies. The d611 follow-up moves those two project-free cases to the official `ApplicationRule`, preserving every assertion and all heavy project/build/sync tests. All six local cached-253 preflight cases passed. Consult release acceptance metadata for any completed remote follow-up; do not assume full newer-IDE startup/build/sync acceptance from binary verification alone. No further fixes are authorized by this handover.
 
-The [ce1 native matrix](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39485233651) passed all three binary verifiers with zero minimum internal usages and all six minimum runtime cases. Both newer targets failed before the two project-based test bodies: an unrelated bundled Ultimate post-startup extension could not instantiate. The descriptor/component cases in this source use the official application-only `ApplicationRule`, because neither needs an open project. Every loader, enabled-plugin, factory ABI, target-version and actual-component assertion remains; heavy project/build/sync tests remain separate and unchanged. Require fresh six-case results on all targets for this fixture change. This does not claim full project-lifecycle acceptance on every newer IDE.
+Human screen-reader/independent usability review, physical-phone acceptance, publisher signing, Marketplace/PyPI channels, broader detection evaluation and reliable AI explanation quality remain deferred. Research retains known misses, limited labels and incorrect/injected model prose. No complete-security, paper-parity or stable-1.0 claim is made. [Roadmap](docs/roadmap.md) records the remaining work.
 
-## Resume in this order
+<a id="resume-in-this-order"></a>
 
-1. Check the canonical 0.7 tag/release first. If already published and verified against its source and asset hashes, use that release rather than publishing again. Otherwise inspect the working tree, live PR head and checks. Preserve local changes and historical reports. PR CI can test a synthetic merge commit; retain that identity separately from the branch head. Avoid canceling expensive runtime jobs with unnecessary pushes.
-2. For an unclosed release gate, validate the native follow-up and require the complete matrix on **2025.2, 2026.2.2 and 2026.2.3**. Keep minimum 252 release compilation and all six assertions. Collect actual target-framework evidence and plugin-loader failures when a job fails.
-3. Check the final packages on actual hosts. Use the CI minimum-built native ZIP, not a local newer-SDK build. Reinstall/smoke when production classes/resources change. The latest recorded Studio and Android results above apply to a97; they do not certify later binaries. VS Code README links intentionally include the exact packaging commit.
-4. Commit source/docs/evidence, refresh the PR description and merge only after required checks pass. Require the final merged-source workflows; do not substitute a different-source PR result. GitHub/manual installer publication is separate from Marketplace/PyPI/signing.
-5. Download the same-build `wrapperguard-distributions` artifact from the final successful main CI. Verify `SOURCE-COMMIT.txt`, four artifact hashes in `distribution-audit/distribution-audit.json`, `SHA256SUMS` and `BUNDLE-SHA256SUMS.txt`. Check the delivered hidden workflow and offline links. CI extracts the CLI from the audited ZIP and runs standalone `CHECK-GATES.py` before upload; the upload/download roundtrip verifies delivered bytes.
-6. Publish an unpublished candidate only after these gates; do not overwrite or duplicate an existing verified release. Attach the four packages, nested test bundle, checksums and runtime SBOM/audit with exact source and limitations; verify uploaded asset hashes. An optional owned-fixture APK must be labeled as the Android HTTP acceptance target, not a mobile WrapperGuard plugin. Preserve earlier releases and rejected diagnostics.
+## Resume only when requested
 
-```sh
-gh release view v0.7.0-rc.1 --repo Sal7one/NewWrapperGaurd
-gh release view v0.7.0 --repo Sal7one/NewWrapperGaurd
-git status --short --branch
-git log -5 --oneline
-gh pr view 3 --repo Sal7one/NewWrapperGaurd --json state,headRefOid,baseRefName,url
-gh pr checks 3 --repo Sal7one/NewWrapperGaurd
-gh run list --repo Sal7one/NewWrapperGaurd --limit 10
-gh release list --repo Sal7one/NewWrapperGaurd --limit 3
-```
+1. Read this file, the release manifest and [verification](docs/verification.md). Check the actual GitHub tag/assets and PR #3 state before assuming publication or merge status. Do not publish a duplicate release.
+2. Inspect the working tree and preserve local changes. Read the manifest's source identities and historical failed reports before reopening a specific deferred item.
+3. Choose a narrow scope with the user. Keep optional tools independently replaceable and retain the trust/authority invariants below.
+
+All owned Studio processes were stopped; original profile properties were restored. The temporary RAM-backed index volume was detached after evidence was copied off it. No background agent or task-owned server should remain. Project-generated node_modules were removed to reclaim disk; run npm ci before future local Node checks. Source, accepted evidence, user SDKs and prior releases were preserved.
 
 ## Workspace and tools
 

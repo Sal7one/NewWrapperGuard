@@ -1,6 +1,6 @@
 # Build and acceptance verification
 
-App **0.7.0**, SDK **0.4.0**, provider **API 1 / schema 1**; candidate **`v0.7.0-rc.1`**. Recorded evidence below is from branch head **`a97dcd19133e9b70b64bc88ae30835822712dbed`**, tested merge **`9b48d88d2bd70deb6e8f39f43e4e1dc97f2344c2`**. [Current PR checks](https://github.com/Sal7one/NewWrapperGaurd/pull/3/checks) determine the latest status. Canonical release metadata/checksums and `SOURCE-COMMIT.txt` identify the actual published source; historical green jobs do not certify later artifacts. [Handover](../HANDOVER.md#resume-in-this-order) records the release sequence.
+App **0.7.0**, SDK **0.4.0**, provider **API 1 / schema 1**; frozen candidate **v0.7.0-rc.1**. The user accepted a partial roadmap and stopped further development. Accepted installers come from ce1 main CI 39485233803, tested checkout **1c69fa84019eae80d6c1d3ad05c73e796d73721c**. The tag additionally records documentation/test-only changes. Release `RELEASE-MANIFEST.json` separates installer-build, bundle/documentation and tag commits; no new CI pass is implied for a documentation-only commit. [Handover](../HANDOVER.md) records completed and deferred scope.
 
 The **acceptance bundle** supports standalone manual installation and `CHECK-GATES.py` with JDK 21/Python 3.10+. The **source build, regression suites and Android driver commands below require a full Git checkout** of the recorded source. The bundle includes fixture sources/workflows, but does not include every repository script or Git history.
 
@@ -48,7 +48,7 @@ wrapperguard-cli/build/install/wrapperguard-cli/bin/wrapperguard-cli \
 
 Exit 2 means active granted blockers, exit 1 invalid/incomplete input without a blocker, and exit 0 completed configured scope without blockers. INFO/audit output and bundled advisory research/AI methods cannot block; a custom provider category alone does not remove its explicitly granted authority. The bundle's `CHECK-GATES.py` exercises actual provider behavior and action clipping.
 
-## Recorded evidence
+## Archived evidence and accepted release snapshot
 
 **Archived pre-fix evidence: a97dcd1.** Check canonical 0.7 release metadata and current PR checks for closure; the following outcomes remain attached to their original source. If the intended release is already published and verified, do not republish it.
 
@@ -66,15 +66,17 @@ Exit 2 means active granted blockers, exit 1 invalid/incomplete input without a 
 | [Resources 39480825873](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39480825873) | Passed real-project subsets, 4096 generated files, caps and cancellation; intentionally incomplete scans were not counted clean |
 | Distribution review | Nested a97 bundle: 288 checksums, 28 Markdown destinations, CLI bytes/file set exactly equal audited ZIP, executable mode preserved, identical SDK wheels across hosts. Expanded artifact omitted one hidden workflow; the follow-up adds hidden upload and delivered-file roundtrip checks |
 
+The accepted ce1 follow-up passed main CI, its hidden-file upload/download roundtrip, 348 checksum records and standalone packaged gate checks on macOS/Linux. Its exact native ZIP passed actual Studio 261 startup, Tools and session-PAUSED automation; all six VS Code jobs passed 48 cases. Android emulator acceptance passed after one rejected System UI ANR attempt. The minimum native runtime passed six cases, with zero internal usages. Release acceptance assets retain exact ZIP/VSIX/APK/image hashes, raw failures and scope; none of these results is a human accessibility or physical-phone test.
+
 The a97 SDK archive changed only WHEEL/RECORD generator metadata from setuptools 84.2.0 to 84.2.1; runtime/rules/license/identity bytes were unchanged. This source pins setuptools 84.2.1 for reproducible final builds. Retain artifact-specific hashes rather than calling different archives byte-identical.
 
 [Evidence index](../demo/screenshots/platform-0.7/README.md) distinguishes actual captures from synthetic demo views. Rejected black ATD and SystemUI ANR images remain in `research/diagnostics/2026-10-20/`; they are not accepted product screenshots. Automated keyboard/AX/theme/focus checks do not replace human screen-reader/usability review.
 
-## Native follow-up: require a fresh complete matrix
+## Deferred native host validation
 
 Both 262 targets created actual Jewel components at a97 but could not enable Gradle/WrapperGuard because `smRunner` was unresolved in product-module registration. The follow-up in this source selects IPGP 2.18.1: the [upstream 2.18 TestIdeTask fix](https://github.com/JetBrains/intellij-platform-gradle-plugin/releases/tag/2.18.0) assembles product-info bundled-plugin classpaths and resolves module aliases. A Java factory entry point inherits internal platform JVM defaults directly, avoiding Kotlin-generated forwarding overrides; content/error handling remains in Kotlin. Source-matched green matrix results and released installer evidence determine closure. The [cached 253 local preflight](../demo/screenshots/platform-0.7/intellij-verifier/local-253-ipgp2181/README.md) passed all six cases with zero failures/errors/skips; it is not minimum 252 or 262 proof.
 
-The minimum-compiled artifact must run **six actual cases with zero failures/errors/skips on each target**. Keep enabled-plugin and actual factory assertions; binary compatibility alone is insufficient.
+When this deferred item is resumed, require **six actual cases with zero failures/errors/skips on each target**. Keep enabled-plugin and actual factory assertions; binary compatibility alone is insufficient. The frozen candidate does not claim this newer-host lifecycle gate is closed.
 
 The two descriptor/component cases use the official JUnit 4 `ApplicationRule`: they initialize the real IDE application and plugin set without opening an unrelated project. The previous heavy fixture failed in a bundled Ultimate project post-startup extension before either test body ran on 262. Application-only setup preserves all assertions and actual component creation; the heavy project/build/sync tests remain unchanged. These component tests do not establish full project-lifecycle acceptance on every newer IDE.
 
@@ -153,4 +155,4 @@ Both output directories must be new. The audit checks shipped runtime closure, l
 
 Final CI must pass standalone packaged `CHECK-GATES.py`, upload hidden workflow files, download the delivered artifact and verify both `SHA256SUMS` and `BUNDLE-SHA256SUMS.txt`. Artifact transport can drop loose-file executable modes; use the nested ZIP or restore the CLI launcher's mode for manual tests.
 
-First check whether the intended canonical 0.7 release/tag is already present and verified; if so, use it rather than republishing. For a new publication, require current PR checks, the complete native matrix, source-appropriate installer acceptance and final merged-source CI. Verify the final `SOURCE-COMMIT.txt` against the actual tested checkout, including a PR merge identity where applicable. Then verify uploaded release hashes and instructions for candidate `v0.7.0-rc.1`. Canonical release metadata owns publication status. Human screen-reader/usability review, physical hardware when required, public-channel signing/credentials and research/model quality remain separate [roadmap](roadmap.md) work.
+First check whether the intended canonical 0.7 release/tag is already present and verified; if so, use it rather than republishing. The user accepted this frozen partial prerelease from the recorded verified ce1 installer build. Its refreshed documentation bundle and tag include only documentation/test-fixture changes; manifest provenance distinguishes those commits from the actual artifact build. For a future full-scope release, require current PR checks, the complete native matrix, source-appropriate installer acceptance and final merged-source CI. Verify source identities, uploaded hashes and real test instructions. Human screen-reader/usability review, physical hardware, signing/public channels and research/model quality remain deferred [roadmap](roadmap.md) work. Do not resume automatically.

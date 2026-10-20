@@ -1,6 +1,6 @@
 # Roadmap and release gates
 
-Evidence checkpoint: **a97dcd1 / 2026-10-20**, app **0.7.0**, SDK **0.4.0**, provider **API 1 / schema 1**. Candidate: **`v0.7.0-rc.1`**. [Current PR checks](https://github.com/Sal7one/NewWrapperGaurd/pull/3/checks) own live status; canonical release metadata and `SOURCE-COMMIT.txt` identify a publication. A completed configured scan does not establish complete application security. [Verification](verification.md) records tests; [handover](../HANDOVER.md) gives the continuation order.
+**Frozen on 2026-10-20 at the user's request.** The user accepted a partial roadmap and requested release/handover, then a stop. App **0.7.0**, SDK **0.4.0**, provider **API 1 / schema 1**. The [release manifest](https://github.com/Sal7one/NewWrapperGaurd/releases/tag/v0.7.0-rc.1) identifies actual build/tag/asset provenance. No roadmap item should be resumed automatically. [Verification](verification.md) gives tests; [handover](../HANDOVER.md) records the restart context.
 
 ## Implemented and tested
 
@@ -18,21 +18,15 @@ Evidence checkpoint: **a97dcd1 / 2026-10-20**, app **0.7.0**, SDK **0.4.0**, pro
 | Integrations | Shared provider conformance and reviewed Python/PowerShell/Gradle/Maven/GitHub CLI recipes | Installed JVM and real VS Code host acceptance; recipes never grant execution authority |
 | Research | Pinned 77-source static corpus, limitations/misses, two real local models and reproducible metadata-only results | [Research record](../research/README.md); weak signal coverage and unreliable model prose explicitly retained |
 | Resources | Real-project source subsets, generated 4096 files, byte/file/depth caps and cancellation driver | Repeatable p50/p95/RSS JSON and resource CI; incomplete results never counted clean |
-| Distribution preparation | Runtime SBOM/license/known-advisory checks, vulnerability reporting, reproducible wheel byte identity and bundle tooling | a97 main CI and nested-bundle review passed; final-source backend pin and upload/download checksum gates require a fresh run |
+| Distribution preparation | Runtime SBOM/license/known-advisory checks, vulnerability reporting, reproducible wheel byte identity and bundle tooling | ce1 main CI, pinned wheel, hidden upload/download roundtrip, 348 checksum records and standalone macOS/Linux gate checks passed |
 
-## Finish the 0.7 release candidate
+## Frozen release scope
 
-The compatibility follow-up in this source changes production entry-point code and the test harness. Source-matched green matrix results and released evidence determine closure; the table preserves archived pre-fix a97 outcomes. The [cached 253 preflight](../demo/screenshots/platform-0.7/intellij-verifier/local-253-ipgp2181/README.md) passed six cases without failures/errors/skips, but does not prove minimum 252 or 262 acceptance. No failed assertion is waived.
+The candidate uses audited ce1 CI installer bytes, current documentation and explicit source-equivalence/build provenance. Minimum IDEA 2025.2 runtime, actual Studio 261 startup/Tools/paused automation, six VS Code hosts and the owned Android emulator fixture are accepted within their recorded scope. No failed test is waived or relabeled.
 
-| Gate | Archived pre-fix a97 result | Acceptance criterion |
-| --- | --- | --- |
-| Native supported hosts | All binary verifiers compatible; minimum 2025.2 passed 6/6 actual cases. Both 262 targets passed 5/6, failing enabled-plugin registration; [raw reports](../demo/screenshots/platform-0.7/intellij-verifier/a97dcd1/README.md) | Validate IPGP 2.18.1 product-info/module-alias classpath fix, exact framework assertions and Java factory default inheritance. Require 6/6 cases, zero failures/errors/skips on 2025.2/2026.2.2/2026.2.3 and retain verifier reports |
-| Exact final-source CI | [a97 main CI](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39480825937), scanners/Windows, Docker, corpus, source-rule review, resources and Android passed; all six VS Code jobs / 48 cases passed | Required workflows pass on the final release source; do not reuse canceled, different-source or binary-only results |
-| Installer/device acceptance | [Actual Studio a97 ZIP](../demo/screenshots/platform-0.7/android-studio/minimum-a97dcd1/evidence.json) and [Android 16 emulator](../demo/screenshots/platform-0.7/android-device/a97dcd1/README.md) passed; actual PNG and APK hash reviewed | Keep exact package/source/image hashes. Reinstall/smoke changed production binaries. Emulator/owned HTTP target evidence does not establish physical-phone acceptance |
-| Distribution and delivery | a97 nested bundle passed 288 checksums / 28 Markdown destinations and exact audited-CLI bytes. Expanded artifact omitted one hidden workflow; SDK generator metadata drifted | Verify the setuptools 84.2.1 pin, included hidden workflow and uploaded/downloaded manifests; match all four audited packages and standalone gates to the final clean source |
-| Merge/publication | [PR #3 checks](https://github.com/Sal7one/NewWrapperGaurd/pull/3/checks) identify the current head and review state | Check the canonical 0.7 tag/release first and reuse an existing verified publication. Otherwise merge after required checks, require final merged-source CI, then publish/verify candidate assets, checksums, source and instructions. GitHub publication does not imply Marketplace/PyPI/signing |
+The newer IDEA 262 runtime follow-up is deferred unless its in-flight result is already recorded in release metadata. At ce1 the binary verifiers passed, while unrelated Ultimate project post-startup initialization prevented two test bodies. The d611 application-only fixture preserves those assertions and all heavy guard tests; local six-case preflight passed. Full newer-host lifecycle acceptance is not claimed. PR #3 merge status is recorded separately from release publication.
 
-## Further roadmap and external acceptance
+## Deferred roadmap — resume only when requested
 
 | Area | Current status | Next evidence / work |
 |---|---|---|

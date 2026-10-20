@@ -2,6 +2,8 @@
 
 ## 0.7.0 — Release candidate 1
 
+Frozen partial-roadmap snapshot at the user’s request (2026-10-20). Installer-build and final documentation/tag provenance are recorded separately in release metadata. Further roadmap work is stopped.
+
 - Add reviewed per-session debounced/scheduled SCAN automation, with independent provider network/cost declarations, explicit Start/Pause and no immediate execution on save/start.
 - Add optional bounded owned-target HTTP header/cookie audits, exact numeric-IP/path scope and authentication environment-variable names.
 - Add SDK 0.4.0 producer/input provenance, freshness and resolved-dependency coverage details; preserve API 1/schema 1.
