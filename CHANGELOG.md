@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.7.0 — Unreleased candidate work
+## 0.7.0 — Release candidate 1
 
 - Add reviewed per-session debounced/scheduled SCAN automation, with independent provider network/cost declarations, explicit Start/Pause and no immediate execution on save/start.
 - Add optional bounded owned-target HTTP header/cookie audits, exact numeric-IP/path scope and authentication environment-variable names.
@@ -14,7 +14,9 @@
 - Compile native releases against the minimum IntelliJ 2025.2 platform; handle the exact released Jewel factory signatures and exercise the real factory on minimum/intermediate/current runtimes.
 - Preserve offline bundle documentation paths, reject broken local links, and extract the CLI from its audited ZIP bytes with executable modes retained.
 - Pin target-matched native test frameworks, validate their resolved versions, and exercise/checksum the acceptance bundle in CI; use exact-commit monorepo links in packaged VS Code documentation.
-- Retain actual six-job VS Code host results and inspected Android emulator UI/HTTP evidence, including separately labeled rejected earlier captures. Final candidate packaging and publication remain pending.
+- Update the IntelliJ Platform Gradle plugin to 2.18.1 for target product-module discovery. Inherit platform factory defaults directly through a Java entry point while preserving the public factory ABI and Kotlin UI.
+- Pin the SDK wheel build backend and verify delivered artifact checksums after upload/download, including referenced hidden workflow files.
+- Retain actual six-job VS Code host results and inspected Android emulator UI/HTTP evidence, including separately labeled rejected earlier captures. Release metadata and the bundle's SOURCE-COMMIT identify the published artifact set.
 
 ## 0.6.0 — Release candidate 1 (2026-10-20)
 

@@ -1,0 +1,10 @@
+intellijPlatformTestDependencies_testJewelBridgeRuntime: com.jetbrains.intellij.platform:test-framework:262.10315.125
+intellijPlatformTestDependencies_testJewelBridgeRuntime: com.jetbrains.intellij.platform:test-framework-common:262.10315.125
+intellijPlatformTestDependencies_testJewelBridgeRuntime: com.jetbrains.intellij.platform:test-framework-core:262.10315.125
+intellijPlatformTestDependencies_testJewelBridgeRuntime: com.jetbrains.intellij.platform:test-framework-eel-java:262.10315.125
+intellijPlatformTestDependencies_testJewelBridgeRuntime: com.jetbrains.intellij.platform:test-framework-team-city:262.10315.125
+intellijPlatformTestRuntimeClasspath_testJewelBridgeRuntime: com.jetbrains.intellij.platform:test-framework:262.10315.125
+intellijPlatformTestRuntimeClasspath_testJewelBridgeRuntime: com.jetbrains.intellij.platform:test-framework-common:262.10315.125
+intellijPlatformTestRuntimeClasspath_testJewelBridgeRuntime: com.jetbrains.intellij.platform:test-framework-core:262.10315.125
+intellijPlatformTestRuntimeClasspath_testJewelBridgeRuntime: com.jetbrains.intellij.platform:test-framework-eel-java:262.10315.125
+intellijPlatformTestRuntimeClasspath_testJewelBridgeRuntime: com.jetbrains.intellij.platform:test-framework-team-city:262.10315.125

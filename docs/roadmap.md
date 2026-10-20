@@ -1,6 +1,6 @@
 # Roadmap and release gates
 
-Checkpoint: **2026-10-20**, runtime source **`76312ac`**, app **0.7.0**, SDK **0.4.0**, provider **API 1 / schema 1**. Implementation and acceptance are tracked separately. A completed configured scan is never a promise of complete application security. [Verification](verification.md) records evidence; [handover](../HANDOVER.md) describes operating contracts.
+Evidence checkpoint: **a97dcd1 / 2026-10-20**, app **0.7.0**, SDK **0.4.0**, provider **API 1 / schema 1**. Candidate: **`v0.7.0-rc.1`**. [Current PR checks](https://github.com/Sal7one/NewWrapperGaurd/pull/3/checks) own live status; canonical release metadata and `SOURCE-COMMIT.txt` identify a publication. A completed configured scan does not establish complete application security. [Verification](verification.md) records tests; [handover](../HANDOVER.md) gives the continuation order.
 
 ## Implemented and tested
 
@@ -18,26 +18,26 @@ Checkpoint: **2026-10-20**, runtime source **`76312ac`**, app **0.7.0**, SDK **0
 | Integrations | Shared provider conformance and reviewed Python/PowerShell/Gradle/Maven/GitHub CLI recipes | Installed JVM and real VS Code host acceptance; recipes never grant execution authority |
 | Research | Pinned 77-source static corpus, limitations/misses, two real local models and reproducible metadata-only results | [Research record](../research/README.md); weak signal coverage and unreliable model prose explicitly retained |
 | Resources | Real-project source subsets, generated 4096 files, byte/file/depth caps and cancellation driver | Repeatable p50/p95/RSS JSON and resource CI; incomplete results never counted clean |
-| Distribution preparation | Runtime SBOM/license/known-advisory checks, vulnerability reporting, reproducible wheel byte identity and bundle tooling | Audit/packaging regressions pass; published 0.6 bundle exists. Final 0.7 artifacts, audit and bundle remain pending |
+| Distribution preparation | Runtime SBOM/license/known-advisory checks, vulnerability reporting, reproducible wheel byte identity and bundle tooling | a97 main CI and nested-bundle review passed; final-source backend pin and upload/download checksum gates require a fresh run |
 
 ## Finish the 0.7 release candidate
 
-The feature work is delivered; newer native-runtime failures and the final installer/publication gates below remain. [Handover](../HANDOVER.md#resume-in-this-order) gives the ordered continuation procedure and local paths. Do not treat this table as a live CI dashboard; query the linked runs before resuming.
+The compatibility follow-up in this source changes production entry-point code and the test harness. Source-matched green matrix results and released evidence determine closure; the table preserves archived pre-fix a97 outcomes. The [cached 253 preflight](../demo/screenshots/platform-0.7/intellij-verifier/local-253-ipgp2181/README.md) passed six cases without failures/errors/skips, but does not prove minimum 252 or 262 acceptance. No failed assertion is waived.
 
-| Gate | Status at handover | Completion criterion |
-|---|---|---|
-| Exact-source CI | `76312ac`: Windows/scanners, Docker, corpus, rule review, resources and Android passed; main [CI](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39459625691) passed | Full final-source JVM/Python/Node/conformance/parity/audit jobs pass; preserve exact source identities |
-| Supported hosts | All six VS Code jobs / 48 cases and minimum native runtime passed. All three binary verifiers passed, but actual runtime tasks for 2026.2.2 and 2026.2.3 failed during JUnit/ServiceLoader startup before cases ran in the [host matrix](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39459625955) | Compatible minimum-built binary and six real Jewel factory runtime tests each on 2025.2, 2026.2.2 and 2026.2.3; retain usage warnings |
-| Device acceptance | Android 16/API 36 emulator passed in [39459625818](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39459625818); actual clean screenshot inspected | Done for this emulator/owned HTTP fixture. Keep APK/source/image hashes and limits; this is not a mobile IDE plugin or physical-phone test |
-| Final install / audit / bundle | Earlier actual Studio and VS Code acceptance passed; final native ZIP and refreshed README-bearing VSIX still need final install checks and matching audit | Use the CI minimum-built ZIP, rebuild final packages, rerun closure/license/SBOM audit, and package clean committed source into a new checksummed bundle |
-| Merge / candidate publication | PR #2 merged; [PR #3](https://github.com/Sal7one/NewWrapperGaurd/pull/3) open against master. No 0.7 release exists | Consolidate handover docs, pass exact final checks, merge through normal GitHub flow, then publish and verify `v0.7.0-rc.1` assets with test instructions |
+| Gate | Archived pre-fix a97 result | Acceptance criterion |
+| --- | --- | --- |
+| Native supported hosts | All binary verifiers compatible; minimum 2025.2 passed 6/6 actual cases. Both 262 targets passed 5/6, failing enabled-plugin registration; [raw reports](../demo/screenshots/platform-0.7/intellij-verifier/a97dcd1/README.md) | Validate IPGP 2.18.1 product-info/module-alias classpath fix, exact framework assertions and Java factory default inheritance. Require 6/6 cases, zero failures/errors/skips on 2025.2/2026.2.2/2026.2.3 and retain verifier reports |
+| Exact final-source CI | [a97 main CI](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39480825937), scanners/Windows, Docker, corpus, source-rule review, resources and Android passed; all six VS Code jobs / 48 cases passed | Required workflows pass on the final release source; do not reuse canceled, different-source or binary-only results |
+| Installer/device acceptance | [Actual Studio a97 ZIP](../demo/screenshots/platform-0.7/android-studio/minimum-a97dcd1/evidence.json) and [Android 16 emulator](../demo/screenshots/platform-0.7/android-device/a97dcd1/README.md) passed; actual PNG and APK hash reviewed | Keep exact package/source/image hashes. Reinstall/smoke changed production binaries. Emulator/owned HTTP target evidence does not establish physical-phone acceptance |
+| Distribution and delivery | a97 nested bundle passed 288 checksums / 28 Markdown destinations and exact audited-CLI bytes. Expanded artifact omitted one hidden workflow; SDK generator metadata drifted | Verify the setuptools 84.2.1 pin, included hidden workflow and uploaded/downloaded manifests; match all four audited packages and standalone gates to the final clean source |
+| Merge/publication | [PR #3 checks](https://github.com/Sal7one/NewWrapperGaurd/pull/3/checks) identify the current head and review state | Check the canonical 0.7 tag/release first and reuse an existing verified publication. Otherwise merge after required checks, require final merged-source CI, then publish/verify candidate assets, checksums, source and instructions. GitHub publication does not imply Marketplace/PyPI/signing |
 
 ## Further roadmap and external acceptance
 
 | Area | Current status | Next evidence / work |
 |---|---|---|
 | Accessibility and usability | Actual keyboard, AX tree, four themes, narrow layout, focus/cancel/error checks passed | Human screen-reader session and independent usability review; fix issues they reveal |
-| Physical device | No phone attached; emulator result is recorded | When hardware is available, run the same owned-fixture driver against an explicitly selected authorized device and retain separate evidence |
+| Physical device | Emulator result recorded; no physical-device acceptance recorded | When hardware is available, run the same owned-fixture driver against an explicitly selected authorized device and retain separate evidence |
 | Public channels and signing | GitHub/manual installer path supported; Marketplace/PyPI credentials and publisher signing not configured | Choose channels, configure publisher identity/credentials/signing where supported, and validate real install/update behavior |
 | Detection quality | Targeted deterministic rules and integration checks; known missed behavior and limited source scope recorded | More independent, family-aware and prospective datasets; contextual review; expand rules only with positive/negative evidence |
 | AI explanation quality | Two small local models produced structured output but unreliable/injection-contaminated prose | Human-reviewed evaluation and stronger quality controls before any production-quality explanation claim; retain advisory/off-by-default authority |

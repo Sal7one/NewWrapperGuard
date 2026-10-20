@@ -5,7 +5,6 @@ import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.options.ShowSettingsUtil
 import com.intellij.openapi.wm.ToolWindow
-import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.ui.content.ContentFactory
 import com.sal7one.wrapperguard.intellij.WrapperGuardProjectService
 import java.awt.BorderLayout
@@ -25,8 +24,9 @@ import javax.swing.JTextArea
  * Per the project architecture, Swing is allowed only at this platform boundary; all real
  * UI lives in Compose.
  */
-class WrapperGuardToolWindowFactory : ToolWindowFactory {
-    override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
+object WrapperGuardToolWindowContent {
+    @JvmStatic
+    fun create(project: Project, toolWindow: ToolWindow) {
         val service = project.getService(WrapperGuardProjectService::class.java)
         val composeHost = try { JewelPanelCompatibility.create { WrapperGuardApp(service, project) } }
         catch (cancelled: ProcessCanceledException) { throw cancelled }

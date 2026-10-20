@@ -1,0 +1,15 @@
+Compiled from "ToolWindowFactory.kt"
+public interface com.intellij.openapi.wm.ToolWindowFactory extends com.intellij.openapi.project.PossiblyDumbAware {
+  public default java.lang.Object isApplicableAsync(com.intellij.openapi.project.Project, kotlin.coroutines.Continuation<? super java.lang.Boolean>);
+  public static java.lang.Object isApplicableAsync$suspendImpl(com.intellij.openapi.wm.ToolWindowFactory, com.intellij.openapi.project.Project, kotlin.coroutines.Continuation<? super java.lang.Boolean>);
+  public default boolean isApplicable(com.intellij.openapi.project.Project);
+  public abstract void createToolWindowContent(com.intellij.openapi.project.Project, com.intellij.openapi.wm.ToolWindow);
+  public default void init(com.intellij.openapi.wm.ToolWindow);
+  public default java.lang.Object manage(com.intellij.openapi.wm.ToolWindow, com.intellij.openapi.wm.ToolWindowManager, kotlin.coroutines.Continuation<? super kotlin.Unit>);
+  public static java.lang.Object manage$suspendImpl(com.intellij.openapi.wm.ToolWindowFactory, com.intellij.openapi.wm.ToolWindow, com.intellij.openapi.wm.ToolWindowManager, kotlin.coroutines.Continuation<? super kotlin.Unit>);
+  public default boolean shouldBeAvailable(com.intellij.openapi.project.Project);
+  public default boolean isDoNotActivateOnStart();
+  public static void isDoNotActivateOnStart$annotations();
+  public default com.intellij.openapi.wm.ToolWindowAnchor getAnchor();
+  public default javax.swing.Icon getIcon();
+}

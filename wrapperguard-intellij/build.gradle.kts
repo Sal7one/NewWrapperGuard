@@ -104,10 +104,10 @@ if (bridgeRuntimeVersion.isPresent || bridgeRuntimePath.isPresent) {
             type.set(IntelliJPlatformType.IntellijIdeaUltimate)
             version.set(bridgeRuntimeVersion)
         }
-        // IPGP 2.11 resolves the default "closest" test-framework against the base
-        // compilation platform, even inside a custom target runtime. A 252 framework
-        // cannot initialize against 262 (Java11Shim moved). Pin the target build;
-        // release compilation and its own tests still use the minimum platform.
+        // IPGP 2.11 matched the default "closest" framework to the base compilation
+        // platform inside a custom runtime, causing a 252/262 Java11Shim mismatch.
+        // Keep target-build pinning and resolved-artifact checks as an invariant under
+        // 2.18.1 too; release compilation and its own tests use the minimum platform.
         require(!bridgeRuntimeVersion.isPresent || bridgeRuntimeBuild.isPresent) {
             "A remote bridge runtime requires wrapperguard.bridgeRuntimeBuild for its matching test framework"
         }
@@ -122,10 +122,8 @@ if (bridgeRuntimeVersion.isPresent || bridgeRuntimePath.isPresent) {
                 "intellij.platform.jewel.foundation", "intellij.platform.jewel.ui", "intellij.platform.jewel.ideLafBridge").forEach { bundledModule(it) }
             if (bridgeRuntimeVersion.orNull?.startsWith("2026.") == true) {
                 bundledModule("intellij.libraries.compose.runtime.desktop")
-                // 262 makes Gradle depend on these product modules. The custom test
-                // classpath does not collect them from Gradle's descriptor transitively.
-                // Keep the installed-plugin assertion: loading only Jewel is insufficient.
-                listOf("intellij.platform.smRunner", "intellij.platform.testRunner").forEach { bundledModule(it) }
+                // IPGP 2.18.1 assembles the target product-info plugin/module classpath.
+                // Individual bundledModule jars alone do not register 262 product modules.
             }
         }
         task {
@@ -187,9 +185,9 @@ intellijPlatform {
         ides {
             // Binary-compat check against the development IDE. IC is no longer published
             // since 2025.3, so verify against the full IDE (IU).
-            // NB: Android Studio is not verified here — IPGP 2.11 mangles the AS installer
-            // URL for 2025.3.x; the real Android Studio install test is a manual step
-            // (install the release zip into AS from the GitHub release).
+            // Android Studio is covered separately by actual isolated installation,
+            // startup and guard acceptance with the minimum-built CI ZIP. These binary
+            // verifier targets are IntelliJ IDEA distributions.
             create(IntelliJPlatformType.IntellijIdeaUltimate,
                 providers.gradleProperty("wrapperguard.verifierVersion").getOrElse("2025.3"))
         }

@@ -40,7 +40,20 @@ class GuardSmokeTest : HeavyPlatformTestCase() {
         val descriptor = com.intellij.ide.plugins.PluginManagerCore.getPlugin(
             com.intellij.openapi.extensions.PluginId.getId("com.sal7one.wrapperguard.next"))
         assertNotNull("The plugin must load on the minimum platform, not silently lose services and guards", descriptor)
-        assertTrue(descriptor!!.isEnabled)
+        assertTrue("The installed plugin must remain enabled in the target runtime", descriptor!!.isEnabled)
+        val factoryClass = com.sal7one.wrapperguard.intellij.ui.WrapperGuardToolWindowFactory::class.java
+        assertNotNull("The public no-argument factory constructor must retain its ABI", factoryClass.getConstructor().newInstance())
+        assertEquals("Only the public content entry point is declared; platform defaults must be inherited directly",
+            setOf("createToolWindowContent"), factoryClass.declaredMethods.map { it.name }.toSet())
+        assertNotNull(factoryClass.getDeclaredMethod("createToolWindowContent", Project::class.java,
+            com.intellij.openapi.wm.ToolWindow::class.java))
+        val platformDefaults = com.intellij.openapi.wm.ToolWindowFactory::class.java.methods
+            .filter { it.name in setOf("getIcon", "getAnchor", "manage") }
+        platformDefaults.forEach { platformMethod ->
+            val inherited = factoryClass.getMethod(platformMethod.name, *platformMethod.parameterTypes)
+            assertEquals("Available platform defaults must be inherited without a generated override: ${platformMethod.name}",
+                platformMethod.declaringClass, inherited.declaringClass)
+        }
         val loader = requireNotNull(descriptor.pluginClassLoader) { "The enabled plugin must have its own classloader" }
         listOf("androidx.compose.runtime.Composer", "org.jetbrains.jewel.foundation.theme.JewelTheme",
             "org.jetbrains.jewel.ui.component.TextKt", "org.jetbrains.jewel.bridge.JewelComposePanelWrapperKt").forEach {

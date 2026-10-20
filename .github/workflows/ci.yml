@@ -84,7 +84,18 @@ jobs:
         with:
           name: wrapperguard-distributions
           if-no-files-found: error
+          include-hidden-files: true
           path: ${{ runner.temp }}/wrapperguard-test-bundle/
+      - name: Download the delivered distribution set
+        uses: actions/download-artifact@v4
+        with:
+          name: wrapperguard-distributions
+          path: ${{ runner.temp }}/wrapperguard-delivered-bundle
+      - name: Verify the delivered files and nested bundle
+        working-directory: ${{ runner.temp }}/wrapperguard-delivered-bundle
+        run: |
+          sha256sum --quiet --check SHA256SUMS
+          sha256sum --quiet --check BUNDLE-SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
           name: wrapperguard-plugin

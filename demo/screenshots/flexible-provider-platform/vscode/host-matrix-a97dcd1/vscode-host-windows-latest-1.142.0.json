@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "vscodeVersion": "1.142.0",
+  "platform": "win32",
+  "apiVersion": 1,
+  "fixtureOnly": true,
+  "passed": true,
+  "cases": [
+    "activate-api1-two-roots",
+    "disabled-until-granted-no-implicit-execution",
+    "actual-sdk-attribution-status-action-clipping",
+    "independent-build-sync-authority",
+    "explicit-root-binding-outside-root-rejection",
+    "missing-tool-isolated-incomplete-repairable",
+    "actual-before-after-declared-input-seal",
+    "actual-contributed-webview-open"
+  ]
+}

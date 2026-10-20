@@ -1,0 +1,9 @@
+905eacbcfc2c8b683adc27a8ad36917f73a1fee5bfdbaa192b79e0870660daf1  README.md
+9a754035523cfb49111f6f329337db0deb108688f9a5bad2553e6e27549d297d  acceptance-summary.json
+f494a50d649b939067e569c6f4f02dfb8aa4200d872ebd289645faacf397b754  vscode-host-macos-latest-1.142.0.json
+f27e41ccc29b63b40f16dad4e9cde23803fac2847e48a9c9cbf87233497bbe22  vscode-host-macos-latest-1.95.0.json
+bd73f3d328afa0ac0b46acf33aa9186f9ae4b655e181d01f79c7e2b2cefad755  vscode-host-ubuntu-latest-1.142.0.json
+724a9f943a511a934867087063595e7f11e608e4e5954900ee809808da55943c  vscode-host-ubuntu-latest-1.95.0.json
+d30e8f5e7b57850081bdd3c28a09bdb1ec291f9f5576b9458043de612962ff95  vscode-host-windows-latest-1.142.0.json
+9c00a830662a9e5b3ab0fa31140f60b04fe3cedeb0bf9e3f21a4853b0e4ad5b3  vscode-host-windows-latest-1.95.0.json
+e3d25b2735f89f42ae303a4bb1126e421bc6dc7863b40a101571bbcf77340aed  vsix-runtime-equivalence.json

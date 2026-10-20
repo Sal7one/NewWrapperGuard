@@ -1,0 +1,15 @@
+Compiled from "WrapperGuardToolWindowFactory.java"
+public final class com.sal7one.wrapperguard.intellij.ui.WrapperGuardToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFactory {
+  public com.sal7one.wrapperguard.intellij.ui.WrapperGuardToolWindowFactory();
+    Code:
+       0: aload_0
+       1: invokespecial #1                  // Method java/lang/Object."<init>":()V
+       4: return
+
+  public void createToolWindowContent(com.intellij.openapi.project.Project, com.intellij.openapi.wm.ToolWindow);
+    Code:
+       0: aload_1
+       1: aload_2
+       2: invokestatic  #7                  // Method com/sal7one/wrapperguard/intellij/ui/WrapperGuardToolWindowContent.create:(Lcom/intellij/openapi/project/Project;Lcom/intellij/openapi/wm/ToolWindow;)V
+       5: return
+}
