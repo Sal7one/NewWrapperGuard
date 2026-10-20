@@ -2,6 +2,14 @@
 
 Checkpoint **2026-10-20**, runtime source **`76312ac`**: app **0.7.0**, SDK **0.4.0**, provider **API 1 / schema 1**. This is candidate acceptance work. The previous [0.6.0 RC1 release](https://github.com/Sal7one/NewWrapperGaurd/releases/tag/v0.6.0-rc.1) remains unchanged. No 0.7 release or final acceptance bundle exists yet. Final release metadata/checksums identify the packaged commit; earlier CI is evidence for its recorded checkpoint only. [Handover](../HANDOVER.md) has the exact branch/CI state and ordered continuation procedure.
 
+## Continuation checkpoint
+
+At `59daa26`, main CI and all six VS Code host jobs passed; 158 Node tests, five hardening checks, 53 integrated script tests and eight actual installed-VSIX host cases passed locally. The minimum-built native ZIP is byte-identical across the 763 and 59 builds and passed actual Studio startup, Tools and persisted paused automation. [Installed VSIX record](../demo/screenshots/flexible-provider-platform/vscode/installed-vsix-59daa26/README.md) and [Studio record](../demo/screenshots/platform-0.7/android-studio/minimum-76312ac/evidence.json) preserve their exact artifact identities.
+
+The explicit test-framework fix lets all six cases execute on both newer native targets: actual Jewel creation and four compatibility-boundary cases pass, but the enabled-plugin assertion fails because the custom runtime omitted Gradle's `smRunner`/`testRunner` modules. The follow-up includes those modules without changing the shipped descriptor; its fresh runtime matrix must pass before release. [Raw 59 reports](../demo/screenshots/platform-0.7/intellij-verifier/59daa26/README.md).
+
+The bundle follow-up preserves gallery paths, validates every local Markdown destination and builds its runnable CLI from the exact audited ZIP bytes. Main CI exercises the generated bundle and retains its complete matching artifact set. Download the final green-source bundle, rather than an earlier checkpoint package.
+
 ## Install and test the build
 
 | Host | Candidate artifact | Installation |

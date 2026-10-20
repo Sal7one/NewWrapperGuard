@@ -2,14 +2,146 @@
 """Assemble a reviewable acceptance bundle from current built artifacts and clean source."""
 import argparse
 import hashlib
+import html
+import io
 import json
 from pathlib import Path
 import re
 import shutil
+import stat
 import subprocess
+from urllib.parse import unquote, urlsplit
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def extract_cli_distribution(archive_bytes, output, version):
+    """Extract only the audited archive, with portable paths and executable modes."""
+    prefix = f'wrapperguard-cli-{version}/'
+    with zipfile.ZipFile(io.BytesIO(archive_bytes)) as archive:
+        entries = []
+        names = set()
+        for info in archive.infolist():
+            name = info.filename
+            if not name.startswith(prefix) or '\\' in name:
+                raise ValueError('Unsafe CLI archive prefix or path')
+            relative = name.removeprefix(prefix).removesuffix('/')
+            if ':' in relative or relative and any(part in ('', '.', '..') for part in relative.split('/')):
+                raise ValueError('Unsafe CLI archive path')
+            if relative in names:
+                raise ValueError('Duplicate CLI archive entry')
+            names.add(relative)
+            mode = info.external_attr >> 16
+            if stat.S_IFMT(mode) not in (0, stat.S_IFREG, stat.S_IFDIR):
+                raise ValueError('Unsupported CLI archive file type')
+            if (stat.S_ISDIR(mode) and not info.is_dir()) or (stat.S_ISREG(mode) and info.is_dir()):
+                raise ValueError('Inconsistent CLI archive file type')
+            if not relative:
+                if not info.is_dir():
+                    raise ValueError('Unsafe CLI archive root entry')
+                continue
+            entries.append((info, relative, mode))
+        files = {relative for info, relative, _ in entries if not info.is_dir()}
+        if any(parent.as_posix() in files for _, relative, _ in entries for parent in Path(relative).parents if str(parent) != '.'):
+            raise ValueError('Conflicting CLI archive file and directory entries')
+        if not entries or output.exists():
+            raise ValueError('CLI output must be new and archive must contain files')
+        output.mkdir(parents=True)
+        for info, relative, mode in entries:
+            target = output/relative
+            if info.is_dir():
+                target.mkdir(parents=True, exist_ok=True)
+            else:
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(archive.read(info))
+                target.chmod(mode & 0o777 or 0o644)
+
+
+def markdown_destinations(text):
+    """Read inline/image and reference destinations, excluding literal code examples."""
+    lines = []
+    fence = None
+    for line in text.splitlines():
+        marker = re.match(r'^ {0,3}(`{3,}|~{3,})', line)
+        if fence:
+            if marker and marker[1][0] == fence[0] and len(marker[1]) >= len(fence):
+                fence = None
+            continue
+        if marker:
+            fence = marker[1]
+            continue
+        lines.append(line)
+    text = re.sub(r'(`+).*?\1', '', '\n'.join(lines))
+
+    def destination(start):
+        if text[start:start+1] == '<':
+            end = text.find('>', start+1)
+            return text[start+1:end] if end != -1 else ''
+        value = []
+        depth = 0
+        index = start
+        while index < len(text):
+            char = text[index]
+            if char == '\\' and index+1 < len(text):
+                value.extend((char, text[index+1])); index += 2; continue
+            if char == ')' and depth == 0 or char.isspace() and depth == 0:
+                break
+            if char == '(':
+                depth += 1
+            elif char == ')':
+                depth -= 1
+            value.append(char); index += 1
+        return ''.join(value)
+
+    for match in re.finditer(r'\]\(\s*|^ {0,3}\[[^\]\n]+\]:\s*', text, re.M):
+        value = destination(match.end())
+        if value:
+            yield html.unescape(re.sub(r'\\([\\`*{}\[\]()#+\-.!_> ])', r'\1', value))
+
+
+def validate_markdown_links(directory):
+    """Fail on missing or escaping local links in the actual copied offline material."""
+    directory = directory.resolve()
+    failures = []
+    for document in sorted(directory.rglob('*.md')):
+        for link in markdown_destinations(document.read_text(encoding='utf-8')):
+            if link.startswith('#'):
+                continue
+            if re.match(r'^[A-Za-z]:[\\/]', link):
+                failures.append(f'{document.relative_to(directory)}: outside bundle: {link}')
+                continue
+            target = urlsplit(link)
+            if target.scheme.lower() == 'file':
+                failures.append(f'{document.relative_to(directory)}: outside bundle: {link}')
+                continue
+            if target.scheme or target.netloc:
+                continue
+            path = unquote(target.path)
+            candidate = (document.parent/path).resolve()
+            if Path(path).is_absolute() or not candidate.is_relative_to(directory):
+                failures.append(f'{document.relative_to(directory)}: outside bundle: {link}')
+            elif not candidate.exists():
+                failures.append(f'{document.relative_to(directory)}: missing destination: {link}')
+    if failures:
+        raise ValueError('Broken offline Markdown links:\n' + '\n'.join(failures))
+
+
+def copy_review_material(root, output):
+    """Preserve repository-relative paths used by the offline acceptance guides."""
+    for directory in ('docs', 'schema', 'catalog', 'examples', 'research'):
+        shutil.copytree(root / directory, output / directory,
+                        ignore=shutil.ignore_patterns('__pycache__', 'build', '.gradle', '.kotlin', '.idea'))
+    shutil.copytree(root / 'test-fixtures/newfirstparty', output / 'test-fixtures/newfirstparty')
+    for name in ('HANDOVER.md', 'LICENSE', 'CHANGELOG.md', 'SECURITY.md', 'THIRD_PARTY_NOTICES.md',
+                 'vscode-extension/README.md', '.github/workflows/android-device.yml'):
+        target = output / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(root / name, target)
+    for gallery in ('platform-0.6', 'platform-0.7', 'flexible-provider-platform'):
+        relative = Path('demo/screenshots') / gallery
+        if (root / relative).is_dir():
+            shutil.copytree(root / relative, output / relative)
 
 
 def main():
@@ -37,20 +169,13 @@ def main():
     if not all((audit / name).is_file() for name in ('runtime.cdx.json', 'distribution-audit.json')):
         parser.error('Run scripts/distribution-audit.py with an absolute build/distribution-audit output first')
     audited_hashes = json.loads((audit / 'distribution-audit.json').read_text()).get('artifactSha256', {})
-    if any(audited_hashes.get(file.name) != hashlib.sha256(file.read_bytes()).hexdigest() for file in files):
+    artifact_bytes = {file: file.read_bytes() for file in files}
+    if any(audited_hashes.get(file.name) != hashlib.sha256(data).hexdigest() for file, data in artifact_bytes.items()):
         parser.error('Re-run the distribution audit: an artifact changed after review')
     args.output.mkdir(parents=True)
-    for file in files: shutil.copy2(file, args.output / file.name)
-    shutil.copytree(ROOT / 'wrapperguard-cli/build/install/wrapperguard-cli', args.output / 'cli')
-    for directory in ('docs', 'schema', 'catalog', 'examples', 'research'):
-        shutil.copytree(ROOT / directory, args.output / directory,
-                        ignore=shutil.ignore_patterns('__pycache__', 'build', '.gradle', '.kotlin', '.idea'))
-    shutil.copytree(ROOT / 'test-fixtures/newfirstparty', args.output / 'test-fixtures/newfirstparty')
-    for name in ('HANDOVER.md', 'LICENSE', 'CHANGELOG.md', 'SECURITY.md', 'THIRD_PARTY_NOTICES.md'):
-        shutil.copy2(ROOT / name, args.output / name)
-    for gallery in ('platform-0.6', 'platform-0.7', 'flexible-provider-platform'):
-        screenshots = ROOT / 'demo/screenshots' / gallery
-        if screenshots.is_dir(): shutil.copytree(screenshots, args.output / 'screenshots' / gallery)
+    for file, data in artifact_bytes.items(): (args.output / file.name).write_bytes(data)
+    extract_cli_distribution(artifact_bytes[files[2]], args.output / 'cli', version)
+    copy_review_material(ROOT, args.output)
     shutil.copytree(audit, args.output / 'distribution-audit')
     smoke = (ROOT / 'scripts/provider-smoke.py').read_text()
     smoke = smoke.replace('Path(__file__).resolve().parents[1]', 'Path(__file__).resolve().parent')
@@ -85,6 +210,7 @@ VS Code integrations are separate from the packaged CLI smoke. Android device ev
 uses an Android16 emulator and an owned test target, not a mobile WrapperGuard plugin.
 Screenshots distinguish real editor setup from synthetic provider/history examples.
 ''')
+    validate_markdown_links(args.output)
     records = []
     for file in sorted(args.output.rglob('*')):
         if file.is_file():

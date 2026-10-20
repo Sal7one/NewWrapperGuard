@@ -1,0 +1,62 @@
+{
+  "sourceCommit": "59daa2615c5c15654fc43847df1e6482d73edafb",
+  "workflowRun": 39478013336,
+  "job": 118818929208,
+  "ideVersion": "2025.2",
+  "ideBuild": "IU-252.23892.409",
+  "binaryVerification": {
+    "verdict": "Compatible",
+    "deprecatedApiUsages": 8,
+    "experimentalApiUsages": 27,
+    "internalApiUsages": 6
+  },
+  "runtime": {
+    "status": "PASS",
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "suite": "com.sal7one.wrapperguard.intellij.ui.JewelPanelCompatibilityTest",
+        "name": "a real invocation failure is surfaced without trying another factory"
+      },
+      {
+        "suite": "com.sal7one.wrapperguard.intellij.ui.JewelPanelCompatibilityTest",
+        "name": "legacy and focused factories receive the actual configuration and content"
+      },
+      {
+        "suite": "com.sal7one.wrapperguard.intellij.ui.JewelPanelCompatibilityTest",
+        "name": "missing static shape or exact return and parameter types fails explicitly"
+      },
+      {
+        "suite": "com.sal7one.wrapperguard.intellij.ui.JewelPanelCompatibilityTest",
+        "name": "legacy public signature wins when both are present"
+      },
+      {
+        "suite": "com.sal7one.wrapperguard.intellij.execution.GuardSmokeTest",
+        "name": "testDescriptorLoadsBundledComposeWithoutRequiringLaterAggregateAlias"
+      },
+      {
+        "suite": "com.sal7one.wrapperguard.intellij.execution.GuardSmokeTest",
+        "name": "testBundledJewelBridgeCreatesAnActualPanelThroughCompatibilityBoundary"
+      }
+    ],
+    "frameworkBuild": "252.23892.409",
+    "frameworkConfigurationsVerified": [
+      "intellijPlatformTestDependencies_testJewelBridgeRuntime",
+      "intellijPlatformTestRuntimeClasspath_testJewelBridgeRuntime"
+    ]
+  },
+  "evidenceSha256": {
+    "runtime/TEST-com.sal7one.wrapperguard.intellij.execution.GuardSmokeTest.xml": "ef4f5ed9e499ca5c3104486baa87fa13fdc368abcbc04ff78a92407032863849",
+    "runtime/TEST-com.sal7one.wrapperguard.intellij.ui.JewelPanelCompatibilityTest.xml": "4753b1228609229e448d23d6466185902ead64ff6d342c860201a8657b4d0229",
+    "runtime/test-framework.txt": "1c7421cd919c37244423616a6eefd2a2d6d6927f54c3e21848d04c68af8b0fe9",
+    "verifier/dependencies.txt": "1d7d262cc10254f46d8d7f48b9387c1fd1092ac85288f4927f7a3111c2e9979a",
+    "verifier/deprecated-usages.txt": "82289e06d3bde945b7401d5d303217b5863e10b639ab5bd57c3e85552d817994",
+    "verifier/experimental-api-usages.txt": "40b81e9277073853783fb162a53c525040b82c547a49cf3359fbbf41344cf182",
+    "verifier/internal-api-usages.txt": "e01d97c35fc3077904f47ca1eec8082a70f67b9f8d93542c1dc97f99c49cb15d",
+    "verifier/telemetry.txt": "cdfa64d30412177e54009fcb4845bc55b6e6f5c0be225b86786bcf5abd21eef1",
+    "verifier/verification-verdict.txt": "597f6c71804f91e4c8f087b3eec3f4ff6d8b25466955b7a88ae64f155c440d77"
+  }
+}

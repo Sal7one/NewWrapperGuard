@@ -62,8 +62,10 @@ jobs:
       - name: Package VS Code for cross-distribution review
         working-directory: vscode-extension
         run: npm run package
-      - name: Distribution inventory regressions
-        run: python -m unittest discover -s scripts/tests -p test_distribution_audit.py -v
+      - name: Distribution inventory and offline bundle regressions
+        run: |
+          python -m unittest discover -s scripts/tests -p test_distribution_audit.py -v
+          python -m unittest discover -s scripts/tests -p test_package_bundle.py -v
       - name: Audit actual packaged runtime closure, licenses and identical SDKs
         run: python scripts/distribution-audit.py --output "$GITHUB_WORKSPACE/build/distribution-audit"
       - name: Assemble and exercise the checksummed acceptance bundle

@@ -1,0 +1,67 @@
+{
+  "sourceCommit": "59daa2615c5c15654fc43847df1e6482d73edafb",
+  "workflowRun": 39478013336,
+  "job": 118818929025,
+  "ideVersion": "2026.2.3",
+  "ideBuild": "IU-262.10968.63",
+  "binaryVerification": {
+    "verdict": "Compatible",
+    "deprecatedApiUsages": 88,
+    "experimentalApiUsages": 18,
+    "internalApiUsages": 0
+  },
+  "runtime": {
+    "status": "FAIL",
+    "tests": 6,
+    "failures": 1,
+    "errors": 0,
+    "skipped": 0,
+    "frameworkBuild": "262.10968.63",
+    "cases": [
+      {
+        "suite": "com.sal7one.wrapperguard.intellij.ui.JewelPanelCompatibilityTest",
+        "name": "a real invocation failure is surfaced without trying another factory",
+        "status": "PASS"
+      },
+      {
+        "suite": "com.sal7one.wrapperguard.intellij.ui.JewelPanelCompatibilityTest",
+        "name": "legacy and focused factories receive the actual configuration and content",
+        "status": "PASS"
+      },
+      {
+        "suite": "com.sal7one.wrapperguard.intellij.ui.JewelPanelCompatibilityTest",
+        "name": "missing static shape or exact return and parameter types fails explicitly",
+        "status": "PASS"
+      },
+      {
+        "suite": "com.sal7one.wrapperguard.intellij.ui.JewelPanelCompatibilityTest",
+        "name": "legacy public signature wins when both are present",
+        "status": "PASS"
+      },
+      {
+        "suite": "com.sal7one.wrapperguard.intellij.execution.GuardSmokeTest",
+        "name": "testDescriptorLoadsBundledComposeWithoutRequiringLaterAggregateAlias",
+        "status": "FAIL"
+      },
+      {
+        "suite": "com.sal7one.wrapperguard.intellij.execution.GuardSmokeTest",
+        "name": "testBundledJewelBridgeCreatesAnActualPanelThroughCompatibilityBoundary",
+        "status": "PASS"
+      }
+    ],
+    "rootCause": "Descriptor is disabled: target Gradle plugin content module requires intellij.platform.smRunner, missing from custom test-runtime module assembly. smRunner requires intellij.platform.testRunner, also absent.",
+    "actualBridgeFactoryCreatedComponent": true,
+    "nextStep": "Add those two target product modules to the custom runtime test plugins only; retain all six assertions and rerun all target checks."
+  },
+  "evidenceSha256": {
+    "runtime/TEST-com.sal7one.wrapperguard.intellij.execution.GuardSmokeTest.xml": "476411c941ac3c821515dd6b0389cbaa37169470d155ef77ea8a054a68ae3632",
+    "runtime/TEST-com.sal7one.wrapperguard.intellij.ui.JewelPanelCompatibilityTest.xml": "32d88385f3e9864c62663f7f828086ef4ec569058e2509fbd025f9b9888320fb",
+    "runtime/ci-failed-step.log": "6919f54f641cc8562fa33664cb841c22443bf0243a1974baedde0962e3753ba7",
+    "runtime/test-framework.txt": "e7cb40c7917ef833168102837cef09a0b79d0576fa4f7c2718ca816cc30fc59e",
+    "verifier/dependencies.txt": "5364e8125fd9697cbca9cab4cadaf65beba2f005da474cb4f243ca41d96948b0",
+    "verifier/deprecated-usages.txt": "750909d6a9e0122d9c1b613f6104e2abd9d49aad00eec4b67b752f556d4d6ad8",
+    "verifier/experimental-api-usages.txt": "24c0b4adb85676910c23727f5f2a3f1fc01df24004b13e9deac8db7412cd5dc6",
+    "verifier/telemetry.txt": "1b035b01ffeea0e2b571f368d07e14759d9ef565d73a1702c05225a34e022489",
+    "verifier/verification-verdict.txt": "b1b525e3d6028278a5cc3e25b8127c2dcbc5dd433d2615aeb70a9944ed99ba68"
+  }
+}

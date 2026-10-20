@@ -120,7 +120,13 @@ if (bridgeRuntimeVersion.isPresent || bridgeRuntimePath.isPresent) {
             bundledPlugin("com.intellij.gradle")
             listOf("intellij.platform.compose", "intellij.libraries.skiko", "intellij.libraries.compose.foundation.desktop",
                 "intellij.platform.jewel.foundation", "intellij.platform.jewel.ui", "intellij.platform.jewel.ideLafBridge").forEach { bundledModule(it) }
-            if (bridgeRuntimeVersion.orNull?.startsWith("2026.") == true) bundledModule("intellij.libraries.compose.runtime.desktop")
+            if (bridgeRuntimeVersion.orNull?.startsWith("2026.") == true) {
+                bundledModule("intellij.libraries.compose.runtime.desktop")
+                // 262 makes Gradle depend on these product modules. The custom test
+                // classpath does not collect them from Gradle's descriptor transitively.
+                // Keep the installed-plugin assertion: loading only Jewel is insufficient.
+                listOf("intellij.platform.smRunner", "intellij.platform.testRunner").forEach { bundledModule(it) }
+            }
         }
         task {
             useJUnitPlatform { includeEngines("junit-vintage") }

@@ -47,3 +47,8 @@ for the workflow's separate native-IDE jobs. The separate
 [Android acceptance record](../../../../examples/android-acceptance/README.md#acceptance-status)
 now includes a passing emulator UI/rendering gate and agent image review; human review
 and physical-phone acceptance remain unperformed.
+
+The later [installed VSIX acceptance at `59daa26`](installed-vsix-59daa26/README.md) rebuilt
+the README-bearing package with exact source permalinks, verified its installed bytes and
+passed the eight actual local editor cases. It retains its own package/source hashes and
+does not relabel these earlier screenshots or the `76312ac` cross-platform results.

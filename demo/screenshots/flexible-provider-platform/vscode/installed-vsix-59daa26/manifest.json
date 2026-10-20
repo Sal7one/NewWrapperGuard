@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "kind": "Actual installed VSIX package acceptance",
+  "sourceCommit": "59daa2615c5c15654fc43847df1e6482d73edafb",
+  "sourceRuntimeCheckpoint": "76312ace4306c906c329e408346a59d2e893f3c7",
+  "appVersion": "0.7.0",
+  "sdkVersion": "0.4.0",
+  "editorVersion": "1.116.0",
+  "platform": "darwin",
+  "vsixSha256": "1ec482cd413bfc2a17450dd90fc825fc176b326d3697f2f8623d02e183f7503b",
+  "sdkSha256": "ad9f000207411b362e0f93a02b9c0953429874a093a3ff84aedefd4fc43d7765",
+  "allEightInstalledHostCasesPassed": true,
+  "fixtures": "Inert two-root API1 provider fixture and non-executable Maven XML; project code never executed",
+  "limits": [
+    "Local installed VS Code1.116.0 on macOS; no new minimum/current OS matrix claim",
+    "No human accessibility or analyzer-accuracy claim",
+    "Previous profile-preparation failure retained separately; clean settings final run passed"
+  ],
+  "files": [
+    {
+      "file": "package-acceptance.json",
+      "bytes": 2751,
+      "sha256": "e973812ea1d8e5661a0ef40903c3e310bad1c2d7bd9018e893b215a03a47a2c4"
+    },
+    {
+      "file": "host-result.json",
+      "bytes": 781,
+      "sha256": "1bc9aea6be196e8a0f2bec6c4e7bae8b535605a6cced61ae76207086078f1ee0"
+    },
+    {
+      "file": "installed-runtime.json",
+      "bytes": 355,
+      "sha256": "3041e0247901363a4c039edb976e19ec53cd03a9be60aabdc9c25dd8452c261e"
+    },
+    {
+      "file": "install.log",
+      "bytes": 89,
+      "sha256": "c072e472ad7e0be88bbb28e90a81e013b4b297668a723e313c60a4e6967a56ed"
+    },
+    {
+      "file": "host.log",
+      "bytes": 860,
+      "sha256": "39487f11105b9254437842c84d8879d92226b674e9c419438320d08e0cacdd35"
+    },
+    {
+      "file": "preparation-diagnostic/reason.json",
+      "bytes": 365,
+      "sha256": "fc156113706bea9531a3355a554bc157be388c699b5972364fbc3852c18b522b",
+      "kind": "Rejected test preparation; not final acceptance"
+    },
+    {
+      "file": "preparation-diagnostic/host-result.json",
+      "bytes": 301,
+      "sha256": "c014c5cabb0d9d0a269879ae842745f506d9a7c9f089d9c08bde6bd0bab95c6c",
+      "kind": "Rejected test preparation; not final acceptance"
+    }
+  ]
+}

@@ -15,4 +15,4 @@ Build/development dependencies remain in Gradle configuration and package-lock.j
 
 [Security reporting](../SECURITY.md) · [Acceptance and exact release evidence](verification.md)
 
-The handover branch changes documentation/evidence only; an updated extension README still changes VSIX bytes. The older local audit and gallery inventories retain their recorded artifact hashes. Rebuild final artifacts and regenerate the audit before packaging 0.7; see the [ordered handover](../HANDOVER.md#resume-in-this-order). No 0.7 release has been published at this checkpoint.
+An updated extension README or source permalink changes VSIX bytes. Older audits and gallery inventories retain their recorded artifact hashes. Rebuild final artifacts and regenerate the audit before packaging; the bundle extracts its CLI from the exact audited ZIP and validates offline documentation links. Use the [ordered handover](../HANDOVER.md#resume-in-this-order) and published release metadata for the current source/artifact set.

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "59daa2615c5c15654fc43847df1e6482d73edafb",
+  "appVersion": "0.7.0",
+  "installedScannerLoad": true,
+  "bundledSaxMavenRule": "WG-MAVEN-001",
+  "projectCodeExecuted": false,
+  "fixture": "Inert Maven XML with a deliberately HTTP repository; no build",
+  "ruleIds": [
+    "WG-MAVEN-001",
+    "WG-STRUCT-003"
+  ]
+}

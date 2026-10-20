@@ -1,0 +1,11 @@
+Warning: 'cached-data' is not in the list of known options, but still passed to Electron/Chromium.
+[90m[main 2026-10-20T18:50:50.745Z][0m update#setState disabled
+[90m[main 2026-10-20T18:50:50.746Z][0m update#ctor - updates are disabled by the environment
+Ignoring terminal.integrated.initialHint.copilotCli as terminal.integrated.initialHint is true
+Started local extension host with pid 4287.
+Loading development extension at /private/tmp/wrapperguard-vsix-installed-59daa26/driver
+Ignoring terminal.integrated.initialHint.copilotCli as terminal.integrated.initialHint is true
+Unable to create workbench contribution 'workbench.contrib.agentHostTerminal'. {}
+Settings Sync: Account status changed from uninitialized to unavailable
+[90m[main 2026-10-20T18:50:51.906Z][0m Extension host with pid 4287 exited with code: 0, signal: unknown.
+Exit code:   0

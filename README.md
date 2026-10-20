@@ -5,12 +5,10 @@ Review application source, build inputs and dependency findings together. Choose
 analyzers you need and control whether each can warn, alert, stop a build or stop Gradle sync.
 
 **Current development version: 0.7.0 · Python integration SDK: 0.4.0 · Provider API: 1.**
-The 0.7.0 candidate is undergoing final release acceptance; published 0.6.0 RC1 remains available. See [verification](docs/verification.md) for test builds, completed checks
-and outstanding release work, and [the changelog](CHANGELOG.md) for published history.
-Runtime source is `76312ac`; the [handover](HANDOVER.md) records the exact branches, passing
-checks and remaining gates. Main CI, Android 16 emulator acceptance and all six VS Code
-host jobs passed. Two newer native test runtimes failed during harness startup and must be fixed and
-rerun before 0.7 publication.
+The 0.7.0 candidate is undergoing release acceptance. [Published builds and checksums](https://github.com/Sal7one/NewWrapperGaurd/releases)
+identify each released artifact set. See [verification](docs/verification.md) for install/test
+instructions and [the handover](HANDOVER.md) for exact source, evidence and remaining gates.
+[The changelog](CHANGELOG.md) records product changes.
 
 ## Start in the IDE
 

@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "kind": "Actual installed final VSIX package acceptance",
+  "sourceCommit": "59daa2615c5c15654fc43847df1e6482d73edafb",
+  "sourceRuntimeCheckpoint": "76312ace4306c906c329e408346a59d2e893f3c7",
+  "appVersion": "0.7.0",
+  "sdkVersion": "0.4.0",
+  "vsixPath": "/private/tmp/wrapperguard-optional-methods/vscode-extension/wrapperguard-0.7.0.vsix",
+  "vsixSha256": "1ec482cd413bfc2a17450dd90fc825fc176b326d3697f2f8623d02e183f7503b",
+  "vsixBytes": 286823,
+  "sdkSha256": "ad9f000207411b362e0f93a02b9c0953429874a093a3ff84aedefd4fc43d7765",
+  "sourceReadmeSha256": "83b20bab06fd58626453d7b38d5137ae75b3d2a2885515efee6f845cb4742082",
+  "packagedReadmeSha256": "9e60c4c313434f6ff09fd0c11b6cea6d5e13337f4989f701b5ba42a6fb168913",
+  "readmeContentBase": "https://github.com/Sal7one/NewWrapperGaurd/blob/59daa2615c5c15654fc43847df1e6482d73edafb/vscode-extension",
+  "readmeLinksVerified": [
+    "https://github.com/Sal7one/NewWrapperGaurd/blob/59daa2615c5c15654fc43847df1e6482d73edafb/docs/integrations.md",
+    "https://github.com/Sal7one/NewWrapperGaurd/blob/59daa2615c5c15654fc43847df1e6482d73edafb/docs/verification.md",
+    "https://github.com/Sal7one/NewWrapperGaurd/blob/59daa2615c5c15654fc43847df1e6482d73edafb/examples/provider-conformance/README.md",
+    "https://github.com/Sal7one/NewWrapperGaurd/blob/59daa2615c5c15654fc43847df1e6482d73edafb/demo/screenshots/flexible-provider-platform/vscode/README.md#six-final-ci-host-jobs",
+    "https://github.com/Sal7one/NewWrapperGaurd/blob/59daa2615c5c15654fc43847df1e6482d73edafb/examples/android-acceptance/README.md#acceptance-status"
+  ],
+  "runtimeClosure": [
+    "sax@1.6.1"
+  ],
+  "installedArchiveFilesVerified": 106,
+  "archiveChecks": [
+    "Current README with exact source-pinned monorepo link targets present in Git commit",
+    "Source-matching compiled runtime/declarations",
+    "Shared method catalog/presets",
+    "Apache license and third-party notices",
+    "Exact reviewed SAX runtime/license hashes",
+    "SDK metadata/version/license/zero dependencies/current source files",
+    "Identical normalized SDK wheel",
+    "Actual installed extension files match archive bytes (VS Code metadata excluded)"
+  ],
+  "nodeTests": 158,
+  "nodeTestsPassed": 158,
+  "hardeningChecksPassed": 5,
+  "hostEvidence": "host-result.json",
+  "scope": "Actual installed VSIX acceptance on installed local VS Code 1.116.0; inert fixtures; not a new cross-platform matrix or human accessibility review.",
+  "hostTestsPassed": 8,
+  "hostAcceptancePassed": true,
+  "updaterDisabledInDisposableProfile": true,
+  "installedExtensionLoadedAsDevelopmentOverride": false,
+  "acceptedAt": "2026-10-20T18:52:12.534197+00:00",
+  "humanAccessibilityReview": false,
+  "editorDownloaded": false
+}
