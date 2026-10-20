@@ -55,13 +55,15 @@ export function historyScope(settings:ScanSettings,providers:readonly VettingPro
       const profile=JSON.parse(readProjectFile(path.parse(anchored).root,anchored,65_536).toString('utf8'));
       configuration.push({profile});
       if(profile.reportPath&&!profile.runner){const producer=profile.format==='sarif'?sarifProducerIdentity(profile.reportPath):undefined;if(producer)configuration.push({producer});else known=false;}
-      if(profile.runner?.executable)executableIdentity(profile.runner.executable);
+      if(profile.runner?.sandbox?.executable)executableIdentity(profile.runner.sandbox.executable);
+      else if(profile.runner?.executable)executableIdentity(profile.runner.executable);
       if(profile.runner?.rulesPath){const file=profile.runner.rulesPath;const canonicalFile=path.join(fs.realpathSync(path.dirname(file)),path.basename(file));configuration.push({rules:sha(readProjectFile(path.parse(canonicalFile).root,canonicalFile,16*1024*1024))});}
       // A module manifest may load other mutable scripts; its complete semantics are not declared.
       if(profile.runner?.modulePath)known=false;
       // Python entrypoints and model names do not identify the mutable package or
       // loaded model behind them. A single script/binary hash cannot prove that scope.
       if(['bandit','semgrep','psscriptanalyzer','local-ai'].includes(profile.runner?.tool))known=false;
+      if(['http-audit','container-python'].includes(profile.runner?.tool)||profile.runner?.sandbox)known=false;
     }
     return{scopeId:sha(canonical({settings,configuration})),known};
   }catch{return{scopeId:sha(canonical({settings,configuration,unavailable:true})),known:false};}

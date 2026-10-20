@@ -107,7 +107,8 @@ intellijPlatform {
             // NB: Android Studio is not verified here — IPGP 2.11 mangles the AS installer
             // URL for 2025.3.x; the real Android Studio install test is a manual step
             // (install the release zip into AS from the GitHub release).
-            create(IntelliJPlatformType.IntellijIdeaUltimate, "2025.3")
+            create(IntelliJPlatformType.IntellijIdeaUltimate,
+                providers.gradleProperty("wrapperguard.verifierVersion").getOrElse("2025.3"))
         }
     }
 }

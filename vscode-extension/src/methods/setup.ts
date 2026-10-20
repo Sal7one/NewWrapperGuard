@@ -5,20 +5,21 @@ import { constants } from 'node:fs';
 import { CommandProviderConfig, validateCommandConfiguration } from '../providers/commandProvider';
 import { SecurityMethod } from './catalog';
 import { ScanReport } from '../models';
-import { ensureManagedSdk, installManagedPythonTool, pythonVersion, sdkSupportedRunners, PYTHON_TOOLS } from './bootstrap';
+import { ensureManagedSdk, installManagedPythonTool, pythonVersion, sdkSupportedRunners, sdkSandboxTools, PYTHON_TOOLS } from './bootstrap';
 import { HOST_SOURCE_GLOBS } from '../providers/hostInputs';
 import { GENERATED_EXCLUDES } from '../providers/inputScope';
 import { configureHttpAudit } from './httpAuditSetup';
+import { configureContainerSandbox, ContainerSandbox, validateImageToolPath } from './containerSetup';
 
 export const SETUP_GRANTS = Object.freeze({enabled:true,required:false,actions:['WARNING'] as const,timeoutMs:45_000});
 export const SEMGREP_RULE_PACKS=[{id:'legacy-android-ktor',title:'Android & Ktor baseline',summary:'Original six Java/Kotlin review rules',defaultEnabled:true},{id:'android-manifest',title:'Android manifest',summary:'Exported components, backup and transport declarations',defaultEnabled:false},{id:'android-webview',title:'Android WebView',summary:'Risky WebView configuration and bridges',defaultEnabled:false},{id:'jvm-crypto',title:'JVM cryptography',summary:'Review weak algorithms and static encryption inputs',defaultEnabled:false},{id:'ktor-runtime',title:'Ktor runtime',summary:'Review server and authentication configuration',defaultEnabled:false}];
-export function integrationProfile(method: SecurityMethod, source: {reportPath?:string;executable?:string;modulePath?:string;rulesPath?:string;rulePacks?:string[];local?:boolean;targetScope?:unknown}): Record<string,unknown> {
+export function integrationProfile(method: SecurityMethod, source: {reportPath?:string;executable?:string;modulePath?:string;rulesPath?:string;rulePacks?:string[];local?:boolean;targetScope?:unknown;sandbox?:ContainerSandbox}): Record<string,unknown> {
   if (!method.providerId || !method.format) throw new Error('This method requires an external provider registration.');
   const tool = method.runner ?? method.format;
   if(source.rulePacks && (source.rulesPath || tool!=='semgrep' || !source.rulePacks.length || new Set(source.rulePacks).size!==source.rulePacks.length || source.rulePacks.some(id=>!SEMGREP_RULE_PACKS.some(pack=>pack.id===id))))throw new Error('Choose supported bundled Semgrep packs or one trusted rule file.');
   return {
     id:method.providerId,displayName:method.title,version:'0.4.0',analysisKind:method.category === 'SUPPLY_CHAIN' ? 'SCA' : method.category === 'DAST' ? 'DAST' : 'SAST',
-    format:method.format,...(source.local ? {runner:tool === 'script-semantics' ? {tool} : {tool,executable:source.executable,...(tool === 'psscriptanalyzer' ? {modulePath:source.modulePath} : {}),...(source.rulesPath ? {rulesPath:source.rulesPath} : {}),...(source.rulePacks ? {rulePacks:[...source.rulePacks]} : {})}} : {reportPath:source.reportPath}),
+    format:method.format,...(source.local ? {runner:tool === 'script-semantics' ? {tool} : {tool,executable:source.executable,...(tool === 'psscriptanalyzer' ? {modulePath:source.modulePath} : {}),...(source.rulesPath ? {rulesPath:source.rulesPath} : {}),...(source.rulePacks ? {rulePacks:[...source.rulePacks]} : {}),...(source.sandbox?{sandbox:source.sandbox}:{})}} : {reportPath:source.reportPath}),
     allowedOperations:['SCAN'],requestedActions:['WARNING'],...(source.targetScope ? {targetScope:source.targetScope} : {})
   };
 }
@@ -80,6 +81,19 @@ export async function configureIntegration(context: vscode.ExtensionContext, met
   await mkdir(context.globalStorageUri.fsPath,{recursive:true,mode:0o700});
   const storage=await realpath(context.globalStorageUri.fsPath);
   for (const root of roots) if (contained(storage,await realpath(root))) throw new Error('SDK storage must be outside every workspace folder.');
+  if(method.runner==='container-python'){
+    const sandbox=await configureContainerSandbox(roots);if(!sandbox)return false;
+    const entryPath=await vscode.window.showInputBox({title:'Python payload entry path',prompt:'Relative .py file inside the selected project. It EXECUTES only inside the reviewed container, never on the host.',ignoreFocusOut:true});if(entryPath===undefined)return false;
+    if(!entryPath.endsWith('.py')||entryPath.startsWith('/')||entryPath.length>4096||entryPath.split('/').some(part=>!part||part==='.'||part==='..')||/[\\:\u0000-\u001f]/.test(entryPath))throw new Error('Choose a safe relative Python entry path.');
+    const execution=await vscode.window.showQuickPick([{label:'I authorize this exact payload to run inside this container',approved:true,description:entryPath},{label:'Cancel',approved:false}],{title:'Explicit dynamic execution authorization',placeHolder:'Experimental advisory output only. This is not a validated deobfuscator or full malware sandbox.',ignoreFocusOut:true});if(!execution?.approved)return false;
+    const executionBudget=await vscode.window.showInputBox({title:'Payload execution timeout (milliseconds)',value:'3000',prompt:'100–10000 ms inside the reviewed container. Advisory output only.',ignoreFocusOut:true,validateInput:value=>/^\d+$/.test(value)&&Number(value)>=100&&Number(value)<=10000?undefined:'Choose 100–10000 milliseconds.'});if(executionBudget===undefined)return false;if(!/^\d+$/.test(executionBudget)||Number(executionBudget)<100||Number(executionBudget)>10000)throw new Error('Choose a bounded payload execution timeout.');
+    const environment=await vscode.window.showQuickPick([{label:'Create a managed SDK environment',managed:true},{label:'Use an existing SDK environment',managed:false}],{title:'Container research — SDK environment',ignoreFocusOut:true});if(!environment)return false;const selectedPython=await choosePython(context,roots,environment.managed);if(!selectedPython)return false;const python=environment.managed?await ensureManagedSdk(context,selectedPython):selectedPython;
+    if(!(await sdkSupportedRunners(python,storage)).includes('container-python'))throw new Error('The selected SDK cannot run the isolated container research provider. Repair or upgrade it first.');
+    if(!(await sdkSandboxTools(python,storage)).includes('container-python'))throw new Error('The selected SDK does not advertise the required Docker sandbox. Repair the managed SDK before connecting.');
+    if(!await reviewConnection(method,'EXECUTES the selected Python payload inside the explicitly reviewed, already installed digest-pinned container. No image pull or network; advisory evidence only.'))return false;
+    await mkdir(path.dirname(managedPath),{recursive:true,mode:0o700});const profilePath=path.join(path.dirname(managedPath),method.id+'.profile.json');
+    await atomicJson(profilePath,{id:method.providerId,displayName:method.title,version:'0.4.0',analysisKind:'SAST',format:'container-python',projectRoot,runner:{tool:'container-python',entryPath,executionConfirmed:true,executionTimeoutMs:Number(executionBudget),sandbox,timeoutMs:30000},allowedOperations:['SCAN'],requestedActions:[]});await saveConnection(managedPath,roots,{id:method.providerId!,displayName:method.title,version:'0.4.0',command:[python,'-I','-m','wrapperguard_sdk','--profile',profilePath],permissions:{...SETUP_GRANTS,actions:[]},projectRoots:[projectRoot]});return true;
+  }
   if(method.runner==='http-audit'){
     const options=await configureHttpAudit();if(!options)return false;
     const environment=await vscode.window.showQuickPick([{label:'Create a managed SDK environment',description:'Install the bundled SDK offline',managed:true},{label:'Use an existing SDK environment',managed:false}],{title:'Owned HTTP audit — SDK environment',ignoreFocusOut:true});if(!environment)return false;
@@ -127,9 +141,10 @@ export async function configureIntegration(context: vscode.ExtensionContext, met
   const tool=method.runner ?? method.format;
   const localTools=new Set(['bandit','semgrep','psscriptanalyzer','trivy','osv','script-semantics']);
   const localSupported=localTools.has(tool);
-  const choice=method.format === 'script-semantics' ? {local:true} : await vscode.window.showQuickPick([
-    ...(localSupported ? [{label:'Run installed tool locally',description:'Fixed SDK runner · no repository commands · SCAN only',local:true}] : []),
-    {label:'Import an existing JSON report',description:'Read findings only; does not run the scanner',local:false}
+  const choice=method.format === 'script-semantics' ? {local:true,sandbox:false} : await vscode.window.showQuickPick([
+    ...(localSupported ? [{label:'Run installed tool locally',description:'Fixed SDK runner · no repository commands · SCAN only',local:true,sandbox:false}] : []),
+    ...(['bandit','semgrep'].includes(tool)&&process.platform!=='win32'?[{label:'Run in a locked local container',description:'Optional Docker adapter · installed digest-pinned image · no network/pulls',local:true,sandbox:true}]:[]),
+    {label:'Import an existing JSON report',description:'Read findings only; does not run the scanner',local:false,sandbox:false}
   ],{title:method.title + ' — choose an integration',ignoreFocusOut:true});
   if (!choice) return false;
   const environment=await vscode.window.showQuickPick([{label:'Create a managed SDK environment',description:'Recommended · installs the bundled SDK locally, without a download',managed:true},{label:'Use an existing SDK environment',description:'Select Python with wrapperguard-sdk already installed',managed:false}],{title:'Connect ' + method.title + ' — SDK environment',ignoreFocusOut:true});
@@ -138,8 +153,13 @@ export async function configureIntegration(context: vscode.ExtensionContext, met
   if (!selectedPython) return false;
   const python=environment.managed ? await ensureManagedSdk(context,selectedPython) : selectedPython;
   if(choice.local&&process.platform==='win32'&&!(await sdkSupportedRunners(python,storage)).includes(tool))throw new Error('The selected SDK does not support this local runner on Windows. Repair/upgrade the SDK or choose its existing-report import instead. No connection was enabled.');
-  let executable:string|undefined,modulePath:string|undefined,rulesPath:string|undefined,rulePacks:string[]|undefined,reportPath:string|undefined,targetScope:unknown;
+  if(choice.sandbox&&!(await sdkSandboxTools(python,storage)).includes(tool))throw new Error('The selected SDK does not advertise the required sandbox backend. Repair or upgrade the SDK before connecting.');
+  let executable:string|undefined,modulePath:string|undefined,rulesPath:string|undefined,rulePacks:string[]|undefined,reportPath:string|undefined,targetScope:unknown,sandbox:ContainerSandbox|undefined;
   if (choice.local && method.format !== 'script-semantics') {
+    if(choice.sandbox){
+      sandbox=await configureContainerSandbox(roots);if(!sandbox)return false;
+      const selected=await vscode.window.showInputBox({title:'Analyzer executable inside the image',value:'/usr/local/bin/'+tool,prompt:'Absolute path inside the Linux image, not a host executable.',ignoreFocusOut:true,validateInput:value=>{try{validateImageToolPath(value);return undefined;}catch(error){return(error as Error).message;}}});if(selected===undefined)return false;validateImageToolPath(selected);executable=selected;
+    }else{
     const pythonTool=tool === 'bandit' || tool === 'semgrep' ? tool : undefined;
     const spec=pythonTool ? PYTHON_TOOLS[pythonTool] : undefined;
     const install=pythonTool && spec && environment.managed ? await vscode.window.showQuickPick([{label:'Install '+spec.name+' in the managed environment',description:'Downloads '+spec.name+' '+spec.version+' and its dependencies from PyPI',install:true},{label:'Choose an installed '+spec.name,description:'Use an existing executable outside the workspace',install:false}],{title:'Connect '+method.title,ignoreFocusOut:true}) : {install:false};
@@ -150,10 +170,13 @@ export async function configureIntegration(context: vscode.ExtensionContext, met
       if (!selected?.[0]) return false;
       executable=await validateExecutable(selected[0].fsPath,roots);
     }
+    }
     if (method.format === 'psscriptanalyzer') {
       const selected=await vscode.window.showOpenDialog({canSelectFiles:true,canSelectFolders:true,canSelectMany:false,title:'Choose the installed PSScriptAnalyzer module or its .psd1 manifest',openLabel:'Use analyzer module'});
       if (!selected?.[0]) return false;
       modulePath=await realpath(selected[0].fsPath);
+      if((await stat(modulePath)).isDirectory())modulePath=await realpath(path.join(modulePath,'PSScriptAnalyzer.psd1'));
+      if(!(await stat(modulePath)).isFile())throw new Error('Choose the installed PSScriptAnalyzer.psd1 module manifest.');
       for (const root of roots) if (contained(modulePath,await realpath(root))) throw new Error('PSScriptAnalyzer modules must be installed outside the workspace.');
     }
     if (tool === 'semgrep') {
@@ -185,7 +208,7 @@ export async function configureIntegration(context: vscode.ExtensionContext, met
   const actualDirectory=await realpath(directory);
   for (const root of roots) if (contained(actualDirectory,await realpath(root))) throw new Error('Integration profiles must be stored outside every workspace folder.');
   const profilePath=path.join(actualDirectory,method.id + '.profile.json');
-  const profile=integrationProfile(method,{local:choice.local,executable,modulePath,rulesPath,rulePacks,reportPath,targetScope});
+  const profile=integrationProfile(method,{local:choice.local,executable,modulePath,rulesPath,rulePacks,reportPath,targetScope,sandbox});
   if(!choice.local)profile.projectRoot=projectRoot;
   if (choice.local && profile.runner && typeof profile.runner === 'object') {
     Object.assign(profile.runner,{timeoutMs:method.category === 'SUPPLY_CHAIN' ? 120000 : 30000});
@@ -212,9 +235,9 @@ async function saveConnection(managedPath: string, roots: string[], registered: 
   const method=(await import('./catalog')).SECURITY_METHODS.find(item=>item.providerId===registered.id && item.category!=='BUILT_IN');
   const profileFile=registered.command[registered.command.length-1];
   const profile=JSON.parse(await readFile(profileFile,'utf8'));
-  const externalFiles=[profileFile,profile.reportPath,profile.runner?.rulesPath,profile.runner?.modulePath,profile.runner?.inputReportPath].filter((file):file is string=>typeof file==='string');
+  const externalFiles=[profileFile,profile.reportPath,profile.reportProvenance?.manifestPath,profile.runner?.rulesPath,profile.runner?.modulePath,profile.runner?.inputReportPath].filter((file):file is string=>typeof file==='string');
   const canonicalFiles=await Promise.all(externalFiles.map(file=>realpath(file)));
-  const connection={...registered,...(method?{category:method.category,summary:method.summary,tags:['first-party-adapter']}:{}),inputScope:{includes:profile.runner && profile.runner.tool!=='local-ai'?[...HOST_SOURCE_GLOBS]:[],excludes:[...GENERATED_EXCLUDES],externalFiles:[...new Set(canonicalFiles)]}};
+  const connection={...registered,...(method?{category:method.category,summary:method.summary,tags:['first-party-adapter']}:{}),inputScope:{includes:profile.runner && !['local-ai','http-audit'].includes(profile.runner.tool)?[...HOST_SOURCE_GLOBS]:[],excludes:[...GENERATED_EXCLUDES],externalFiles:[...new Set(canonicalFiles)]}};
   const next=validateCommandConfiguration({...config,providers:[...config.providers.filter(item=>item.id !== registered.id),connection]});
   await atomicJson(managedPath,next);
 }

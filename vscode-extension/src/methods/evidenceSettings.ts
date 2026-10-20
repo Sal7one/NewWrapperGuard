@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'node:path';
-import { realpath, writeFile, rename } from 'node:fs/promises';
+import { realpath, writeFile, rename, unlink } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 import { readProjectFile } from '../scanner/safePath';
 import { SecurityMethod } from './catalog';
 import { isWithin } from '../providers/customSetup';
@@ -33,7 +34,7 @@ export async function editEvidenceSettings(storage:string,method:SecurityMethod,
     else if(choice.action==='save'){
       if(JSON.stringify(profile)===original)return false;
       const current=JSON.parse(readProjectFile(base,file,65536).toString('utf8'));if(JSON.stringify(current)!==original)throw new Error('Connection settings changed during review. Open evidence settings again.');
-      const temporary=file+'.evidence.tmp';await writeFile(temporary,JSON.stringify(profile,null,2)+'\n',{flag:'wx',mode:0o600});await rename(temporary,file);return true;
+      const temporary=file+'.evidence-'+randomUUID()+'.tmp';try{await writeFile(temporary,JSON.stringify(profile,null,2)+'\n',{flag:'wx',mode:0o600});await rename(temporary,file);}finally{try{await unlink(temporary);}catch{/* Successfully renamed or never created. */}}return true;
     }
   }
 }

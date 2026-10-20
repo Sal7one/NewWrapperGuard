@@ -75,6 +75,19 @@ def build_plan(profile: IntegrationProfile, project_root: Path, operation: str =
                          "responseFormat": profile.runner.response_format})
         if tool == "script-semantics":
             plan["advisoryOnly"] = True
+        if tool == 'container-python':
+            plan.update({'advisoryOnly': True, 'executesProjectCode': True,
+                'entryPath': redact_text(profile.runner.entry_path), 'executionConfirmed': profile.runner.execution_confirmed})
+            plan['limits']['executionTimeoutMs'] = profile.runner.execution_timeout_ms
+        if profile.runner.sandbox is not None:
+            sandbox = profile.runner.sandbox
+            plan['sandbox'] = {'engine': 'docker', 'executable': redact_text(str(sandbox.executable)),
+                'endpoint': redact_text(str(sandbox.endpoint)), 'image': sandbox.image,
+                'allowRootfulDaemon': sandbox.allow_rootful_daemon, 'memoryMiB': sandbox.memory_mib,
+                'cpus': sandbox.cpus, 'pidsLimit': sandbox.pids_limit, 'network': 'none', 'pullsImages': False,
+                'readOnlyRoot': True, 'snapshotOnlyMount': True, 'workerUser': '65532:65532',
+                'trustedTimerUser': '0:0', 'trustedTimerCapabilities': ['KILL', 'SETUID', 'SETGID'],
+                'limitation': 'Docker daemon and kernel are trusted. Normal cancellation removes and verifies the container; forced SDK SIGKILL relies on in-container timeout and auto-removal.'}
         if tool == "semgrep" and profile.runner.rules_path is None:
             plan["rulePacks"] = list(profile.runner.rule_packs or ("legacy-android-ktor",))
         plan.update(runner_plan(tool))
@@ -84,6 +97,8 @@ def build_plan(profile: IntegrationProfile, project_root: Path, operation: str =
         plan["runnerSupported"] = runner_supported(tool)
         if tool == "http-audit":
             plan["isolation"] = "Owned target GET requests are scope checked, use no proxies or redirects and are budgeted; no target or project process is started."
+        if profile.runner.sandbox is not None:
+            plan['isolation'] = 'Explicit local Docker isolation: immutable installed image, no network, private read-only snapshot/root and bounded resources. A trusted UID0 timer has only KILL/SETUID/SETGID; workers drop all groups, IDs and capabilities to65532 before input analysis. Docker and the host kernel remain trusted.'
         plan["limits"].update({"timeoutMs": profile.runner.timeout_ms,
                                "toolOutputBytes": profile.runner.max_output_bytes,
                                "sourceFiles": MAX_SOURCE_FILES, "sourceFileBytes": MAX_SOURCE_FILE_BYTES,
@@ -133,7 +148,7 @@ def evaluate(profile: IntegrationProfile, project_root: Path, operation: str) ->
             from .http_audit import run_http_audit
             return run_http_audit(profile, project_root)
         document, notices = run_tool(profile, project_root)
-    if profile.format == "script-semantics":
+    if profile.format in {"script-semantics", "container-python"}:
         result = document
     else:
         from .adapters import parse_report
@@ -171,9 +186,11 @@ def main(argv: list[str] | None = None) -> int:
                               "formats": sorted(FORMATS), "rulePacks": [
                                   {"id": key, "title": value['title'], "extensions": value['extensions'], "fileNames": value['fileNames']}
                                   for key, value in RULE_PACKS.items()],
-                              "runners": [{"tool": tool, "supported": runner_supported(tool)} for tool in
-                                  ("bandit", "semgrep", "psscriptanalyzer", "trivy", "osv", "script-semantics", "local-ai", "http-audit")],
-                              "executesProjectCode": False, "installsTools": False}, separators=(',', ':')))
+                              "runners": [{"tool": tool, "supported": runner_supported(tool), 'executesProjectCode': tool == 'container-python'} for tool in
+                                  ("bandit", "semgrep", "psscriptanalyzer", "trivy", "osv", "script-semantics", "local-ai", "http-audit", 'container-python')],
+                              "executesProjectCode": False, 'optionalDynamicExecution': True,
+                              'sandboxBackends': [{'engine': 'docker', 'supported': os.name == 'posix', 'tools': ['bandit', 'semgrep', 'container-python']}],
+                              "installsTools": False}, separators=(',', ':')))
             return 0
         if not args.profile:
             raise ValueError("An explicit user profile is required")

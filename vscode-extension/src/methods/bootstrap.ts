@@ -13,12 +13,20 @@ export async function pythonVersion(executable:string,cwd:string,requireSdk=fals
     return /^\d+\.\d+\.\d+$/.test(version) && (major>3 || major===3 && minor>=10) ? version : undefined;
   } catch {return undefined;}
 }
-export async function sdkSupportedRunners(executable:string,cwd:string):Promise<readonly string[]> {
+async function sdkCapabilities(executable:string,cwd:string):Promise<{runners?:unknown;sandboxBackends?:unknown}> {
   try{
     const {stdout}=await execute(executable,['-I','-m','wrapperguard_sdk','--capabilities'],{cwd,timeout:3000,maxBuffer:65536,windowsHide:true});
-    const value=JSON.parse(stdout);if(!Array.isArray(value.runners)||value.runners.length>32)return[];
-    return value.runners.filter((runner:unknown):runner is {tool:string;supported:true}=>!!runner&&typeof runner==='object'&&typeof (runner as {tool?:unknown}).tool==='string'&&/^[a-z][a-z0-9-]{0,63}$/.test((runner as {tool:string}).tool)&&(runner as {supported?:unknown}).supported===true).map((runner:{tool:string})=>runner.tool);
-  }catch{return[];}
+    const value=JSON.parse(stdout);return value&&typeof value==='object'&&!Array.isArray(value)?value:{};
+  }catch{return{};}
+}
+export async function sdkSupportedRunners(executable:string,cwd:string):Promise<readonly string[]> {
+  const value=await sdkCapabilities(executable,cwd);if(!Array.isArray(value.runners)||value.runners.length>32)return[];
+  return value.runners.filter((runner:unknown):runner is {tool:string;supported:true}=>!!runner&&typeof runner==='object'&&typeof (runner as {tool?:unknown}).tool==='string'&&/^[a-z][a-z0-9-]{0,63}$/.test((runner as {tool:string}).tool)&&(runner as {supported?:unknown}).supported===true).map((runner:{tool:string})=>runner.tool);
+}
+export async function sdkSandboxTools(executable:string,cwd:string):Promise<readonly string[]> {
+  const value=await sdkCapabilities(executable,cwd);if(!Array.isArray(value.sandboxBackends)||value.sandboxBackends.length>16)return[];
+  const docker=value.sandboxBackends.find(backend=>backend&&backend.engine==='docker'&&backend.supported===true);
+  return Array.isArray(docker?.tools)&&docker.tools.length<=32?docker.tools.filter((tool:unknown):tool is string=>typeof tool==='string'&&/^[a-z][a-z0-9-]{0,63}$/.test(tool)):[];
 }
 
 /** Installs only the bundled first-party wheel; tools are a separate explicit choice. */

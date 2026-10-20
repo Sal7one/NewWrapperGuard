@@ -1,0 +1,55 @@
+name: Isolated runtime acceptance
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: isolated-runtime-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  controlled-linux-container:
+    name: Real Docker isolation and controlled observations
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Verify existing Linux container engine
+        run: docker info
+      - name: Install SDK
+        run: python -m pip install ./sdk/python
+      - name: Explicitly pull digest-pinned official Python image
+        shell: python
+        run: |
+          import json, pathlib, subprocess
+          lock = json.loads(pathlib.Path('containers/runtime.lock.json').read_text())
+          subprocess.run(['docker', 'pull', lock['pythonImage']], check=True, timeout=180)
+      - name: Explicitly build reviewed static-scanner image
+        run: docker build --file containers/static-scanners.Dockerfile --tag wrapperguard-static-acceptance containers
+      - name: Real isolated scanner and inert dynamic-probe acceptance
+        shell: python
+        run: |
+          import json, pathlib, shutil, subprocess, sys
+          lock = json.loads(pathlib.Path('containers/runtime.lock.json').read_text())
+          image = subprocess.check_output(['docker', 'image', 'inspect', '--format', '{{.Id}}', 'wrapperguard-static-acceptance'], text=True).strip()
+          subprocess.run([sys.executable, 'scripts/sdk-container-smoke.py', '--docker', shutil.which('docker'),
+              '--endpoint', '/var/run/docker.sock', '--python-image', lock['pythonImage'], '--static-image', image,
+              '--allow-rootful-daemon'], check=True, timeout=240)
+      - name: Container boundary regressions
+        run: python -m unittest discover -s sdk/python/tests -p test_sandbox.py -v
+      - name: Verify no ephemeral runtime remains
+        if: always()
+        shell: python
+        run: |
+          import subprocess
+          result = subprocess.check_output(['docker', 'ps', '--all', '--filter', 'label=wrapperguard.ephemeral=true', '--format', '{{.ID}}'], text=True)
+          assert not result.strip(), 'Unexpected remaining WrapperGuard container'

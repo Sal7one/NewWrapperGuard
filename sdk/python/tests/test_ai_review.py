@@ -124,6 +124,12 @@ class AiReviewTests(unittest.TestCase):
             run_ai_review(self.profile(response_format="free_text"), self.root)
         self.assertEqual(self.requests, [])
 
+    def test_valid_json_with_only_a_schema_placeholder_is_not_a_completed_explanation(self):
+        self.response_reviews = [{"explanation": "plain text"}]
+        with self.assertRaises(ValueError):
+            run_ai_review(self.profile(), self.root)
+        self.assertEqual(len(self.requests), 1)
+
     def test_hostile_model_fields_cannot_change_actions_location_or_render_active_markup(self):
         self.response_reviews = [{"explanation": '<script>alert("bad")</script><b>Review</b> [click](javascript:danger) &lt;img src=x&gt; token=output-secret',
                                   "location": {"path": "../../outside"}, "severity": "ERROR",

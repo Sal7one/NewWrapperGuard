@@ -218,6 +218,8 @@ export class WrapperGuardWebviewProvider implements vscode.WebviewViewProvider {
   setHistory(history:HistoryView):void{this.lastHistory=history;}
   private lastAutomation?:AutomationView;
   setAutomation(view:AutomationView):void{this.lastAutomation=view;}
+  /** Native QuickInput defaults to the editor; return to the invoking webview control. */
+  restoreControlFocus():void { this.view?.show?.(false);this.view?.webview.postMessage({type:'restore-focus'}); }
 
   setMethods(methods: readonly MethodView[]): void { this.lastMethods = methods; }
 
@@ -320,6 +322,23 @@ let filterText = '';
 let wide = window.matchMedia('(min-width: 768px)').matches;
 let zoomScale = 1;
 let nodeSearch = '';
+let pendingFocus = null;
+function rememberFocus() {
+  const active=document.activeElement;if(!active||active===document.body||!active.getAttribute)return;
+  const card=active.closest && active.closest('[data-provider-id]');
+  const kind=['custom-toggle','custom-edit','custom-remove','custom-permissions','method-toggle','method-configure','method-permissions','method-disconnect','method-evidence','method-docs','history-compare'].find(function(name){return active.classList.contains(name);});
+  if(active.id||kind)pendingFocus={id:active.id,kind:kind,provider:card&&card.getAttribute('data-provider-id'),method:active.getAttribute('data-method'),history:active.getAttribute('data-history')};
+}
+function restoreFocus(force) {
+  if(!pendingFocus||force!==true&&document.hasFocus&&!document.hasFocus())return;
+  let target=pendingFocus.id?byId(pendingFocus.id):Array.from(document.querySelectorAll('button,input,select')).find(function(element){
+    if(!pendingFocus.kind||!element.classList.contains(pendingFocus.kind))return false;
+    const card=element.closest('[data-provider-id]');
+    return (!pendingFocus.provider||card&&card.getAttribute('data-provider-id')===pendingFocus.provider)&&(!pendingFocus.method||element.getAttribute('data-method')===pendingFocus.method)&&(!pendingFocus.history||element.getAttribute('data-history')===pendingFocus.history);
+  });
+  if(!target||target.disabled)target=document.querySelector('.tab.active');
+  if(target&&target.focus)target.focus({preventScroll:true});
+}
 
 const VERDICT = {
   NOT_SCANNED: ['dim', 'Not scanned'],
@@ -354,6 +373,7 @@ function hlLine(raw) {
 }
 
 window.addEventListener('message', function (e) {
+  if(e.data && e.data.type==='restore-focus'){restoreFocus(true);return;}
   const m = e.data;
   if (m && m.type === 'state') {
     state = m.state;
@@ -423,7 +443,7 @@ function renderPolicy() {
   html += '<div class="method-category"><h2>Your SDK connections</h2><p>Any Provider API v1 implementation · your executable, inputs and grants</p></div><div class="method-grid">';
   connections.forEach(function(item,index) {
     const d=item.descriptor, scope=d.inputScope;
-    html += '<article class="method-card' + (item.permissions.enabled ? ' enabled' : '') + '"><div class="method-card-top"><div><h3>' + esc(d.displayName) + '</h3><div class="method-tags"><span class="badge">' + esc(d.category || 'Uncategorized') + '</span>' + (d.tags || []).map(function(tag) { return '<span class="badge">'+esc(tag)+'</span>'; }).join('') + '</div></div><label class="method-switch"><span>' + (item.permissions.enabled?'On':'Off') + '</span><input class="custom-toggle" data-connection="' + index + '" type="checkbox" aria-label="Enable ' + esc(d.displayName) + '"' + (item.permissions.enabled?' checked':'') + (state.kind==='scanning'?' disabled':'') + '/></label></div><p>' + esc(d.summary || 'Independent SDK connection. Permissions are controlled here.') + '</p><p class="review-path">' + esc(d.id) + ' · v' + esc(d.version) + '</p><p class="review-path">' + esc(item.projectRoots && item.projectRoots.length ? 'Bound to: '+item.projectRoots.join(', ') : 'Applies to all selected projects') + '</p><p>' + (scope ? esc((scope.includes || []).length + ' project include patterns · ' + (scope.excludes || []).length + ' exclusions · ' + (scope.externalFiles || []).length + ' external inputs') : 'Input scope unknown · freshness covers host-known inputs only') + '</p><div class="method-tags">' + actionChips(item.permissions.actions) + '</div><div class="method-actions"><span class="method-state">' + esc(item.status) + '</span><button class="link-btn custom-permissions" data-connection="'+index+'">Permissions</button>' + (item.editable?'<button class="link-btn custom-edit" data-connection="'+index+'">Edit</button><button class="link-btn custom-remove" data-connection="'+index+'">Remove</button>':'<span class="badge">Extension SDK</span>') + '</div></article>';
+    html += '<article class="method-card' + (item.permissions.enabled ? ' enabled' : '') + '" data-provider-id="'+esc(d.id)+'"><div class="method-card-top"><div><h3>' + esc(d.displayName) + '</h3><div class="method-tags"><span class="badge">' + esc(d.category || 'Uncategorized') + '</span>' + (d.tags || []).map(function(tag) { return '<span class="badge">'+esc(tag)+'</span>'; }).join('') + '</div></div><label class="method-switch"><span>' + (item.permissions.enabled?'On':'Off') + '</span><input class="custom-toggle" data-connection="' + index + '" type="checkbox" aria-label="Enable ' + esc(d.displayName) + '"' + (item.permissions.enabled?' checked':'') + (state.kind==='scanning'?' disabled':'') + '/></label></div><p>' + esc(d.summary || 'Independent SDK connection. Permissions are controlled here.') + '</p><p class="review-path">' + esc(d.id) + ' · v' + esc(d.version) + '</p><p class="review-path">' + esc(item.projectRoots && item.projectRoots.length ? 'Bound to: '+item.projectRoots.join(', ') : 'Applies to all selected projects') + '</p><p>' + (scope ? esc((scope.includes || []).length + ' project include patterns · ' + (scope.excludes || []).length + ' exclusions · ' + (scope.externalFiles || []).length + ' external inputs') : 'Input scope unknown · freshness covers host-known inputs only') + '</p><div class="method-tags">' + actionChips(item.permissions.actions) + '</div><div class="method-actions"><span class="method-state">' + esc(item.status) + '</span><button class="link-btn custom-permissions" data-connection="'+index+'">Permissions</button>' + (item.editable?'<button class="link-btn custom-edit" data-connection="'+index+'">Edit</button><button class="link-btn custom-remove" data-connection="'+index+'">Remove</button>':'<span class="badge">Extension SDK</span>') + '</div></article>';
   });
   html += '</div>' + (!connections.length?'<div class="empty-note">Connect a custom SDK, Python adapter or command provider. Add SDK guides you through literal arguments, category, read set and permissions.</div>':'') + '<p class="method-note">Declared inputs support content freshness checks. A trusted process can access other files; these declarations do not sandbox it. Method presets never grant a custom SDK permission.</p>';
   const settings = state.settings;
@@ -450,9 +470,6 @@ function renderPolicy() {
 
 function renderMethods(research) {
   const panel = byId(research ? 'panel-research' : 'panel-tools');
-  const active=document.activeElement;
-  const focusMethod=active && panel.contains(active) ? active.getAttribute('data-method') : null;
-  const focusKind=focusMethod ? ['method-toggle','method-configure','method-permissions','method-disconnect','method-docs'].find(function(kind) { return active.classList.contains(kind); }) : null;
   const all = state.methods || [];
   const methods = all.filter(function(m) { return research ? ['RESEARCH','AI'].indexOf(m.category)>=0 : ['RESEARCH','AI'].indexOf(m.category)<0; });
   const enabled = methods.filter(function(m) { return m.enabled; }).length;
@@ -491,7 +508,6 @@ function renderMethods(research) {
   panel.querySelectorAll('.method-configure').forEach(function(button) { button.addEventListener('click',function() { vscode.postMessage({type:'configure-method',methodId:button.getAttribute('data-method')}); }); });
   panel.querySelectorAll('.method-docs').forEach(function(button) { button.addEventListener('click',function() { vscode.postMessage({type:'method-docs',methodId:button.getAttribute('data-method')}); }); });
   panel.querySelectorAll('.method-settings').forEach(function(button) { button.addEventListener('click',function() { post('settings'); }); });
-  if (focusMethod && focusKind) { const next=panel.querySelector('.' + focusKind + '[data-method="' + focusMethod + '"]') || panel.querySelector('.method-configure[data-method="' + focusMethod + '"]');if (next) next.focus(); }
 }
 
 function renderHistory() {
@@ -532,6 +548,7 @@ function renderAutomation() {
   panel.innerHTML=html;byId('automationConfigure').addEventListener('click',function(){post('automation-configure');});byId('automationSession').addEventListener('click',function(){post(view.running?'automation-pause':'automation-start');});
 }
 function render() {
+  rememberFocus();
   const selector=byId('projectSelector');
   if(selector){selector.innerHTML=(state.projects || []).map(function(project) { return '<option value="'+esc(project.root)+'"'+(state.selectedProject===project.root?' selected':'')+'>'+esc(project.name)+'</option>'; }).join('');selector.disabled=state.kind==='scanning'||!(state.projects || []).length;}
   renderStatusCard();
@@ -544,6 +561,7 @@ function render() {
   renderHistory();
   renderAutomation();
   renderBusy();
+  restoreFocus();
 }
 
 function verdictMeta() {
@@ -601,7 +619,7 @@ function renderOverview() {
     panel.innerHTML = '<div class="hero"><div class="big"><span class="spin">↻</span> Scanning workspace</div><div>Reading wrappers, build files and provider results.</div></div>';return;
   }
   if (state.kind === 'failed') {
-    panel.innerHTML = '<div class="hero"><div class="big">Scan failed</div><div class="mono">' + esc(state.error || '') + '</div><button class="btn btn-primary" id="retryBtn">↻ Retry scan</button></div>';
+    panel.innerHTML = '<div class="hero"><div class="big">Scan failed</div><div class="mono" role="alert">' + esc(state.error || '') + '</div><button class="btn btn-primary" id="retryBtn">↻ Retry scan</button></div>';
     byId('retryBtn').addEventListener('click', function () { post('scan'); });return;
   }
   const r = state.report;
@@ -1136,6 +1154,7 @@ function setEdgeActive(nodeName, on) {
 
 
 /* tabs */
+window.addEventListener('focus',restoreFocus);
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach(function (t) { const active=t.getAttribute('data-tab') === name;t.classList.toggle('active',active);if(active)t.setAttribute('aria-current','page');else t.removeAttribute('aria-current'); });
   document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.remove('active'); });

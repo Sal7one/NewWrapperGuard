@@ -1,7 +1,7 @@
 const test=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs/promises');const path=require('node:path');const os=require('node:os');const Module=require('node:module');
 const ui={picks:[],inputs:[],files:[],messages:[]};const vscode={window:{showQuickPick:async items=>{const pick=ui.picks.shift();return typeof pick==='string'?items.find(item=>item.action===pick):pick;},showInputBox:async()=>ui.inputs.shift(),showOpenDialog:async()=>ui.files.shift(),showInformationMessage:async message=>ui.messages.push(message)}};
-const original=Module._load;let http,evidence;
-try{Module._load=function(id,...args){return id==='vscode'?vscode:original.call(this,id,...args);};http=require('../dist/methods/httpAuditSetup');evidence=require('../dist/methods/evidenceSettings');}finally{Module._load=original;}
+const original=Module._load;let http,evidence,container;
+try{Module._load=function(id,...args){return id==='vscode'?vscode:original.call(this,id,...args);};http=require('../dist/methods/httpAuditSetup');evidence=require('../dist/methods/evidenceSettings');container=require('../dist/methods/containerSetup');}finally{Module._load=original;}
 function reset(){ui.picks=[];ui.inputs=[];ui.files=[];ui.messages=[];}
 test('HTTP audit URL validation requires explicit numeric addresses and rejects ambiguous/external target syntax',()=>{
  for(const value of ['http://127.0.0.1:8080/api','https://192.168.1.20/','http://[::1]:3000/check'])assert.doesNotThrow(()=>http.numericAuditUrl(value));
@@ -21,4 +21,13 @@ test('evidence GUI saves optional provenance/version constraints without executi
  const method={id:'sca.osv',providerId:'sca.osv',title:'Dependency audit',category:'SUPPLY_CHAIN'};const file=path.join(directory,'sca.osv.profile.json');const initial={id:'sca.osv',format:'osv',reportPath:path.join(base,'report.json'),requestedActions:['WARNING'],allowedOperations:['SCAN']};await fs.writeFile(file,JSON.stringify(initial));const manifest=path.join(base,'provenance.json');await fs.writeFile(manifest,'{}');ui.picks=['provenance','age','versions','save'];ui.files=[[{fsPath:manifest}]];ui.inputs=['3600'];assert.equal(await evidence.editEvidenceSettings(storage,method,[root]),true);const profile=JSON.parse(await fs.readFile(file,'utf8'));assert.deepEqual(profile.reportProvenance,{manifestPath:manifest,maxAgeSeconds:3600});assert.deepEqual(profile.dependencyCoverage,{requireResolvedVersions:true});assert.deepEqual(profile.requestedActions,['WARNING']);assert.deepEqual(profile.allowedOperations,['SCAN']);
  const inside=path.join(root,'manifest.json');await fs.writeFile(inside,'{}');ui.picks=['provenance'];ui.files=[[{fsPath:inside}]];await assert.rejects(evidence.editEvidenceSettings(storage,method,[root]),/outside every/);assert.deepEqual(JSON.parse(await fs.readFile(file,'utf8')),profile);
  reset();ui.picks=['clear','versions','save'];assert.equal(await evidence.editEvidenceSettings(storage,method,[root]),true);const removed=JSON.parse(await fs.readFile(file,'utf8'));assert.ok(!removed.reportProvenance);assert.equal(removed.dependencyCoverage.requireResolvedVersions,false);
+});
+
+test('container configuration requires immutable digests and image-local executable paths',()=>{
+ for(const image of ['sha256:'+ 'a'.repeat(64),'registry.example/tools/bandit@sha256:'+ '1'.repeat(64)])assert.doesNotThrow(()=>container.validatePinnedImage(image));
+ for(const image of ['python:latest','registry/tools:1.0','sha256:abc','repo@sha256:'+ 'a'.repeat(63),'repo@sha256:'+ 'G'.repeat(64),'repo@sha256:'+ 'a'.repeat(64)+'; rm'])assert.throws(()=>container.validatePinnedImage(image));
+ assert.doesNotThrow(()=>container.validateImageToolPath('/usr/local/bin/bandit'));for(const executable of ['bandit','C:\\python','/usr/../bin/tool','/usr//bin/tool','/tool name','/tool\n'])assert.throws(()=>container.validateImageToolPath(executable));
+});
+test('container GUI cancellation performs no daemon/image action and never invents a runnable connection',async()=>{
+ reset();ui.files=[undefined];if(process.platform==='win32')await assert.rejects(container.configureContainerSandbox(['/project']),/POSIX/);else assert.equal(await container.configureContainerSandbox(['/project']),undefined);
 });

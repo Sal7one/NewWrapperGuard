@@ -105,7 +105,16 @@ def _snapshot(project_root: Path, destination: Path, deadline: float,
 
 
 def runner_supported(tool: str) -> bool:
+    if tool == 'container-python':
+        return os.name == 'posix' and hasattr(os, 'O_NOFOLLOW')
     return tool in {"local-ai", "http-audit"} or os.name == "nt" or (os.name == "posix" and hasattr(os, "O_NOFOLLOW"))
+
+
+def _invoke(profile, argv, snapshot, owned, environment, deadline, maximum, accepted_codes=(0,)):
+    if profile.runner.sandbox is not None:
+        from .sandbox import run_container
+        return run_container(profile.runner.sandbox, argv, owned, snapshot, deadline, maximum, accepted_codes)
+    return _bounded_process(argv, snapshot, environment, deadline, maximum, accepted_codes)
 
 
 def run_bandit(profile: IntegrationProfile, project_root: Path) -> tuple[dict, list[dict]]:
@@ -135,10 +144,12 @@ def run_bandit(profile: IntegrationProfile, project_root: Path) -> tuple[dict, l
         environment = _environment(owned, home=home)
         argv = [str(config.executable), "--ini", str(ini), "--configfile", str(yaml),
                 "--ignore-nosec", "--exit-zero", "-q", "-f", "json", "-r", "."]
-        raw = _bounded_process(argv, snapshot, environment, deadline, config.max_output_bytes)
+        raw = _invoke(profile, argv, snapshot, owned, environment, deadline, config.max_output_bytes)
         document = load_json_document(raw)
         if not isinstance(document, dict):
             raise ValueError("Invalid Bandit document")
+        if config.sandbox is not None:
+            document = _rebase(document, Path('/workspace/source'))
         return document, notices
 
 
@@ -227,6 +238,7 @@ def run_tool(profile: IntegrationProfile, project_root: Path) -> tuple[dict | li
         snapshot.mkdir(mode=0o700)
         dependencies = config.tool in {"trivy", "osv"}
         extensions = {"script-semantics": frozenset({".py", ".ps1", ".psm1"}),
+                      "container-python": frozenset({".py"}),
                       "semgrep": frozenset({".kt", ".kts", ".java"})}.get(config.tool, frozenset({".ps1", ".psm1", ".psd1"}))
         file_names = frozenset()
         selected_packs = config.rule_packs or ("legacy-android-ktor",)
@@ -246,6 +258,9 @@ def run_tool(profile: IntegrationProfile, project_root: Path) -> tuple[dict | li
             return result, notices
         if count == 0:
             raise ValueError("No supported scanner inputs were available")
+        if config.tool == 'container-python':
+            from .dynamic_analysis import analyze_container
+            return analyze_container(profile, snapshot, owned, deadline), notices
         environment = _environment(owned)
         accepted_codes = (0,)
         if config.tool == "psscriptanalyzer":
@@ -275,13 +290,21 @@ def run_tool(profile: IntegrationProfile, project_root: Path) -> tuple[dict | li
             accepted_codes = (0, 1)
         elif config.tool == "semgrep":
             rules = [config.rules_path] if config.rules_path else [Path(__file__).parent / 'rules' / RULE_PACKS[pack]['file'] for pack in selected_packs]
+            if config.sandbox is not None:
+                from .profile import bounded_read, MAX_REPORT_BYTES
+                policy = owned / 'policy'; policy.mkdir()
+                copied = []
+                for index, rule in enumerate(rules):
+                    selected = policy / f'rules-{index}.yaml'
+                    selected.write_bytes(bounded_read(rule, MAX_REPORT_BYTES)); copied.append(selected)
+                rules = copied
             argv = [str(config.executable), "scan", *[argument for rule in rules for argument in ('--config', str(rule))], "--sarif", "--metrics", "off",
                     "--disable-version-check", "--no-git-ignore", "--disable-nosem", "--no-rewrite-rule-ids",
                     "--max-target-bytes", str(MAX_SOURCE_FILE_BYTES), "--timeout", "10", "--jobs", "1", "--quiet", "."]
         else:
             raise ValueError("Unsupported fixed runner")
-        raw = _bounded_process(argv, snapshot, environment, deadline, config.max_output_bytes, accepted_codes)
-        document = _rebase(load_json_document(raw), snapshot)
+        raw = _invoke(profile, argv, snapshot, owned, environment, deadline, config.max_output_bytes, accepted_codes)
+        document = _rebase(load_json_document(raw), Path('/workspace/source') if config.sandbox is not None else snapshot)
         if config.tool == "semgrep" and isinstance(document, dict):
             for run in document.get("runs", []):
                 if not isinstance(run, dict):
@@ -311,6 +334,7 @@ def runner_plan(tool: str) -> dict:
         "script-semantics": ([], "Regular Python and PowerShell source data; bounded literal decoding and simple data-flow signals only.", "No network or tool process."),
         "local-ai": ([], "Minimized metadata from up to five selected findings; source/evidence files are never sent.", "Explicit numeric loopback model server only; advisory review, no cloud endpoint."),
         "http-audit": ([], "Bounded response headers/cookie attributes at explicitly owned numeric-address target URLs; response bodies are discarded.", "GET to exact reviewed origins and paths only. No DNS, proxy environment, redirects, crawler, exploit payloads or target startup."),
+        "container-python": (["-I", "<owned-container-agent>", "<copied-python-entry>", "<execution-budget>"], "Only bounded copied Python inputs; the explicitly selected entry executes inside the reviewed isolated container. Observations are advisory and bypassable.", "Container network is disabled; only an explicitly selected local Docker Unix socket is used by the host."),
         "semgrep": (["scan", "--config", "<reviewed-local-or-bundled-rules>", "--sarif", "--metrics", "off", "--disable-version-check", "--no-git-ignore", "--disable-nosem", "--no-rewrite-rule-ids", "--max-target-bytes", str(MAX_SOURCE_FILE_BYTES), "--timeout", "10", "--jobs", "1", "--quiet", "."], "Regular Kotlin/Java source and exact AndroidManifest.xml files selected by local rule packs; or an explicitly selected external rule file.", "Local rules only; metrics/version checks disabled. No network access requested."),
     }
     if tool not in plans:

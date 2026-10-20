@@ -9,6 +9,7 @@ const vscode={workspace:{get isTrusted(){return env.trusted;},get workspaceFolde
 const original=Module._load;try {Module._load=function(id,...args){return id==='vscode'?vscode:original.call(this,id,...args);};setup=require('../dist/methods/setup');}finally{Module._load=original;}
 // Wizard tests select a stand-in executable; interpreter isolation/readiness is covered by bootstrap.test.js.
 require('../dist/methods/bootstrap').pythonVersion=async()=> '3.14.0';
+require('../dist/methods/bootstrap').sdkSupportedRunners=async()=>['bandit','semgrep','psscriptanalyzer','trivy','osv','script-semantics'];
 async function fixture(t,files){const dir=await fs.mkdtemp(path.join(os.tmpdir(),'wg-methods-'));const project=path.join(dir,'project');await fs.mkdir(project);for(const [file,text] of Object.entries(files)){await fs.mkdir(path.dirname(path.join(project,file)),{recursive:true});await fs.writeFile(path.join(project,file),text);}t.after(()=>fs.rm(dir,{recursive:true,force:true}));return{dir,project};}
 test('catalog has independent built-in defaults and explicit user flags reject unknown methods',()=>{
  assert.equal(BUILTIN_METHOD_IDS.length,6);assert.ok(SECURITY_METHODS.filter(m=>m.category!=='BUILT_IN').every(m=>m.defaultEnabled===false));
@@ -129,4 +130,11 @@ test('Semgrep bundled pack selection is explicit, removable and mutually exclusi
 test('report import GUI rejects project-owned reports before persisting a connection',async t=>{
  const{dir,project}=await fixture(t,{'report.json':'{}'});env.project=project;env.trusted=true;env.picks=[{local:false},{managed:false},{browse:true},{connect:true}];env.files=[[{fsPath:process.execPath}],[{fsPath:path.join(project,'report.json')}]];
  const managed=path.join(dir,'storage/integrations/providers.json');await assert.rejects(setup.configureIntegration({globalStorageUri:{fsPath:path.join(dir,'storage')}},SECURITY_METHODS.find(method=>method.id==='sast.sarif'),managed),/outside every workspace/);await assert.rejects(fs.readFile(managed),{code:'ENOENT'});
+});
+test('PowerShell module-folder selection resolves its manifest so gate input seals receive a regular file',async t=>{
+ const{dir,project}=await fixture(t,{});env.project=project;env.trusted=true;const moduleDirectory=path.join(dir,'PSScriptAnalyzer');await fs.mkdir(moduleDirectory);await fs.writeFile(path.join(moduleDirectory,'PSScriptAnalyzer.psd1'),'@{}');
+ env.picks=[{local:true},{managed:false},{browse:true},{connect:true}];env.files=[[{fsPath:process.execPath}],[{fsPath:process.execPath}],[{fsPath:moduleDirectory}]];
+ const managed=path.join(dir,'storage/integrations/providers.json');assert.equal(await setup.configureIntegration({globalStorageUri:{fsPath:path.join(dir,'storage')}},SECURITY_METHODS.find(method=>method.id==='sast.powershell'),managed),true);
+ const profile=JSON.parse(await fs.readFile(path.join(dir,'storage/integrations/sast.powershell.profile.json'),'utf8'));assert.equal(profile.runner.modulePath,await fs.realpath(path.join(moduleDirectory,'PSScriptAnalyzer.psd1')));assert.equal((await fs.stat(profile.runner.modulePath)).isFile(),true);
+ const connection=JSON.parse(await fs.readFile(managed,'utf8')).providers[0];assert.ok(connection.inputScope.externalFiles.includes(profile.runner.modulePath));
 });

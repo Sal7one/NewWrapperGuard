@@ -266,11 +266,13 @@
     "test": "npm run compile && node --test tests/*.test.js && npm run check:webview",
     "check:webview": "node scripts/check-webview.js",
     "package": "npm run build:sdk && npm run compile && vsce package --out wrapperguard-0.6.0.vsix",
-    "build:sdk": "python3 ../scripts/build-sdk.py --copy-vscode"
+    "build:sdk": "python3 ../scripts/build-sdk.py --copy-vscode",
+    "test:host": "npm run compile && node scripts/test-host.js"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/vscode": "^1.95.0",
+    "@vscode/test-electron": "3.1.0",
     "@vscode/vsce": "4.0.0",
     "typescript": "^5.7.0"
   },

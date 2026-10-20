@@ -13,12 +13,13 @@ from urllib.parse import unquote, urlsplit
 
 from .models import _text, validate_actions
 from .rule_packs import RULE_PACKS
+from .sandbox import ContainerSandbox, parse_sandbox, image_executable
 
 MAX_PROFILE_BYTES = 65_536
 MAX_REPORT_BYTES = 16 * 1024 * 1024
 MAX_OUTPUT_BYTES = 4 * 1024 * 1024
 OPERATIONS = frozenset({"SCAN", "BUILD", "SYNC"})
-FORMATS = frozenset({"sarif", "bandit", "psscriptanalyzer", "trivy", "osv", "zap", "script-semantics", "ai-review", "cyclonedx", "sonar", "http-audit"})
+FORMATS = frozenset({"sarif", "bandit", "psscriptanalyzer", "trivy", "osv", "zap", "script-semantics", "ai-review", "cyclonedx", "sonar", "http-audit", "container-python"})
 
 
 def _keys(value: object, allowed: set[str], required: set[str] = frozenset()) -> dict:
@@ -158,6 +159,10 @@ class RunnerConfig:
     request_timeout_ms: int = 5000
     max_response_bytes: int = 262144
     auth_headers_env: tuple[tuple[str, str], ...] = ()
+    sandbox: ContainerSandbox | None = None
+    entry_path: str | None = None
+    execution_confirmed: bool = False
+    execution_timeout_ms: int = 3000
 
 
 @dataclass(frozen=True)
@@ -214,7 +219,7 @@ def load_profile(path: Path, project_root: Path) -> IntegrationProfile:
         raise ValueError("Invalid profile classification")
     kinds = {"sarif": {"SAST", "SCA"}, "bandit": {"SAST"}, "psscriptanalyzer": {"SAST"},
              "trivy": {"SCA"}, "osv": {"SCA"}, "zap": {"DAST"},
-             "script-semantics": {"SAST"}, "ai-review": {"AI"}, "cyclonedx": {"SCA"}, "sonar": {"SAST"}, "http-audit": {"DAST"}}
+             "script-semantics": {"SAST"}, "ai-review": {"AI"}, "cyclonedx": {"SCA"}, "sonar": {"SAST"}, "http-audit": {"DAST"}, "container-python": {"SAST"}}
     if kind not in kinds[format_name]:
         raise ValueError("Tool format does not match analysis kind")
     if ("reportPath" in value) == ("runner" in value):
@@ -230,7 +235,7 @@ def load_profile(path: Path, project_root: Path) -> IntegrationProfile:
         raise ValueError("DAST requires an explicit target scope")
     report, runner = None, None
     if "reportPath" in value:
-        if format_name in {"script-semantics", "ai-review", "http-audit"}:
+        if format_name in {"script-semantics", "ai-review", "http-audit", "container-python"}:
             raise ValueError("This method requires its controlled runner")
         if not isinstance(value["reportPath"], str) or not value["reportPath"] or "\x00" in value["reportPath"]:
             raise ValueError("Invalid report path")
@@ -240,10 +245,11 @@ def load_profile(path: Path, project_root: Path) -> IntegrationProfile:
     else:
         config = _keys(value["runner"], {"tool", "executable", "timeoutMs", "maxOutputBytes", "modulePath",
                                          "endpoint", "model", "inputReportPath", "cachePath", "rulesPath", "responseFormat", "rulePacks",
-                                         "ownershipConfirmed", "targetUrls", "maxRequests", "requestTimeoutMs", "maxResponseBytes", "authHeadersEnv"}, {"tool"})
+                                         "ownershipConfirmed", "targetUrls", "maxRequests", "requestTimeoutMs", "maxResponseBytes", "authHeadersEnv",
+                                         "sandbox", "entryPath", "executionConfirmed", "executionTimeoutMs"}, {"tool"})
         tool = config["tool"]
         formats = {"bandit": "bandit", "psscriptanalyzer": "psscriptanalyzer", "trivy": "trivy",
-                   "osv": "osv", "script-semantics": "script-semantics", "local-ai": "ai-review", "semgrep": "sarif", "http-audit": "http-audit"}
+                   "osv": "osv", "script-semantics": "script-semantics", "local-ai": "ai-review", "semgrep": "sarif", "http-audit": "http-audit", "container-python": "container-python"}
         if not isinstance(tool, str) or formats.get(tool) != format_name:
             raise ValueError("Unsupported runner or format mismatch")
         allowed = {"tool", "timeoutMs", "maxOutputBytes"}
@@ -251,13 +257,32 @@ def load_profile(path: Path, project_root: Path) -> IntegrationProfile:
         response_format = "json_schema"
         rule_packs = None
         ownership, urls, max_requests, request_timeout, max_response, auth_headers = False, None, 16, 5000, 262144, ()
+        sandbox = parse_sandbox(config['sandbox'], root) if 'sandbox' in config else None
+        if sandbox is not None:
+            if tool not in {'bandit', 'semgrep', 'container-python'}:
+                raise ValueError('This fixed tool does not support the optional container backend')
+            allowed.add('sandbox')
+        entry_path, execution_confirmed, execution_timeout = None, False, 3000
         if tool in {"bandit", "psscriptanalyzer", "trivy", "osv", "semgrep"}:
             allowed.add("executable")
             if not isinstance(config.get("executable"), str) or not Path(config["executable"]).is_absolute():
                 raise ValueError("An absolute tool executable is required")
-            executable = Path(config["executable"]).resolve(strict=True)
-            if executable.is_relative_to(root) or not executable.is_file() or not os.access(executable, os.X_OK):
-                raise ValueError("Tool executable must be installed outside the project")
+            if sandbox is not None:
+                executable = image_executable(config['executable'])
+            else:
+                executable = Path(config["executable"]).resolve(strict=True)
+                if executable.is_relative_to(root) or not executable.is_file() or not os.access(executable, os.X_OK):
+                    raise ValueError("Tool executable must be installed outside the project")
+        if tool == 'container-python':
+            allowed.update({'entryPath', 'executionConfirmed', 'executionTimeoutMs', 'executable'})
+            entry_path = config.get('entryPath'); execution_confirmed = config.get('executionConfirmed')
+            execution_timeout = config.get('executionTimeoutMs', 3000)
+            if (sandbox is None or execution_confirmed is not True or not isinstance(entry_path, str) or
+                    not 1 <= len(entry_path) <= 4096 or '\\' in entry_path or ':' in entry_path or
+                    any(ord(c)<32 for c in entry_path) or any(part in ('', '.', '..') for part in entry_path.split('/')) or
+                    Path(entry_path).suffix.lower() != '.py' or type(execution_timeout) is not int or not 100 <= execution_timeout <= 10000):
+                raise ValueError('Dynamic Python requires explicit container execution confirmation and a bounded relative entry')
+            executable = image_executable(config.get('executable', '/usr/local/bin/python'))
         if tool == "psscriptanalyzer":
             allowed.add("modulePath")
             if not isinstance(config.get("modulePath"), str) or not Path(config["modulePath"]).is_absolute():
@@ -339,7 +364,8 @@ def load_profile(path: Path, project_root: Path) -> IntegrationProfile:
         if type(maximum) is not int or not 1 <= maximum <= MAX_REPORT_BYTES:
             raise ValueError("Invalid tool output limit")
         runner = RunnerConfig(tool, executable, timeout, maximum, module, endpoint, model, input_report, cache, rules, response_format, rule_packs,
-                              ownership, urls, max_requests, request_timeout, max_response, auth_headers)
+                              ownership, urls, max_requests, request_timeout, max_response, auth_headers,
+                              sandbox, entry_path, execution_confirmed, execution_timeout)
     provenance = coverage = None
     if "reportProvenance" in value:
         selected = _keys(value["reportProvenance"], {"manifestPath", "maxAgeSeconds"}, {"manifestPath"})

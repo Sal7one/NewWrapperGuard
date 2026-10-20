@@ -23,7 +23,8 @@
         "ai.external-model": false,
         "sast.sonar": false,
         "sca.cyclonedx": false,
-        "dast.http-audit": false
+        "dast.http-audit": false,
+        "research.container-python": false
       },
       "notice": "Semgrep runs installed local code. Missing connections remain visibly incomplete; no download or new permission is granted."
     },
@@ -49,7 +50,8 @@
         "ai.external-model": false,
         "sast.sonar": false,
         "sca.cyclonedx": false,
-        "dast.http-audit": false
+        "dast.http-audit": false,
+        "research.container-python": false
       },
       "notice": "Rule-pack selection and tool connection remain separate explicit choices."
     },
@@ -75,7 +77,8 @@
         "ai.external-model": false,
         "sast.sonar": false,
         "sca.cyclonedx": false,
-        "dast.http-audit": false
+        "dast.http-audit": false,
+        "research.container-python": false
       },
       "notice": "Disables optional methods; no external process or network is requested by this selection."
     },
@@ -101,7 +104,8 @@
         "ai.external-model": false,
         "sast.sonar": false,
         "sca.cyclonedx": false,
-        "dast.http-audit": false
+        "dast.http-audit": false,
+        "research.container-python": false
       },
       "notice": "Installed tools remain independently controlled by their grants and setup state."
     },
@@ -127,7 +131,8 @@
         "ai.external-model": false,
         "sast.sonar": false,
         "sca.cyclonedx": false,
-        "dast.http-audit": false
+        "dast.http-audit": false,
+        "research.container-python": false
       },
       "notice": "Trivy may download vulnerability databases; OSV sends dependency metadata. Applying this preset does not install tools or grant permissions."
     }

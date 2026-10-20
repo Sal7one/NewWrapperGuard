@@ -6,6 +6,8 @@ node_modules/**
 src/**
 tests/**
 scripts/**
+host-tests/**
+.vscode-test/**
 .vscode/**
 **/*.map
 

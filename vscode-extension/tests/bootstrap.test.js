@@ -8,11 +8,11 @@ const { execFileSync } = require('node:child_process');
 
 const original = Module._load;
 let pythonVersion;
-let sdkSupportedRunners,choosePython,selectedInterpreter;
+let sdkSupportedRunners,sdkSandboxTools,choosePython,selectedInterpreter;
 const vscode={window:{showQuickPick:async()=>({browse:true}),showOpenDialog:async()=>[{fsPath:selectedInterpreter}]}};
 try {
   Module._load = function(id, ...args) { return id === 'vscode' ? vscode : original.call(this, id, ...args); };
-  ({ pythonVersion,sdkSupportedRunners } = require('../dist/methods/bootstrap'));
+  ({ pythonVersion,sdkSupportedRunners,sdkSandboxTools } = require('../dist/methods/bootstrap'));
   ({choosePython}=require('../dist/methods/setup'));
 } finally { Module._load = original; }
 
@@ -60,5 +60,8 @@ test('guided SDK readiness rejects installed 0.3 and accepts 0.4 with isolated i
   assert.equal(await choosePython({globalStorageUri:{fsPath:directory}},[project],false),selectedPython);
   await fs.writeFile(path.join(sdk,'__main__.py'),'import json\nprint(json.dumps({"runners":[{"tool":"bandit","supported":True},{"tool":"http-audit","supported":True},{"tool":"semgrep","supported":False}]}))\n');
   assert.deepEqual(await sdkSupportedRunners(selectedPython,project),['bandit','http-audit']);
+  assert.deepEqual(await sdkSandboxTools(selectedPython,project),[],'A version number alone cannot enable a sandbox from an older SDK build.');
+  await fs.writeFile(path.join(sdk,'__main__.py'),'import json\nprint(json.dumps({"sandboxBackends":[{"engine":"docker","supported":True,"tools":["bandit","semgrep","container-python"]}]}))\n');
+  assert.deepEqual(await sdkSandboxTools(selectedPython,project),['bandit','semgrep','container-python']);
   await assert.rejects(fs.access(marker), { code: 'ENOENT' });
 });

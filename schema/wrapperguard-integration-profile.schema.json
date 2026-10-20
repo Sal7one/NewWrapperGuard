@@ -50,7 +50,8 @@
         "ai-review",
         "cyclonedx",
         "sonar",
-        "http-audit"
+        "http-audit",
+        "container-python"
       ]
     },
     "reportPath": {
@@ -82,7 +83,10 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 4096,
-              "description": "Absolute user-owned path; runtime enforces containment, symlinks and existence."
+              "description": "Absolute tool executable: inside the reviewed image when sandbox is selected; otherwise an installed host tool outside the project."
+            },
+            "sandbox": {
+              "$ref": "#/$defs/sandbox"
             }
           },
           "required": [
@@ -273,7 +277,8 @@
             },
             "executable": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "description": "Absolute tool executable: inside the reviewed image when sandbox is selected; otherwise an installed host tool outside the project."
             },
             "rulesPath": {
               "type": "string",
@@ -304,6 +309,9 @@
                 ]
               },
               "description": "Select bundled local packs. Omission preserves the original Android/Ktor pack."
+            },
+            "sandbox": {
+              "$ref": "#/$defs/sandbox"
             }
           },
           "not": {
@@ -382,6 +390,59 @@
                 "pattern": "^[A-Z_][A-Z0-9_]{0,127}$"
               },
               "description": "Selected authentication header names map to existing environment variable names, never plaintext secret values. Host/hop-by-hop overrides rejected."
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tool",
+            "sandbox",
+            "entryPath",
+            "executionConfirmed"
+          ],
+          "properties": {
+            "tool": {
+              "const": "container-python"
+            },
+            "sandbox": {
+              "$ref": "#/$defs/sandbox"
+            },
+            "executable": {
+              "type": "string",
+              "pattern": "^/",
+              "maxLength": 1024,
+              "default": "/usr/local/bin/python",
+              "description": "Python executable inside the reviewed immutable image; no host fallback."
+            },
+            "entryPath": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096,
+              "pattern": "\\.py$",
+              "description": "Normalized project-relative entry selected explicitly; copied Python files only, no traversal/symlinks."
+            },
+            "executionConfirmed": {
+              "const": true
+            },
+            "executionTimeoutMs": {
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 10000,
+              "default": 3000
+            },
+            "timeoutMs": {
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 300000,
+              "default": 30000
+            },
+            "maxOutputBytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 16777216,
+              "default": 16777216
             }
           }
         }
@@ -910,6 +971,32 @@
           }
         }
       }
+    },
+    {
+      "if": {
+        "properties": {
+          "format": {
+            "const": "container-python"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "runner"
+        ],
+        "properties": {
+          "analysisKind": {
+            "const": "SAST"
+          },
+          "runner": {
+            "properties": {
+              "tool": {
+                "const": "container-python"
+              }
+            }
+          }
+        }
+      }
     }
   ],
   "$defs": {
@@ -979,6 +1066,61 @@
           "description": "Path boundaries are checked after URL normalization. A prefix /app does not permit /application."
         }
       }
+    },
+    "sandbox": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "engine",
+        "executable",
+        "endpoint",
+        "image"
+      ],
+      "properties": {
+        "engine": {
+          "const": "docker"
+        },
+        "executable": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096,
+          "description": "Absolute installed Docker CLI outside every project; never a repository command or host fallback."
+        },
+        "endpoint": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096,
+          "description": "Explicit existing local Unix socket, no remote TCP/context/ambient DOCKER_HOST."
+        },
+        "image": {
+          "type": "string",
+          "pattern": "^(?:[a-z0-9][a-z0-9._:/-]{0,199}@)?sha256:[0-9a-f]{64}$",
+          "description": "Immutable already-installed image ID or repository digest; provider never pulls or builds."
+        },
+        "allowRootfulDaemon": {
+          "type": "boolean",
+          "default": false
+        },
+        "memoryMiB": {
+          "type": "integer",
+          "minimum": 64,
+          "maximum": 2048,
+          "default": 256
+        },
+        "cpus": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2,
+          "default": 1
+        },
+        "pidsLimit": {
+          "type": "integer",
+          "minimum": 8,
+          "maximum": 128,
+          "default": 32
+        }
+      },
+      "description": "Optional locked-down Linux container backend on POSIX hosts. Rootless preferred; Docker daemon/kernel remain trusted. Fixed network-none/cap-drop/nonroot/readonly/timeout policy cannot be weakened by profile fields."
     }
   }
 }

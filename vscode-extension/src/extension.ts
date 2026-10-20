@@ -101,7 +101,7 @@ export function activate(context: vscode.ExtensionContext): VettingApi {
       const enabled=flags[method.id] ?? (builtin ? method.defaultEnabled : granted?.enabled ?? false);
       const configured=builtin || !!method.providerId && ids.has(method.providerId);
       const run=current.kind === 'scanned' ? current.report.providerRuns?.find(item=>item.descriptor.id === method.providerId) : undefined;
-      const status=notApplicableIds.includes(method.providerId??'')?'Bound to another project':!enabled ? 'Disabled' : builtin ? 'Ready locally' : !vscode.workspace.isTrusted ? 'Paused · Workspace Trust required' : !configured ? (process.platform === 'win32' && method.runner === 'script-semantics' ? 'Requires Linux/macOS source runner' : 'Setup needed') : granted?.enabled === false ? 'Paused · enable in Permissions' : run?.status === 'FAILED' ? 'Connection failed · configure to repair' : run?.status === 'TIMED_OUT' ? 'Timed out · configure to repair' : run?.status === 'COMPLETED' ? 'Connected · last run completed' : 'Connected · ready to scan';
+      const status=notApplicableIds.includes(method.providerId??'')?'Bound to another project':!enabled ? 'Disabled' : builtin ? 'Ready locally' : !vscode.workspace.isTrusted ? 'Paused · Workspace Trust required' : !configured ? 'Setup needed' : granted?.enabled === false ? 'Paused · enable in Permissions' : run?.status === 'FAILED' ? 'Connection failed · configure to repair' : run?.status === 'TIMED_OUT' ? 'Timed out · configure to repair' : run?.status === 'COMPLETED' ? 'Connected · last run completed' : 'Connected · ready to scan';
       return {...method,enabled,configured,status};
     });
     provider.setMethods(views);
@@ -315,6 +315,7 @@ export function activate(context: vscode.ExtensionContext): VettingApi {
         run={descriptor:registered.descriptor,permissions:loaded.permissions[id] ?? saved[id] ?? EXTERNAL_PERMISSIONS,status:'DISABLED',durationMs:0,findingCount:0};
       }
       const connectedMethod=SECURITY_METHODS.find(method=>method.category !== 'BUILT_IN' && method.providerId === id);
+      const advisoryOnly=connectedMethod?.category==='RESEARCH'||connectedMethod?.category==='AI';
       // Edit saved authority rather than project-filtered run permissions; a binding
       // must not silently revoke a connection's grant when reviewing another root.
       const activeRoot=selectedRoot();
@@ -326,8 +327,8 @@ export function activate(context: vscode.ExtensionContext): VettingApi {
       const choices=await vscode.window.showQuickPick([
         {label:'Enabled',value:'enabled',picked:run.permissions.enabled},
         ...(managedOperations ? [{label:'Run on build requests (also enabled by Block build)',value:'operation_BUILD',picked:managedOperations.includes('BUILD')},{label:'Run on sync requests (also enabled by Block sync)',value:'operation_SYNC',picked:managedOperations.includes('SYNC')}] : []),
-        ...(id === 'ai.external-model' ? [] : [{label:'Required (fail closed within granted block actions)',value:'required',picked:run.permissions.required}]),
-        ...(id === 'ai.external-model' ? [] : ['WARNING','MAJOR_WARNING','ALERT','BLOCK_BUILD','BLOCK_SYNC'] as const).map(action=>({label:action,value:action,picked:run.permissions.actions.includes(action)}))
+        ...(advisoryOnly ? [] : [{label:'Required (fail closed within granted block actions)',value:'required',picked:run.permissions.required}]),
+        ...(advisoryOnly ? [] : ['WARNING','MAJOR_WARNING','ALERT','BLOCK_BUILD','BLOCK_SYNC'] as const).map(action=>({label:action,value:action,picked:run.permissions.actions.includes(action)}))
       ],{canPickMany:true,title:'Permissions for ' + run.descriptor.displayName,ignoreFocusOut:true});
       if (!choices) return;
       const selected=choices.map(c=>c.value);
@@ -620,6 +621,7 @@ export function activate(context: vscode.ExtensionContext): VettingApi {
     await scan();
   };
 
+  const withUiFocus=(action:()=>Promise<void>):void=>{void action().catch(()=>vscode.window.showErrorMessage('WrapperGuard could not complete this action. Review the connection and try again.')).finally(()=>provider.restoreControlFocus());};
   provider.handlers = {
     scan: () => void scan(),
     exportReport: () => void exportReport(),
@@ -629,23 +631,23 @@ export function activate(context: vscode.ExtensionContext): VettingApi {
     suppress: (finding: Finding) => void suppress(finding),
     baseline: (finding: Finding) => void addBaseline(finding),
     unbaseline: (finding: Finding) => void removeBaseline(finding),
-    configureProvider: id => void configureProvider(id),
-    configureMethod: id => void configureMethod(id),
-    toggleMethod: (id,enabled) => void toggleMethod(id,enabled),
-    disconnectMethod: id => void disconnectMethod(id),
+    configureProvider: id => withUiFocus(()=>configureProvider(id)),
+    configureMethod: id => withUiFocus(()=>configureMethod(id)),
+    toggleMethod: (id,enabled) => withUiFocus(()=>toggleMethod(id,enabled)),
+    disconnectMethod: id => withUiFocus(()=>disconnectMethod(id)),
     openMethodDocs: id => { const url=methodById(id)?.docsUrl;if (url && /^https:\/\//.test(url)) void vscode.env.openExternal(vscode.Uri.parse(url)); },
     openSettings: () => void vscode.commands.executeCommand('workbench.action.openSettings','@ext:sal7one.wrapperguard')
-    ,addProvider:()=>void mutateConnection(undefined,'edit')
-    ,editProvider:id=>void mutateConnection(id,'edit')
-    ,removeProvider:id=>void mutateConnection(id,'remove')
-    ,toggleProvider:(id,enabled)=>void mutateConnection(id,'toggle',enabled)
-    ,manageStorage:()=>void manageStorage()
-    ,sdkMaintenance:()=>void sdkMaintenance()
-    ,evidenceSettings:id=>void evidenceSettings(id)
-    ,applyPreset:()=>void applyPreset()
-    ,importPreset:()=>void sharePreset('import')
-    ,exportPreset:()=>void sharePreset('export')
-    ,automation:action=>void automationAction(action)
+    ,addProvider:()=>withUiFocus(()=>mutateConnection(undefined,'edit'))
+    ,editProvider:id=>withUiFocus(()=>mutateConnection(id,'edit'))
+    ,removeProvider:id=>withUiFocus(()=>mutateConnection(id,'remove'))
+    ,toggleProvider:(id,enabled)=>withUiFocus(()=>mutateConnection(id,'toggle',enabled))
+    ,manageStorage:()=>withUiFocus(manageStorage)
+    ,sdkMaintenance:()=>withUiFocus(sdkMaintenance)
+    ,evidenceSettings:id=>withUiFocus(()=>evidenceSettings(id))
+    ,applyPreset:()=>withUiFocus(applyPreset)
+    ,importPreset:()=>withUiFocus(()=>sharePreset('import'))
+    ,exportPreset:()=>withUiFocus(()=>sharePreset('export'))
+    ,automation:action=>withUiFocus(()=>automationAction(action))
     ,historyEnabled:enabled=>void historyAction('enabled',enabled)
     ,historyRetention:()=>void historyAction('retention')
     ,clearHistory:()=>void historyAction('clear')

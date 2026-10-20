@@ -46,6 +46,8 @@ jobs:
     needs: android-build
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      ANDROID_AVD_HOME: ${{ runner.temp }}/wrapperguard-avds
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -72,7 +74,13 @@ jobs:
           sudo chmod a+rw /dev/kvm
           df -h
           sdkmanager 'system-images;android-36;aosp_atd;x86_64'
-          echo no | avdmanager create avd --name wrapperguard-acceptance --package 'system-images;android-36;aosp_atd;x86_64' --device pixel_6
+          mkdir -p "$ANDROID_AVD_HOME"
+          echo no | avdmanager create avd --name wrapperguard-acceptance --path "$ANDROID_AVD_HOME/wrapperguard-acceptance.avd" --package 'system-images;android-36;aosp_atd;x86_64' --device pixel_6
+          python - <<'PY'
+          import os, pathlib
+          directory = pathlib.Path(os.environ['ANDROID_AVD_HOME'])
+          (directory / 'wrapperguard-acceptance.ini').write_text('avd.ini.encoding=UTF-8\npath=' + str(directory / 'wrapperguard-acceptance.avd') + '\ntarget=android-36\n')
+          PY
           "$ANDROID_SDK_ROOT/emulator/emulator" -avd wrapperguard-acceptance -no-window -no-audio -no-snapshot -no-boot-anim -gpu swiftshader_indirect > "$RUNNER_TEMP/emulator.log" 2>&1 &
           timeout 180 adb wait-for-device
       - name: Test real device runtime, accessibility tree and SDK response audit
