@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "accepted": false,
+  "productScreenshot": false,
+  "status": "REJECTED_ATD_BLANK_RENDERING",
+  "reason": "Original ATD screenshot is black despite successful runtime/HTTP checks; replaced by the standard-image rendered acceptance run.",
+  "validationRun": "https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39450889177",
+  "screenshotSha256": "c35bacdb98b522206335afa5b9baffd2e4e3352a40749bb747e469cd403af514"
+}

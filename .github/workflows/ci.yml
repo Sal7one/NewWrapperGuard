@@ -16,10 +16,14 @@ concurrency:
 jobs:
   gradle:
     name: Gradle build + tests + parity
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - name: Reserve disk for minimum build SDK and verifier
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+          df -h .
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -32,11 +36,13 @@ jobs:
         with:
           python-version: '3.12'
       - name: Build, test and package all JVM modules
-        run: ./gradlew build :wrapperguard-cli:installDist :wrapperguard-intellij:buildPlugin
+        run: ./gradlew build :wrapperguard-cli:installDist :wrapperguard-cli:distZip :wrapperguard-intellij:buildPlugin
       - name: Verify IntelliJ binary compatibility
         run: ./gradlew :wrapperguard-intellij:verifyPlugin
       - name: Installed CLI and provider protocol smoke
-        run: python3 scripts/provider-smoke.py
+        run: |
+          python3 scripts/provider-smoke.py
+          python3 scripts/provider-conformance.py --python "$(command -v python)"
       - name: Installed integration SDK through the JVM host
         run: |
           python -m pip install ./sdk/python
@@ -49,9 +55,47 @@ jobs:
           node scripts/parity.js "$GITHUB_WORKSPACE/test-fixtures/scanner" "$GITHUB_WORKSPACE"
           node scripts/hardening.js
           node scripts/sdk-smoke.js --sdk-python "$(command -v python)"
+          node scripts/provider-conformance.js --python "$(command -v python)"
       - name: VS Code unit tests
         working-directory: vscode-extension
         run: npm test
+      - name: Package VS Code for cross-distribution review
+        working-directory: vscode-extension
+        run: npm run package
+      - name: Distribution inventory and offline bundle regressions
+        run: |
+          python -m unittest discover -s scripts/tests -p test_distribution_audit.py -v
+          python -m unittest discover -s scripts/tests -p test_package_bundle.py -v
+      - name: Audit actual packaged runtime closure, licenses and identical SDKs
+        run: python scripts/distribution-audit.py --output "$GITHUB_WORKSPACE/build/distribution-audit"
+      - name: Assemble and exercise the checksummed acceptance bundle
+        run: |
+          python scripts/package-test-bundle.py --tag v0.7.0-rc.1 --output "$RUNNER_TEMP/wrapperguard-test-bundle"
+          python "$RUNNER_TEMP/wrapperguard-test-bundle/CHECK-GATES.py"
+          cd "$RUNNER_TEMP/wrapperguard-test-bundle"
+          sha256sum --quiet --check SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: packaged-runtime-audit
+          path: build/distribution-audit/*.json
+      - name: Retain the matching distribution set and acceptance bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: wrapperguard-distributions
+          if-no-files-found: error
+          include-hidden-files: true
+          path: ${{ runner.temp }}/wrapperguard-test-bundle/
+      - name: Download the delivered distribution set
+        uses: actions/download-artifact@v4
+        with:
+          name: wrapperguard-distributions
+          path: ${{ runner.temp }}/wrapperguard-delivered-bundle
+      - name: Verify the delivered files and nested bundle
+        working-directory: ${{ runner.temp }}/wrapperguard-delivered-bundle
+        run: |
+          sha256sum --quiet --check SHA256SUMS
+          sha256sum --quiet --check BUNDLE-SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
           name: wrapperguard-plugin
@@ -104,7 +148,7 @@ jobs:
         if: matrix.python == '3.12'
         run: |
           python scripts/build-sdk.py
-          python -m pip install --force-reinstall --no-deps build/sdk/wrapperguard_sdk-0.2.0-py3-none-any.whl
+          python -m pip install --force-reinstall --no-deps build/sdk/wrapperguard_sdk-0.4.0-py3-none-any.whl
       - name: SDK and report adapter regressions
         run: python -m unittest discover -s sdk/python/tests -v
       - name: Integration schemas and documented profiles

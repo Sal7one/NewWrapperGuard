@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "package": "com.wrapperguard.acceptance",
+  "serial": "emulator-5554",
+  "deviceKind": "emulator",
+  "api": "36",
+  "androidRelease": "16",
+  "abi": "x86_64",
+  "displaySize": "Physical size: 720x1280",
+  "displayDensity": "Physical density: 240",
+  "apkSha256": "d5f1275d23dc69ad6bb42233b039c8cf1f7a34fb30009c65011c3c0284b77eda",
+  "launchPassed": true,
+  "loopbackHeadersPassed": true,
+  "sdkAudit": {
+    "secure": {
+      "complete": true,
+      "findingCount": 0,
+      "ruleIds": []
+    },
+    "weak": {
+      "complete": true,
+      "findingCount": 3,
+      "ruleIds": [
+        "HTTPSEC-CSP/1e070d1d70b674a3436db1e0",
+        "HTTPSEC-FRAME/1e070d1d70b674a3436db1e0",
+        "HTTPSEC-NOSNIFF/1e070d1d70b674a3436db1e0"
+      ]
+    }
+  },
+  "screenshot": {
+    "width": 720,
+    "height": 1280,
+    "sha256": "b16e961c3686d2ca1c4cd623e6398393581b7430ac5f6e4f3469f14aec47dc7d",
+    "sampledCentralPixels": 41472,
+    "nonDominantPixelFraction": 0.045621,
+    "luminanceRange": 135,
+    "nonBlankPassed": true,
+    "method": "Central rendered-content variation; not semantic image review",
+    "humanReviewed": false
+  },
+  "visualReview": "AGENT_VISUAL_REVIEW_ACCEPTED_HUMAN_REVIEW_NOT_PERFORMED",
+  "sourceCommit": "67e613e233904d894d05e1c3cc452c2e4a577695",
+  "validationRun": "https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39459625818",
+  "headCommit": "76312ace4306c906c329e408346a59d2e893f3c7",
+  "sourceCommitKind": "GitHub pull-request merge commit",
+  "visualAcceptancePassed": true,
+  "humanReviewed": false,
+  "agentVisualReview": {
+    "accepted": true,
+    "status": "ACCEPTED",
+    "reviewer": "Codex",
+    "reviewedAt": "2026-10-20T16:50:01.006989+00:00",
+    "method": "Direct inspection of actual unmodified PNG using the image viewer",
+    "observations": [
+      "Unobscured WrapperGuard Device acceptance activity and API 36 label.",
+      "Loopback-only secure/weak endpoint explanations and Ready status with 4 requests are visible.",
+      "No System UI error modal, lockscreen, blank frame or cropped owned content."
+    ],
+    "humanReviewed": false
+  },
+  "apkHashIndependentlyVerified": true,
+  "apkArtifactBytes": 9909,
+  "ciArtifactEvidenceSha256": "3a8f5a4b490c6a99ec6187ef09a6907e6f533e33827e7f14b81a03f068f6b678",
+  "screenshotUnmodified": true,
+  "physicalDevice": false
+}

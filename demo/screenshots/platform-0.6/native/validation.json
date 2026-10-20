@@ -1,0 +1,26 @@
+{
+  "host": "Installed VS Code isolated development host",
+  "profile": "/private/tmp/wrapperguard-vscode-ui-acceptance",
+  "checks": [
+    "real native QuickInput ID/name/builder",
+    "literal argv saved as separate entries",
+    "real executablepicker",
+    "native default WARNING optionaldisabled30s permissions",
+    "saved connection didnotexecute",
+    "explicit enable executed actualcontrolledProviderAPI1adapter",
+    "literalspaces preserved throughactualspawn",
+    "projectbinding skipped siblingrootexecution",
+    "real opt-in History saved and compared backendscans",
+    "webviewreadyhandshake restoredconnections afterwindowreload"
+  ],
+  "request": {
+    "request": {
+      "apiVersion": 1,
+      "projectPath": "/private/tmp/wrapperguard-vscode-ui-acceptance/android",
+      "operation": "SCAN"
+    },
+    "args": [
+      "literal argument with spaces"
+    ]
+  }
+}

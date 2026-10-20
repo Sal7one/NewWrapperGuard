@@ -1,7 +1,7 @@
 {
   "id": "ai.external-model",
   "displayName": "Local AI review",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "analysisKind": "AI",
   "format": "ai-review",
   "runner": {

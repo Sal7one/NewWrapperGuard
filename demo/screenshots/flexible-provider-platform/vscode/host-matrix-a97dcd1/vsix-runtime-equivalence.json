@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "kind": "CI VSIX payload equivalence to actual installed-host acceptance",
+  "headCommit": "a97dcd19133e9b70b64bc88ae30835822712dbed",
+  "ciCheckoutCommit": "9b48d88d2bd70deb6e8f39f43e4e1dc97f2344c2",
+  "baselineAcceptedCommit": "59daa2615c5c15654fc43847df1e6482d73edafb",
+  "baselineVsixSha256": "1ec482cd413bfc2a17450dd90fc825fc176b326d3697f2f8623d02e183f7503b",
+  "ciVsixSha256": "29bc77048c1919c08793ce64818f9b6f1bc7e0b4534409addce6b23857c6dc41",
+  "ciVsixBytes": 286817,
+  "vsixMembers": 108,
+  "identicalVsixMembers": 106,
+  "onlyChangedVsixMembers": [
+    "extension/readme.md",
+    "extension/resources/sdk/wrapperguard_sdk-0.4.0-py3-none-any.whl"
+  ],
+  "compiledRuntimeDeclarationsLicensesSaxCatalogPresetsExact": true,
+  "readmeOnlyExactSourcePermalinkReplacement": true,
+  "readmeSourceTargets": [
+    {
+      "url": "https://github.com/Sal7one/NewWrapperGaurd/blob/9b48d88d2bd70deb6e8f39f43e4e1dc97f2344c2/vscode-extension/../docs/integrations.md",
+      "normalizedSourcePath": "docs/integrations.md",
+      "existsAtExactCiCommit": true,
+      "fragmentVerifiedWhenPresent": true
+    },
+    {
+      "url": "https://github.com/Sal7one/NewWrapperGaurd/blob/9b48d88d2bd70deb6e8f39f43e4e1dc97f2344c2/vscode-extension/../docs/verification.md",
+      "normalizedSourcePath": "docs/verification.md",
+      "existsAtExactCiCommit": true,
+      "fragmentVerifiedWhenPresent": true
+    },
+    {
+      "url": "https://github.com/Sal7one/NewWrapperGaurd/blob/9b48d88d2bd70deb6e8f39f43e4e1dc97f2344c2/vscode-extension/../examples/provider-conformance/README.md",
+      "normalizedSourcePath": "examples/provider-conformance/README.md",
+      "existsAtExactCiCommit": true,
+      "fragmentVerifiedWhenPresent": true
+    },
+    {
+      "url": "https://github.com/Sal7one/NewWrapperGaurd/blob/9b48d88d2bd70deb6e8f39f43e4e1dc97f2344c2/vscode-extension/../demo/screenshots/flexible-provider-platform/vscode/README.md#six-final-ci-host-jobs",
+      "normalizedSourcePath": "demo/screenshots/flexible-provider-platform/vscode/README.md",
+      "existsAtExactCiCommit": true,
+      "fragmentVerifiedWhenPresent": true
+    },
+    {
+      "url": "https://github.com/Sal7one/NewWrapperGaurd/blob/9b48d88d2bd70deb6e8f39f43e4e1dc97f2344c2/vscode-extension/../examples/android-acceptance/README.md#acceptance-status",
+      "normalizedSourcePath": "examples/android-acceptance/README.md",
+      "existsAtExactCiCommit": true,
+      "fragmentVerifiedWhenPresent": true
+    }
+  ],
+  "sdk": {
+    "oldSha256": "ad9f000207411b362e0f93a02b9c0953429874a093a3ff84aedefd4fc43d7765",
+    "newSha256": "2f53a8bc97c2e2300852a5e1b4b64247f70d6f84abac84fb5b7a314d0ecac6eb",
+    "bitIdenticalArchives": false,
+    "totalMembers": 40,
+    "identicalMembers": 38,
+    "identicalRuntimeAndRuleFiles": 34,
+    "onlyChangedMembers": [
+      "wrapperguard_sdk-0.4.0.dist-info/RECORD",
+      "wrapperguard_sdk-0.4.0.dist-info/WHEEL"
+    ],
+    "generatorOld": "setuptools (84.2.0)",
+    "generatorNew": "setuptools (84.2.1)",
+    "recordRowsChanged": [
+      "wrapperguard_sdk-0.4.0.dist-info/WHEEL"
+    ],
+    "allRecordDigestsAndSizesVerified": true,
+    "metadataLicenseEntrypointsAndSourceIdentical": true,
+    "runtimeDependencies": []
+  },
+  "baselineActualInstalledHostCases": 8,
+  "currentCrossPlatformHostJobs": 6,
+  "currentCrossPlatformHostCases": 48,
+  "acceptanceReused": true,
+  "newRedundantLocalHostRun": false,
+  "passed": true,
+  "limits": [
+    "SDK archives differ in WHEEL generator and the matching RECORD row; no claim of bit-identical wheel archives.",
+    "Actual local installed-host acceptance used VS Code1.116.0; new minimum/current cross-platform cases are independent CI artifacts.",
+    "No human accessibility, physical-phone or analyzer-accuracy claim."
+  ]
+}

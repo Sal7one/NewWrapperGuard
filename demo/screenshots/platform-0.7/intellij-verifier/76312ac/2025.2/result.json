@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "commit": "76312ace4306c906c329e408346a59d2e893f3c7",
+  "workflowRunId": 39459625955,
+  "workflowUrl": "https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39459625955",
+  "compiledAgainst": "2025.2",
+  "ideVersion": "2025.2",
+  "ideBuild": "IU-252.23892.409",
+  "compatible": true,
+  "verdict": "Compatible. 8 usages of deprecated API. 27 usages of experimental API. 6 usages of internal API",
+  "deprecated": 8,
+  "experimental": 27,
+  "internal": 6,
+  "runtimeTests": {
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "runtimeCases": [
+    "a real invocation failure is surfaced without trying another factory",
+    "legacy and focused factories receive the actual configuration and content",
+    "missing static shape or exact return and parameter types fails explicitly",
+    "legacy public signature wins when both are present",
+    "testDescriptorLoadsBundledComposeWithoutRequiringLaterAggregateAlias",
+    "testBundledJewelBridgeCreatesAnActualPanelThroughCompatibilityBoundary"
+  ],
+  "runtimeAssertions": [
+    "Actual IDE version matches target",
+    "Trusted public factory exact parameter and return types",
+    "Actual installed plugin classloader resolves Compose/Jewel",
+    "Actual public factory creates a themed Compose component"
+  ],
+  "assertedFactoryParameterCount": 2,
+  "sha256": {
+    "verifier/dependencies.txt": "1d7d262cc10254f46d8d7f48b9387c1fd1092ac85288f4927f7a3111c2e9979a",
+    "verifier/deprecated-usages.txt": "82289e06d3bde945b7401d5d303217b5863e10b639ab5bd57c3e85552d817994",
+    "verifier/experimental-api-usages.txt": "40b81e9277073853783fb162a53c525040b82c547a49cf3359fbbf41344cf182",
+    "verifier/internal-api-usages.txt": "e01d97c35fc3077904f47ca1eec8082a70f67b9f8d93542c1dc97f99c49cb15d",
+    "verifier/telemetry.txt": "b72d7264fcc5eac675f730d2d624e860453a21cffa8003882bb4514df9e366a7",
+    "verifier/verification-verdict.txt": "597f6c71804f91e4c8f087b3eec3f4ff6d8b25466955b7a88ae64f155c440d77",
+    "runtime/TEST-com.sal7one.wrapperguard.intellij.execution.GuardSmokeTest.xml": "3fd11e7ee7f42c059a7e1d60221ce9a154de10c5f7e3fc2bd0b452a06181d58b",
+    "runtime/TEST-com.sal7one.wrapperguard.intellij.ui.JewelPanelCompatibilityTest.xml": "0935e93cb48c1a4271a04388fac1cdb9181aedad5b98ddee64d257dbfc3d1e15"
+  }
+}

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="Gradle Test Executor 1" tests="1" skipped="0" failures="1" errors="0" timestamp="2026-10-20T16:54:20.072Z" hostname="runnervm8k3b6" time="0.101">
+  <properties/>
+  <testcase name="failed to execute tests" classname="Gradle Test Executor 1" time="0.101">
+    <failure message="org.gradle.api.internal.tasks.testing.TestSuiteExecutionException: Could not start Gradle Test Executor 1: org.junit.platform.launcher.LauncherSessionListener: Provider com.intellij.tests.JUnit5TestSessionListener could not be instantiated" type="org.gradle.api.internal.tasks.testing.TestSuiteExecutionException">org.gradle.api.internal.tasks.testing.TestSuiteExecutionException: Could not start Gradle Test Executor 1: org.junit.platform.launcher.LauncherSessionListener: Provider com.intellij.tests.JUnit5TestSessionListener could not be instantiated
+	at org.gradle.api.internal.tasks.testing.SuiteTestClassProcessor.startProcessing(SuiteTestClassProcessor.java:46)
+	at java.base@25.0.4/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base@25.0.4/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:36)
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:24)
+	at org.gradle.internal.dispatch.ContextClassLoaderDispatch.dispatch(ContextClassLoaderDispatch.java:33)
+	at org.gradle.internal.dispatch.ProxyDispatchAdapter$DispatchingInvocationHandler.invoke(ProxyDispatchAdapter.java:92)
+	at jdk.proxy1/jdk.proxy1.$Proxy4.startProcessing(Unknown Source)
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker$1.run(TestWorker.java:162)
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.executeAndMaintainThreadName(TestWorker.java:126)
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.execute(TestWorker.java:103)
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.execute(TestWorker.java:63)
+	at org.gradle.process.internal.worker.child.ActionExecutionWorker.execute(ActionExecutionWorker.java:56)
+	at org.gradle.process.internal.worker.child.SystemApplicationClassLoaderWorker.call(SystemApplicationClassLoaderWorker.java:122)
+	at org.gradle.process.internal.worker.child.SystemApplicationClassLoaderWorker.call(SystemApplicationClassLoaderWorker.java:72)
+	at worker.org.gradle.process.internal.worker.GradleWorkerMain.run(GradleWorkerMain.java:69)
+	at worker.org.gradle.process.internal.worker.GradleWorkerMain.main(GradleWorkerMain.java:74)
+Caused by: java.util.ServiceConfigurationError: org.junit.platform.launcher.LauncherSessionListener: Provider com.intellij.tests.JUnit5TestSessionListener could not be instantiated
+	at java.base/java.util.ServiceLoader.fail(ServiceLoader.java:552)
+	at java.base/java.util.ServiceLoader$ProviderImpl.newInstance(ServiceLoader.java:712)
+	at java.base/java.util.ServiceLoader$ProviderImpl.get(ServiceLoader.java:672)
+	at java.base/java.util.ServiceLoader$2.next(ServiceLoader.java:1256)
+	at java.base/java.lang.Iterable.forEach(Iterable.java:74)
+	at org.junit.platform.launcher.core.LauncherFactory.createLauncherSessionListener(LauncherFactory.java:169)
+	at org.junit.platform.launcher.core.LauncherFactory.lambda$openSession$0(LauncherFactory.java:101)
+	at org.junit.platform.launcher.core.DefaultLauncherSession.&lt;init&gt;(DefaultLauncherSession.java:52)
+	at org.junit.platform.launcher.core.LauncherFactory.openSession(LauncherFactory.java:100)
+	at org.junit.platform.launcher.core.LauncherFactory.openSession(LauncherFactory.java:82)
+	at org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestClassProcessor$BackwardsCompatibleLauncherSession.open(JUnitPlatformTestClassProcessor.java:347)
+	at org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestClassProcessor.createTestExecutor(JUnitPlatformTestClassProcessor.java:95)
+	at org.gradle.api.internal.tasks.testing.junit.AbstractJUnitTestClassProcessor.startProcessing(AbstractJUnitTestClassProcessor.java:48)
+	at org.gradle.api.internal.tasks.testing.SuiteTestClassProcessor.startProcessing(SuiteTestClassProcessor.java:43)
+	... 16 more
+Caused by: java.lang.NoClassDefFoundError: com/intellij/util/Java11Shim
+	at com.intellij.testFramework.common.TestEnvironmentKt.initializeTestEnvironment(testEnvironment.kt:34)
+	at com.intellij.testFramework.UsefulTestCase.&lt;clinit&gt;(UsefulTestCase.java:139)
+	at com.intellij.tests.JUnit5TestSessionListener.&lt;init&gt;(JUnit5TestSessionListener.java:36)
+	at java.base/jdk.internal.reflect.DirectConstructorHandleAccessor.newInstance(DirectConstructorHandleAccessor.java:62)
+	at java.base/java.lang.reflect.Constructor.newInstanceWithCaller(Constructor.java:499)
+	at java.base/java.lang.reflect.Constructor.newInstance(Constructor.java:483)
+	at java.base/java.util.ServiceLoader$ProviderImpl.newInstance(ServiceLoader.java:707)
+	... 28 more
+Caused by: java.lang.ClassNotFoundException: com.intellij.util.Java11Shim
+	at com.intellij.util.lang.UrlClassLoader.findClass(UrlClassLoader.java:268)
+	at java.base/java.lang.ClassLoader.loadClass(ClassLoader.java:557)
+	at java.base/java.lang.ClassLoader.loadClass(ClassLoader.java:490)
+	... 35 more
+</failure>
+  </testcase>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

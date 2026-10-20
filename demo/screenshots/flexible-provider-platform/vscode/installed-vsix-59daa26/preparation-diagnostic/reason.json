@@ -1,0 +1,5 @@
+{
+  "scope": "Discarded test preparation, not an application regression",
+  "cause": "Initial helper copied an already-used disposable settings file containing provider grants, violating the clean-profile premise.",
+  "correction": "Use a brand-new user directory with literal scanOnOpen=false, no provider grants, updater disabled; repeat unchanged host suite."
+}

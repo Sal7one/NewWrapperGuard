@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "platform": "windows-amd64",
+  "tools": {
+    "psscriptanalyzer": {
+      "version": "1.25.0",
+      "executable": "pwsh/pwsh.exe",
+      "module": "psscriptanalyzer/PSScriptAnalyzer.psd1",
+      "assets": [
+        {
+          "repository": "PowerShell/PowerShell",
+          "tag": "v7.6.7",
+          "name": "PowerShell-7.6.7-win-x64.zip",
+          "sha256": "d2f952ebdbf24386cb8923553aa58e41a846db35a6155ea04c58142a4b16dbb7",
+          "kind": "zip",
+          "directory": "pwsh",
+          "checksums": "hashes.sha256"
+        },
+        {
+          "repository": "PowerShell/PSScriptAnalyzer",
+          "tag": "1.25.0",
+          "name": "PSScriptAnalyzer.1.25.0.nupkg",
+          "sha256": "14e634c828eb98efb9f40b2918ba90f139ed5eccdf663a2a747736d996995d60",
+          "kind": "zip",
+          "directory": "psscriptanalyzer"
+        }
+      ]
+    },
+    "osv": {
+      "version": "2.7.0",
+      "executable": "osv/osv-scanner.exe",
+      "assets": [
+        {
+          "repository": "google/osv-scanner",
+          "tag": "v2.7.0",
+          "name": "osv-scanner_windows_amd64.exe",
+          "sha256": "9964ed64ec9a387391eb4cc006ad5c531154821aef29b793e02c448de4686438",
+          "kind": "binary",
+          "directory": "osv",
+          "filename": "osv-scanner.exe",
+          "checksums": "osv-scanner_SHA256SUMS"
+        }
+      ]
+    },
+    "trivy": {
+      "version": "0.76.0",
+      "executable": "trivy/trivy.exe",
+      "assets": [
+        {
+          "repository": "aquasecurity/trivy",
+          "tag": "v0.76.0",
+          "name": "trivy_0.76.0_windows-64bit.zip",
+          "sha256": "7b4762a5a5326cb4b83dfd2bb5d9aaf15a1ed867c75cad7dd8b38840a28e7be6",
+          "kind": "zip",
+          "directory": "trivy",
+          "checksums": "trivy_0.76.0_checksums.txt"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "sdkVersion": "0.4.0",
+  "scriptSemanticsSha256": "a60fcf673e68e0b1a2ebe6d86633af73fdd785d1fbbd8cc9232340abc1e98aab",
+  "inventorySha256": "8ce1e65f106b944ec74bfa209e7b02de97d799e18b7dd379e387b372abffd469",
+  "originalArtifactSha256": "1bd0a1e23a66b448ecac23d307f55cb7d4139d26b37994a9e5b79cb81eaf8857",
+  "ci": {
+    "runId": 39454719459,
+    "headSha": "808dff1085386679129e8b691339f739ae1ecece",
+    "conclusion": "success",
+    "url": "https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39454719459"
+  },
+  "maliciousAttempts": 53,
+  "maliciousAttemptsWithSignal": 7,
+  "completeMaliciousAttempts": 51,
+  "completeBenignInputs": 20,
+  "benignWheels": 20,
+  "completeBenignWheels": 18,
+  "incompleteBenignWheels": [
+    "benign-idna",
+    "benign-pyparsing"
+  ],
+  "completeBenignProjectBaselines": [
+    "requests-2.32.5",
+    "powershell-build"
+  ],
+  "unsupportedProjectBaselines": [
+    "ktor-samples",
+    "now-in-android"
+  ],
+  "completeBenignInputsWithSignal": 0,
+  "crossGroupDuplicateFileHashes": 5,
+  "projectCodeExecuted": false,
+  "precisionMeasured": false,
+  "classificationAccuracyMeasured": false,
+  "limitations": [
+    "Tiny integration baseline, not a statistically representative malware benchmark.",
+    "Any advisory signal is counted as positive; signals do not establish malicious intent.",
+    "Malware comes from one vendor-selected source; unknown families prevent family-disjoint claims.",
+    "Dates mix upstream discovery and commit time; class/date and language confounding remain.",
+    "Android/Ktor inputs unsupported by script semantics are not counted as true negatives.",
+    "A complete scan means completion of configured scope, never universal security coverage.",
+    "The signal matrix pools 18 completed benign wheels with Requests and PowerShell; idna and pyparsing are incomplete."
+  ]
+}

@@ -3,6 +3,9 @@ import { Finding, ScanSettings, ScanState } from './models';
 import { realpath } from 'node:fs/promises';
 import * as path from 'node:path';
 import { MethodView, methodById } from './methods/catalog';
+import { ProviderDescriptor, ProviderPermissions } from './providers/sdk';
+import { HistoryView, HistoryFinding } from './methods/history';
+import { AutomationView } from './methods/automation';
 const EXTENSION_VERSION = (require('../package.json') as {version:string}).version;
 
 /** Actions the webview UI can request; wired to real commands by the extension host. */
@@ -21,10 +24,28 @@ export interface UiHandlers {
   disconnectMethod(id: string): void;
   openMethodDocs(id: string): void;
   openSettings(): void;
+  addProvider():void;
+  editProvider(id:string):void;
+  removeProvider(id:string):void;
+  toggleProvider(id:string,enabled:boolean):void;
+  selectProject(root:string):void;
+  manageStorage():void;
+  sdkMaintenance():void;
+  evidenceSettings(id:string):void;
+  applyPreset():void;
+  importPreset():void;
+  exportPreset():void;
+  automation(action:'configure'|'start'|'pause'):void;
+  historyEnabled(enabled:boolean):void;
+  historyRetention():void;
+  clearHistory():void;
+  compareHistory(id:string):void;
+  openHistoryFinding(finding:HistoryFinding):void;
 }
+export interface ConnectionView {descriptor:ProviderDescriptor;permissions:ProviderPermissions;editable:boolean;status:string;projectRoots?:string[]}
 
-export async function findingFileUri(finding: Finding): Promise<vscode.Uri> {
-  const root = vscode.workspace.workspaceFolders?.[0]?.uri;
+export async function findingFileUri(finding: Finding,projectRoot?:string): Promise<vscode.Uri> {
+  const root = projectRoot ? vscode.workspace.workspaceFolders?.find(folder=>path.resolve(folder.uri.fsPath)===path.resolve(projectRoot))?.uri : vscode.workspace.workspaceFolders?.[0]?.uri;
   if (!root || !finding.location.path || path.isAbsolute(finding.location.path) || finding.location.path.split(/[\\/]/).includes('..')) throw new Error('Finding has no safe workspace file.');
   const [base,target] = await Promise.all([realpath(root.fsPath),realpath(path.resolve(root.fsPath,finding.location.path))]);
   const relative = path.relative(base,target);
@@ -32,13 +53,13 @@ export async function findingFileUri(finding: Finding): Promise<vscode.Uri> {
   return vscode.Uri.file(target);
 }
 
-export async function openFindingInEditor(finding: Finding): Promise<void> {
-  const root = vscode.workspace.workspaceFolders?.[0]?.uri;
+export async function openFindingInEditor(finding: Finding,projectRoot?:string): Promise<void> {
+  const root = projectRoot ? vscode.workspace.workspaceFolders?.find(folder=>path.resolve(folder.uri.fsPath)===path.resolve(projectRoot))?.uri : vscode.workspace.workspaceFolders?.[0]?.uri;
   if (!root) {
     void vscode.window.showWarningMessage('Open a workspace folder first.');
     return;
   }
-  const document = await vscode.workspace.openTextDocument(await findingFileUri(finding));
+  const document = await vscode.workspace.openTextDocument(await findingFileUri(finding,root.fsPath));
   const editor = await vscode.window.showTextDocument(document);
   const line = Math.max(0, (finding.location.line ?? 1) - 1);
   editor.selection = new vscode.Selection(line, 0, line, 0);
@@ -75,7 +96,9 @@ export class WrapperGuardWebviewProvider implements vscode.WebviewViewProvider {
     toggleMethod: () => undefined,
     disconnectMethod: () => undefined,
     openMethodDocs: () => undefined,
-    openSettings: () => undefined
+    openSettings: () => undefined,
+    addProvider:()=>undefined,editProvider:()=>undefined,removeProvider:()=>undefined,toggleProvider:()=>undefined,selectProject:()=>undefined,manageStorage:()=>undefined,sdkMaintenance:()=>undefined,evidenceSettings:()=>undefined,applyPreset:()=>undefined,importPreset:()=>undefined,exportPreset:()=>undefined,automation:()=>undefined,
+    historyEnabled:()=>undefined,historyRetention:()=>undefined,clearHistory:()=>undefined,compareHistory:()=>undefined,openHistoryFinding:()=>undefined
   };
 
   private view?: vscode.WebviewView;
@@ -90,7 +113,7 @@ export class WrapperGuardWebviewProvider implements vscode.WebviewViewProvider {
     webviewView.webview.html = this.buildHtml();
     // Re-sync: the webview starts from its own default state, so push the latest one.
     this.setState(this.lastState);
-    webviewView.webview.onDidReceiveMessage((msg: { type: string; finding?: Finding; providerId?: string; methodId?: string; enabled?: boolean }) => {
+    webviewView.webview.onDidReceiveMessage((msg: { type: string; finding?: Finding; providerId?: string; methodId?: string; enabled?: boolean;projectRoot?:string;historyId?:string;historyFinding?:HistoryFinding }) => {
       if (!msg || typeof msg.type !== 'string') return;
       // Resolve actions against host state; a webview cannot submit forged paths or fingerprints.
       if (msg.finding) {
@@ -99,6 +122,26 @@ export class WrapperGuardWebviewProvider implements vscode.WebviewViewProvider {
         msg.finding = resolved;
       }
       switch (msg.type) {
+        case 'ready':this.setState(this.lastState);break;
+        case 'add-provider':this.handlers.addProvider();break;
+        case 'edit-provider':if(this.platform.connections.some(item=>item.editable&&item.descriptor.id===msg.providerId))this.handlers.editProvider(msg.providerId!);break;
+        case 'remove-provider':if(this.platform.connections.some(item=>item.editable&&item.descriptor.id===msg.providerId))this.handlers.removeProvider(msg.providerId!);break;
+        case 'toggle-provider':if(typeof msg.enabled==='boolean'&&this.platform.connections.some(item=>item.descriptor.id===msg.providerId))this.handlers.toggleProvider(msg.providerId!,msg.enabled);break;
+        case 'select-project':if(this.platform.projects.some(item=>item.root===msg.projectRoot))this.handlers.selectProject(msg.projectRoot!);break;
+        case 'manage-storage':this.handlers.manageStorage();break;
+        case 'sdk-maintenance':this.handlers.sdkMaintenance();break;
+        case 'evidence-settings':if(typeof msg.methodId==='string'&&methodById(msg.methodId))this.handlers.evidenceSettings(msg.methodId);break;
+        case 'apply-preset':this.handlers.applyPreset();break;
+        case 'import-preset':this.handlers.importPreset();break;
+        case 'export-preset':this.handlers.exportPreset();break;
+        case 'automation-configure':this.handlers.automation('configure');break;
+        case 'automation-start':this.handlers.automation('start');break;
+        case 'automation-pause':this.handlers.automation('pause');break;
+        case 'history-enabled':if(typeof msg.enabled==='boolean')this.handlers.historyEnabled(msg.enabled);break;
+        case 'history-retention':this.handlers.historyRetention();break;
+        case 'history-clear':this.handlers.clearHistory();break;
+        case 'history-compare':if(this.lastHistory.entries.some(item=>item.id===msg.historyId))this.handlers.compareHistory(msg.historyId!);break;
+        case 'history-open':{const requested=msg.historyFinding;const finding=[...(this.lastHistory.comparison?.newlyReported??[]),...(this.lastHistory.comparison?.noLongerReported??[])].find(item=>item.fingerprint===requested?.fingerprint&&item.providerId===requested?.providerId);if(finding)this.handlers.openHistoryFinding(finding);break;}
         case 'configure-method':
           if (typeof msg.methodId === 'string' && methodById(msg.methodId)) this.handlers.configureMethod(msg.methodId);
           break;
@@ -162,13 +205,21 @@ export class WrapperGuardWebviewProvider implements vscode.WebviewViewProvider {
   setState(s: ScanState): void {
     this.lastState = s;
     const payload = s.kind === 'scanned'
-      ? { kind: s.kind, report: s.report, settings: this.lastSettings, methods: this.lastMethods }
-      : { kind: s.kind, error: s.kind === 'failed' ? s.error : undefined, settings: this.lastSettings, methods: this.lastMethods };
+      ? { kind: s.kind, report: s.report, settings: this.lastSettings, methods: this.lastMethods,history:this.lastHistory,automation:this.lastAutomation,...this.platform }
+      : { kind: s.kind, error: s.kind === 'failed' ? s.error : undefined, settings: this.lastSettings, methods: this.lastMethods,history:this.lastHistory,automation:this.lastAutomation,...this.platform };
     this.view?.webview.postMessage({ type: 'state', state: payload });
   }
 
   private lastSettings?: ScanSettings;
   private lastMethods: readonly MethodView[] = [];
+  private platform:{connections:ConnectionView[];projects:Array<{root:string;name:string}>;selectedProject?:string}={connections:[],projects:[]};
+  setPlatform(platform:typeof this.platform):void{this.platform=platform;}
+  private lastHistory:HistoryView={enabled:false,limit:20,entries:[]};
+  setHistory(history:HistoryView):void{this.lastHistory=history;}
+  private lastAutomation?:AutomationView;
+  setAutomation(view:AutomationView):void{this.lastAutomation=view;}
+  /** Native QuickInput defaults to the editor; return to the invoking webview control. */
+  restoreControlFocus():void { this.view?.show?.(false);this.view?.webview.postMessage({type:'restore-focus'}); }
 
   setMethods(methods: readonly MethodView[]): void { this.lastMethods = methods; }
 
@@ -188,6 +239,7 @@ export class WrapperGuardWebviewProvider implements vscode.WebviewViewProvider {
 /* A quiet, dense developer workspace. Tables and evidence carry the hierarchy. */
 :root{--bg:#13121b;--surface:#1f1f28;--surface-low:#1b1b24;--surface-lowest:#101018;--surface-high:#2a2933;--surface-highest:#35343e;--border:#353440;--border-strong:#656473;--text:#e4e1ee;--text-dim:#a8a6b9;--primary:#c3c0ff;--primary-container:#4f46e5;--on-primary-container:#fff;--error:#ffb4ab;--warn:#ffb695;--ok:#8fd7a6;--info:#a9bad3;--mono-bg:#14131b;--mono-bar:#22212b;--tok-kw:#8ab4f8;--tok-str:#e8be95;--tok-com:#8caa88;--tok-op:#d7c8f4;--wg-border:var(--border);--wg-border-strong:#9491ac;--wg-error:var(--error);--wg-text-dim:var(--text-dim);--font:var(--vscode-font-family,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif);--code:var(--vscode-editor-font-family,'SFMono-Regular',Consolas,monospace)}
 body.vscode-light{--bg:#f8f9fc;--surface:#fff;--surface-low:#f0f1f6;--surface-lowest:#e9ebf2;--surface-high:#e8eaf2;--surface-highest:#e1e4ee;--border:#d6d9e3;--border-strong:#969baa;--text:#252737;--text-dim:#60677b;--primary:#4d44c7;--primary-container:#4f46e5;--error:#ae302b;--warn:#9a5c14;--ok:#277344;--info:#38628a;--mono-bg:#f5f6fa;--mono-bar:#edf0f5;--tok-kw:#355aa6;--tok-str:#916028;--tok-com:#597248;--tok-op:#763d92;--wg-border-strong:#737b92}
+body.vscode-high-contrast,body.vscode-high-contrast-light{--bg:var(--vscode-editor-background,#000);--surface:var(--bg);--surface-low:var(--bg);--surface-lowest:var(--bg);--surface-high:var(--vscode-list-hoverBackground,#222);--surface-highest:var(--surface-high);--text:var(--vscode-editor-foreground,#fff);--text-dim:var(--text);--border:var(--vscode-contrastBorder,#fff);--border-strong:var(--border);--primary:var(--vscode-focusBorder,#f38518);--primary-container:var(--vscode-button-background,#fff);--on-primary-container:var(--vscode-button-foreground,#000);--error:var(--vscode-errorForeground,#ff8080);--warn:var(--vscode-editorWarning-foreground,#ffcc00);--mono-bg:var(--bg);--mono-bar:var(--bg)}
 *{box-sizing:border-box}body{margin:0;color:var(--text);background:var(--bg);font:13px/1.5 var(--font);display:flex;flex-direction:column;height:100vh;overflow:hidden}button,input,select{font:inherit}button{color:inherit;cursor:pointer}button:disabled{opacity:.5;cursor:default}button:focus-visible,input:focus-visible,select:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--primary);outline-offset:2px}.mono{font-family:var(--code)}h1,h2,h3,p{margin:0}h1{font-size:20px;line-height:28px;letter-spacing:-.4px;font-weight:600}h2{font-size:16px;line-height:1.4;font-weight:600}h3{font-size:13px;font-weight:600}.muted{color:var(--text-dim)}.err{color:var(--error)}.warn{color:var(--warn)}.ok{color:var(--ok)}.info{color:var(--info)}
 .app-bar{height:46px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:var(--surface-low);border-bottom:1px solid var(--border)}.app-title{display:flex;align-items:center;gap:9px;font-weight:600}.app-title .logo{display:flex;width:21px;height:23px;color:var(--primary)}.brand-ver{font-size:10px;font-weight:400;color:var(--text-dim)}.workspace-label{font-size:12px;color:var(--text);font-weight:400;border-left:1px solid var(--border-strong);margin-left:5px;padding-left:14px}.app-actions{display:flex;align-items:center;gap:6px}.icon-btn{width:28px;height:28px;border:1px solid transparent;border-radius:3px;background:transparent;color:var(--text-dim);font-size:18px;display:inline-flex;align-items:center;justify-content:center}.icon-btn:hover{background:var(--surface-high);color:var(--text)}
 .workspace-shell{display:flex;flex:1;min-height:0}.sidebar{width:176px;flex:none;background:var(--surface-low);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:16px 8px 10px;gap:18px}.sidebar-label,.section-label{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text-dim)}.sidebar-label{padding:0 8px;margin-bottom:8px}.tabs{display:flex;flex-direction:column;gap:3px}.tab{display:flex;align-items:center;gap:9px;min-height:34px;padding:6px 9px;background:transparent;border:0;border-left:2px solid transparent;border-radius:2px;text-align:left;font-size:12px;color:var(--text-dim);white-space:nowrap}.tab .ticon{width:16px;height:17px;display:flex;align-items:center;justify-content:center}.ticon svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}.tab:hover{background:var(--surface-high);color:var(--text)}.tab.active{background:color-mix(in srgb,var(--primary) 8%,var(--surface-low));color:var(--primary);border-left-color:var(--primary)}.tcount{margin-left:auto;padding:0 5px;min-width:21px;text-align:center;font:10px/18px var(--code);background:var(--surface-highest);border-radius:3px;color:var(--text-dim)}
@@ -206,14 +258,16 @@ main{flex:1;min-width:0;min-height:0;padding:18px 20px 16px;overflow:hidden}.tab
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
 .methods-intro{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px;align-items:start;padding:18px 20px;background:var(--surface-low);border:1px solid var(--border);border-top:2px solid var(--primary);border-radius:3px;margin-bottom:20px}.methods-intro p{max-width:720px;color:var(--text-dim);font-size:12px;line-height:1.7;margin-top:7px}.method-summary{font:11px var(--code);color:var(--primary);white-space:nowrap;padding-top:4px}.method-category{margin:22px 0 9px;display:flex;align-items:center;gap:10px}.method-category h2{font-size:13px}.method-category p{color:var(--text-dim);font-size:11px}.method-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.method-card{background:var(--surface-low);border:1px solid var(--border);border-radius:4px;padding:15px 16px;display:flex;flex-direction:column;gap:11px;min-width:0}.method-card.enabled{border-color:color-mix(in srgb,var(--primary) 30%,var(--border))}.method-card-top{display:flex;align-items:flex-start;gap:12px;justify-content:space-between}.method-card h3{font-size:13px;line-height:1.5;margin:0 0 3px}.method-card p{font-size:11px;color:var(--text-dim);line-height:1.75;max-width:680px}.method-tags{display:flex;gap:6px;flex-wrap:wrap}.method-tags .badge{font-size:9px}.method-actions{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin-top:auto;padding-top:11px;border-top:1px solid var(--border)}.method-actions .method-state{font-size:10px;color:var(--text-dim);margin-right:auto}.method-actions .method-state.ready{color:var(--ok)}.method-switch{display:inline-flex;align-items:center;gap:8px;flex:none;font-size:10px;color:var(--text-dim);cursor:pointer}.method-switch input{appearance:none;width:30px;height:18px;margin:0;background:var(--surface-highest);border:1px solid var(--border-strong);border-radius:20px;position:relative;cursor:pointer}.method-switch input:before{content:'';position:absolute;top:3px;left:3px;width:10px;height:10px;background:var(--text-dim);border-radius:50%;transition:transform .14s}.method-switch input:checked{background:var(--primary-container);border-color:var(--primary-container)}.method-switch input:checked:before{transform:translateX(12px);background:white}.method-switch input:disabled{opacity:.5;cursor:wait}.method-note{font-size:10px;color:var(--text-dim);line-height:1.8;margin:16px 0 8px;padding-left:11px;border-left:2px solid var(--border-strong)}.research-flow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--border);border:1px solid var(--border);border-radius:3px;overflow:hidden;margin:16px 0}.research-flow>div{padding:13px 15px;background:var(--surface-low)}.research-flow strong{font-size:11px;font-weight:500}.research-flow p{font-size:10px;color:var(--text-dim);margin-top:4px;line-height:1.7}.research-step{color:var(--primary);font:10px var(--code);margin-right:8px}.methods-bottom{margin:20px 0;display:flex;gap:12px;align-items:center;color:var(--text-dim);font-size:11px}.methods-bottom .link-btn{font-size:11px}
+.history-finding-row{grid-template-columns:minmax(0,1fr) auto;align-items:start}.history-finding-row>span{min-width:0}@media(max-width:767px){.history-finding-row{grid-template-columns:1fr}.history-finding-row .link-btn{margin-top:8px}}
 @media(max-width:1100px){.method-grid{grid-template-columns:1fr}.methods-intro{grid-template-columns:1fr}.method-summary{padding-top:0}.research-flow{grid-template-columns:1fr}}
 @media(max-width:767px){.tabs{overflow-x:auto}.tab{flex:0 0 auto;padding:9px 12px}.methods-intro{padding:14px}.method-card{padding:13px}.method-actions .method-state{flex:0 0 100%;margin-right:0}.method-category{flex-wrap:wrap;gap:3px}.method-category p{width:100%}}
+@media(max-width:767px){.app-bar{height:auto;min-height:44px;flex-wrap:wrap;gap:7px;padding:7px 12px}.app-title{min-width:0;flex-wrap:wrap}.app-actions{flex-shrink:0}.page-head{flex-wrap:wrap}.policy-row>span{min-width:0;overflow-wrap:anywhere}.sidebar,.tabs{min-width:0;max-width:100%}}
 
 </style>
 </head>
 <body>
   <header class="app-bar">
-    <div class="app-title"><span class="logo"><svg viewBox="0 0 24 26" fill="none" aria-hidden="true"><path d="M12 2 21 6v7c0 5-5 9-9 11-4-2-9-6-9-11V6l9-4Z" stroke="currentColor" stroke-width="1.7"/><path d="m8 12 3 3 5-6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>WrapperGuard</span><span class="brand-ver mono">v${EXTENSION_VERSION}</span><span class="workspace-label" id="workspaceName">Workspace security</span></div>
+    <div class="app-title"><span class="logo"><svg viewBox="0 0 24 26" fill="none" aria-hidden="true"><path d="M12 2 21 6v7c0 5-5 9-9 11-4-2-9-6-9-11V6l9-4Z" stroke="currentColor" stroke-width="1.7"/><path d="m8 12 3 3 5-6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>WrapperGuard</span><span class="brand-ver mono">v${EXTENSION_VERSION}</span><span class="workspace-label" id="workspaceName">Workspace security</span><select id="projectSelector" aria-label="Workspace project" style="max-width:180px;min-width:70px;background:var(--surface-low);color:var(--text);border:1px solid var(--border-strong);border-radius:3px;padding:4px"></select></div>
     <div class="app-actions">
       <button class="icon-btn" id="exportBtn" title="Export report (JSON)" aria-label="Export report">↓</button>
       <button class="icon-btn" id="settingsBtn" title="Show policy" aria-label="Show policy">⚙</button>
@@ -230,6 +284,8 @@ main{flex:1;min-width:0;min-height:0;padding:18px 20px 16px;overflow:hidden}.tab
         <button class="tab" data-tab="policy"><span class="ticon"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m10 2 7 3v5c0 4-4 7-7 8-3-1-7-4-7-8V5z"/><path d="m7 10 2 2 4-4"/></svg></span>Providers</button>
         <button class="tab" data-tab="tools"><span class="ticon"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m12 3 5 5-3 3-5-5zM8 9l-5 5v3h3l5-5M12 3l2-1 4 4-1 2"/></svg></span>Tools</button>
         <button class="tab" data-tab="research"><span class="ticon"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7 2h6M8 2v6l-5 8c-1 2 1 2 2 2h10c1 0 3 0 2-2l-5-8V2M6 12h8"/></svg></span>Research &amp; AI</button>
+        <button class="tab" data-tab="history"><span class="ticon"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5v4h4M3 9a7 7 0 1 1 2 6M10 5v5l3 2"/></svg></span>History</button>
+        <button class="tab" data-tab="automation"><span class="ticon"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3a7 7 0 1 1-6 3M3 3v4h4M10 6v4l3 2"/></svg></span>Automation</button>
       </nav>
       <section class="status-card" aria-label="Current scan summary">
         <div class="sidebar-label">Report status</div><span class="pill" id="verdictPill">Not scanned</span>
@@ -252,6 +308,8 @@ main{flex:1;min-width:0;min-height:0;padding:18px 20px 16px;overflow:hidden}.tab
       <section class="tab-panel" id="panel-policy"></section>
       <section class="tab-panel" id="panel-tools"></section>
       <section class="tab-panel" id="panel-research"></section>
+      <section class="tab-panel" id="panel-history"></section>
+      <section class="tab-panel" id="panel-automation"></section>
     </main>
   </div>
   <footer class="app-footer"><span id="footerLeft">WrapperGuard: Not scanned</span><span class="footer-links"><span>Local workspace analysis</span><span>Provider API v1</span></span></footer>
@@ -264,6 +322,23 @@ let filterText = '';
 let wide = window.matchMedia('(min-width: 768px)').matches;
 let zoomScale = 1;
 let nodeSearch = '';
+let pendingFocus = null;
+function rememberFocus() {
+  const active=document.activeElement;if(!active||active===document.body||!active.getAttribute)return;
+  const card=active.closest && active.closest('[data-provider-id]');
+  const kind=['custom-toggle','custom-edit','custom-remove','custom-permissions','method-toggle','method-configure','method-permissions','method-disconnect','method-evidence','method-docs','history-compare','apply-preset','import-preset','export-preset'].find(function(name){return active.classList.contains(name);});
+  if(active.id||kind)pendingFocus={id:active.id,kind:kind,provider:card&&card.getAttribute('data-provider-id'),method:active.getAttribute('data-method'),history:active.getAttribute('data-history')};
+}
+function restoreFocus(force) {
+  if(!pendingFocus||force!==true&&document.hasFocus&&!document.hasFocus())return;
+  let target=pendingFocus.id?byId(pendingFocus.id):Array.from(document.querySelectorAll('button,input,select')).find(function(element){
+    if(!pendingFocus.kind||!element.classList.contains(pendingFocus.kind))return false;
+    const card=element.closest('[data-provider-id]');
+    return (!pendingFocus.provider||card&&card.getAttribute('data-provider-id')===pendingFocus.provider)&&(!pendingFocus.method||element.getAttribute('data-method')===pendingFocus.method)&&(!pendingFocus.history||element.getAttribute('data-history')===pendingFocus.history);
+  });
+  if(!target||target.disabled)target=document.querySelector('.tab.active');
+  if(target&&target.focus)target.focus({preventScroll:true});
+}
 
 const VERDICT = {
   NOT_SCANNED: ['dim', 'Not scanned'],
@@ -282,7 +357,7 @@ function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 function byId(id) { return document.getElementById(id); }
-function post(type, finding) { vscode.postMessage({ type: type, finding: finding }); }
+function post(type, finding) { rememberFocus(); vscode.postMessage({ type: type, finding: finding }); }
 
 function hlLine(raw) {
   let s = esc(raw);
@@ -298,6 +373,7 @@ function hlLine(raw) {
 }
 
 window.addEventListener('message', function (e) {
+  if(e.data && e.data.type==='restore-focus'){restoreFocus(true);return;}
   const m = e.data;
   if (m && m.type === 'state') {
     state = m.state;
@@ -346,7 +422,7 @@ function renderPolicy() {
   const r = report();
   const panel = byId('panel-policy');
   const runs = r ? (r.providerRuns || []) : [];
-  let html = '<div class="page-head"><div class="page-heading"><div class="eyebrow">Permission boundaries</div><h1>Policy &amp; providers</h1><p class="policy-intro">Independent vetting. Shared actions. Explicit permissions.</p></div><button class="btn btn-ghost policy-settings-button" id="providerSettings">Open User Settings</button></div>';
+  let html = '<div class="page-head"><div class="page-heading"><div class="eyebrow">Permission boundaries</div><h1>Policy &amp; providers</h1><p class="policy-intro">Independent vetting. Shared actions. Explicit permissions.</p></div><div class="btn-row"><button class="btn btn-ghost" id="sdkMaintenance">SDK maintenance</button><button class="btn btn-ghost" id="manageStorage">Storage</button><button class="btn btn-primary" id="addSdk">Add SDK</button><button class="btn btn-ghost policy-settings-button" id="providerSettings">Settings</button></div></div>';
   const enabled = runs.filter(function(run) { return run.permissions.enabled; }).length;
   const completed = runs.filter(function(run) { return run.status === 'COMPLETED'; }).length;
   html += '<div class="policy-summary"><span><strong>' + enabled + '</strong> enabled providers</span><span><strong>' + completed + '</strong> completed</span><span>Grants are owned by your User Settings</span></div>';
@@ -363,6 +439,13 @@ function renderPolicy() {
     html += '</tbody></table></div>';
   }
   html += '<div class="notice"><strong>How enforcement works</strong> · Only granted actions affect the result. Build and sync gates apply when a cooperating extension calls the API. Arbitrary VS Code tasks are outside this gate.</div>';
+  const connections=(state.connections || []).filter(function(item) { return item.descriptor.id!=='wrapperguard' && !(state.methods || []).some(function(method) { return method.providerId===item.descriptor.id; }); });
+  html += '<div class="method-category"><h2>Your SDK connections</h2><p>Any Provider API v1 implementation · your executable, inputs and grants</p></div><div class="method-grid">';
+  connections.forEach(function(item,index) {
+    const d=item.descriptor, scope=d.inputScope;
+    html += '<article class="method-card' + (item.permissions.enabled ? ' enabled' : '') + '" data-provider-id="'+esc(d.id)+'"><div class="method-card-top"><div><h3>' + esc(d.displayName) + '</h3><div class="method-tags"><span class="badge">' + esc(d.category || 'Uncategorized') + '</span>' + (d.tags || []).map(function(tag) { return '<span class="badge">'+esc(tag)+'</span>'; }).join('') + '</div></div><label class="method-switch"><span>' + (item.permissions.enabled?'On':'Off') + '</span><input class="custom-toggle" data-connection="' + index + '" type="checkbox" aria-label="Enable ' + esc(d.displayName) + '"' + (item.permissions.enabled?' checked':'') + (state.kind==='scanning'?' disabled':'') + '/></label></div><p>' + esc(d.summary || 'Independent SDK connection. Permissions are controlled here.') + '</p><p class="review-path">' + esc(d.id) + ' · v' + esc(d.version) + '</p><p class="review-path">' + esc(item.projectRoots && item.projectRoots.length ? 'Bound to: '+item.projectRoots.join(', ') : 'Applies to all selected projects') + '</p><p>' + (scope ? esc((scope.includes || []).length + ' project include patterns · ' + (scope.excludes || []).length + ' exclusions · ' + (scope.externalFiles || []).length + ' external inputs') : 'Input scope unknown · freshness covers host-known inputs only') + '</p><div class="method-tags">' + actionChips(item.permissions.actions) + '</div><div class="method-actions"><span class="method-state">' + esc(item.status) + '</span><button class="link-btn custom-permissions" data-connection="'+index+'">Permissions</button>' + (item.editable?'<button class="link-btn custom-edit" data-connection="'+index+'">Edit</button><button class="link-btn custom-remove" data-connection="'+index+'">Remove</button>':'<span class="badge">Extension SDK</span>') + '</div></article>';
+  });
+  html += '</div>' + (!connections.length?'<div class="empty-note">Connect a custom SDK, Python adapter or command provider. Add SDK guides you through literal arguments, category, read set and permissions.</div>':'') + '<p class="method-note">Declared inputs support content freshness checks. A trusted process can access other files; these declarations do not sandbox it. Method presets never grant a custom SDK permission.</p>';
   const settings = state.settings;
   if (settings) {
     html += '<div class="policy-settings"><div class="section-label">Built-in scanner policy</div><div class="panel-card">';
@@ -371,6 +454,10 @@ function renderPolicy() {
     html += '<div class="policy-row"><span class="k">Distribution SHA-256</span><span class="v">' + (settings.requireDistributionSha256 ? 'Required' : 'Optional') + '</span></div></div></div>';
   }
   panel.innerHTML = html;
+  byId('addSdk').addEventListener('click',function() { post('add-provider'); });
+  byId('manageStorage').addEventListener('click',function() { post('manage-storage'); });
+  byId('sdkMaintenance').addEventListener('click',function() { post('sdk-maintenance'); });
+  ['edit','remove','permissions','toggle'].forEach(function(action) { panel.querySelectorAll('.custom-'+action).forEach(function(button) { button.addEventListener(action==='toggle'?'change':'click',function() {const item=connections[Number(button.getAttribute('data-connection'))];if(item)vscode.postMessage({type:action==='permissions'?'configure-provider':action+'-provider',providerId:item.descriptor.id,enabled:action==='toggle'?button.checked:undefined});});});});
   byId('providerSettings').addEventListener('click',function () { post('settings'); });
   panel.querySelectorAll('.provider-permissions').forEach(function(button) {
     button.addEventListener('click',function () {
@@ -383,17 +470,14 @@ function renderPolicy() {
 
 function renderMethods(research) {
   const panel = byId(research ? 'panel-research' : 'panel-tools');
-  const active=document.activeElement;
-  const focusMethod=active && panel.contains(active) ? active.getAttribute('data-method') : null;
-  const focusKind=focusMethod ? ['method-toggle','method-configure','method-permissions','method-disconnect','method-docs'].find(function(kind) { return active.classList.contains(kind); }) : null;
   const all = state.methods || [];
   const methods = all.filter(function(m) { return research ? ['RESEARCH','AI'].indexOf(m.category)>=0 : ['RESEARCH','AI'].indexOf(m.category)<0; });
   const enabled = methods.filter(function(m) { return m.enabled; }).length;
   const disabled=methods.length-enabled;
-  let html = '<div class="page-head"><div class="page-heading"><h1>' + (research ? 'Research &amp; AI' : 'Security tools') + '</h1><p>' + (research ? 'Explainable experiments. Your model. Your decision.' : 'Choose the checks that fit your project.') + '</p></div><span class="badge">User Settings</span></div>';
+  let html = '<div class="page-head"><div class="page-heading"><h1>' + (research ? 'Research &amp; AI' : 'Security tools') + '</h1><p>' + (research ? 'Explainable experiments. Your model. Your decision.' : 'Choose the checks that fit your project.') + '</p></div>' + (research?'<span class="badge">User Settings</span>':'<div class="btn-row"><button class="btn btn-ghost apply-preset">Choose preset</button><button class="btn btn-ghost import-preset">Import preset</button><button class="btn btn-ghost export-preset">Export preset</button></div>') + '</div>';
   html += '<div class="methods-intro"><div><h2>' + (research ? 'Better evidence, with clear limits' : 'One workspace. Independent methods.') + '</h2><p>' + (research ? 'Research ideas become separate, removable providers. The semantic method decodes literal script data and highlights risky behavior without executing it. External AI needs a model provider you connect; no trained model is bundled.' : 'Start with local checks for Android, Gradle and Maven projects. Add language scanners, dependency checks or a web security report when you need them. Each connection keeps its own permissions and can be turned off at any time.') + '</p></div><div class="method-summary">' + enabled + ' enabled · ' + disabled + ' disabled</div></div>';
   if (research) html += '<div class="research-flow"><div><strong><span class="research-step">01</span>Read source safely</strong><p>Literal data only. Bound the file, decode and output budgets.</p></div><div><strong><span class="research-step">02</span>Inspect behavior</strong><p>Expose encoding layers and execution patterns as reviewable evidence.</p></div><div><strong><span class="research-step">03</span>Keep authority explicit</strong><p>Research starts with warnings. Model output never grants itself build permissions.</p></div></div>';
-  const groups = [['BUILT_IN','Built-in checks','Local deterministic rules · no SDK setup'],['SAST','Source analysis','Scripts, Python and scanner reports'],['SUPPLY_CHAIN','Supply chain','Dependency findings for Gradle, Maven and other ecosystems'],['DAST','Web & API security','Explicit target scope for imported results'],['RESEARCH','Research methods','Experimental, separate from the default scanner'],['AI','AI & models','Bring a provider and validate it against your own data']];
+  const groups = [['BUILT_IN','Built-in checks','Local deterministic rules · no SDK setup'],['SAST','Source analysis','Scripts, Python and scanner reports'],['SUPPLY_CHAIN','Supply chain','Dependency findings for Gradle, Maven and other ecosystems'],['DAST','Web & API security','Import scoped reports or explicitly authorize bounded requests to owned targets'],['RESEARCH','Research methods','Experimental, separate from the default scanner'],['AI','AI & models','Bring a provider and validate it against your own data']];
   groups.forEach(function(group) {
     const entries = methods.filter(function(m) { return m.category===group[0]; });
     if (!entries.length) return;
@@ -404,6 +488,7 @@ function renderMethods(research) {
       const mode=builtin ? 'Built-in' : m.availability==='REPORT_IMPORT' ? 'Report import' : m.availability==='EXTERNAL_MODEL' ? 'External model' : 'Optional provider';
       html += '<article class="method-card' + (m.enabled ? ' enabled' : '') + '"><div class="method-card-top"><div><h3>' + esc(m.title) + '</h3><div class="method-tags"><span class="badge">' + esc(mode) + '</span>' + (m.maturity==='EXPERIMENTAL' ? '<span class="badge warn">Experimental</span>' : '') + '</div></div><label class="method-switch"><span>' + (m.enabled ? 'On' : 'Off') + '</span><input class="method-toggle" data-method="' + esc(m.id) + '" type="checkbox" aria-label="Enable ' + esc(m.title) + '"' + (m.enabled ? ' checked' : '') + (state.kind==='scanning' ? ' disabled' : '') + '/></label></div><p>' + esc(m.summary) + '</p><div class="method-actions"><span class="method-state' + (m.enabled && m.configured ? ' ready' : '') + '">' + esc(status) + '</span>';
       if (m.docsUrl) html += '<button class="link-btn method-docs" data-method="' + esc(m.id) + '">Reference</button>';
+      if (!builtin && m.configured && (m.availability==='REPORT_IMPORT' || m.category==='SUPPLY_CHAIN' || m.format==='sarif')) html += '<button class="link-btn method-evidence" data-method="'+esc(m.id)+'">Evidence settings</button>';
       if (!builtin && m.configured) html += '<button class="link-btn method-permissions" data-method="' + esc(m.id) + '">Permissions</button><button class="link-btn method-disconnect" data-method="' + esc(m.id) + '">Disconnect</button>';
       if (!builtin) html += '<button class="btn btn-ghost method-configure" data-method="' + esc(m.id) + '"' + (state.kind==='scanning' ? ' disabled' : '') + '>' + (m.configured ? 'Configure' : 'Set up') + '</button>';
       html += '</div></article>';
@@ -413,16 +498,60 @@ function renderMethods(research) {
   if (!methods.length) html += '<div class="empty-note">Loading the security method catalog…</div>';
   html += '<p class="method-note">' + (research ? 'Experimental findings are signals to review. This is not the published paper implementation or a validated malware classifier. No project code or model is downloaded automatically.' : 'A clean result applies to the enabled methods and the evidence they checked. Disabled checks reduce coverage. Imported reports may be outdated; connecting a report does not run its scanner.') + '</p><div class="methods-bottom"><button class="link-btn method-settings">Open User Settings</button><span>Tools share findings and actions through Provider API v1.</span></div>';
   panel.innerHTML=html;
+  panel.querySelectorAll('.apply-preset').forEach(function(button) { button.addEventListener('click',function() { post('apply-preset'); }); });
+  panel.querySelectorAll('.import-preset').forEach(function(button) { button.addEventListener('click',function() { post('import-preset'); }); });
+  panel.querySelectorAll('.export-preset').forEach(function(button) { button.addEventListener('click',function() { post('export-preset'); }); });
   panel.querySelectorAll('.method-toggle').forEach(function(input) { input.addEventListener('change',function() { vscode.postMessage({type:'toggle-method',methodId:input.getAttribute('data-method'),enabled:input.checked}); }); });
   panel.querySelectorAll('.method-permissions').forEach(function(button) { button.addEventListener('click',function() { const method=all.find(function(m) { return m.id===button.getAttribute('data-method'); });if (method && method.providerId) vscode.postMessage({type:'configure-provider',providerId:method.providerId}); }); });
   panel.querySelectorAll('.method-disconnect').forEach(function(button) { button.addEventListener('click',function() { vscode.postMessage({type:'disconnect-method',methodId:button.getAttribute('data-method')}); }); });
+  panel.querySelectorAll('.method-evidence').forEach(function(button) { button.addEventListener('click',function() { vscode.postMessage({type:'evidence-settings',methodId:button.getAttribute('data-method')}); }); });
   panel.querySelectorAll('.method-configure').forEach(function(button) { button.addEventListener('click',function() { vscode.postMessage({type:'configure-method',methodId:button.getAttribute('data-method')}); }); });
   panel.querySelectorAll('.method-docs').forEach(function(button) { button.addEventListener('click',function() { vscode.postMessage({type:'method-docs',methodId:button.getAttribute('data-method')}); }); });
   panel.querySelectorAll('.method-settings').forEach(function(button) { button.addEventListener('click',function() { post('settings'); }); });
-  if (focusMethod && focusKind) { const next=panel.querySelector('.' + focusKind + '[data-method="' + focusMethod + '"]') || panel.querySelector('.method-configure[data-method="' + focusMethod + '"]');if (next) next.focus(); }
 }
 
+function renderHistory() {
+  const panel=byId('panel-history'),history=state.history || {enabled:false,limit:20,entries:[]},entries=history.entries || [];
+  let html='<div class="page-head"><div class="page-heading"><h1>Scan history</h1><p>Local summaries. Comparable scope. Changes to review.</p></div><div class="btn-row"><button class="btn btn-ghost" id="historyRetention">Keep '+history.limit+'</button><button class="btn btn-ghost" id="historyClear">Clear project history</button><button class="btn '+(history.enabled?'btn-ghost':'btn-primary')+'" id="historyToggle">'+(history.enabled?'Pause saving':'Enable history')+'</button></div></div>';
+  html+='<div class="methods-intro"><div><h2>'+(history.enabled?'Saving local scan summaries':'History is optional')+'</h2><p>'+(history.enabled?'Each scan saves a small summary for this project: finding identities, titles, file paths and provider versions. Source evidence, finding messages and call chains are omitted.':'Enable history to compare future scans of this project. Summaries stay in extension-owned local storage. Pausing stops new records; saved records remain until you clear them.')+'</p></div><span class="method-summary">'+(history.enabled?'Opted in':'Saving off')+' · '+history.limit+' per project</span></div>';
+  if(history.error)html+='<div class="notice"><strong>History unavailable</strong> · '+esc(history.error)+'</div>';
+  if(entries.length){
+    html+='<div class="panel-card"><table class="provider-table" aria-label="Local scan history"><thead><tr><th>Scan</th><th>Results</th><th>Providers</th><th>Comparison</th></tr></thead><tbody>';
+    entries.forEach(function(entry,index) {const limited=!entry.complete||entry.stale||entry.truncated||!entry.scopeKnown;html+='<tr><td><div class="provider-title">'+esc(new Date(entry.createdAt).toLocaleString())+'</div><div class="run-meta">'+esc(entry.operation)+(index===0?' · Latest':'')+'</div></td><td><span class="badge '+(limited?'warn':entry.verdict==='CLEAN'?'ok':'')+'">'+esc((VERDICT[entry.verdict] || ['',entry.verdict])[1])+'</span><div class="run-meta">'+entry.findingCount+' findings'+(entry.truncated?' · Truncated':'')+(entry.stale?' · Stale':'')+'</div></td><td><details><summary>'+entry.providerCount+' providers</summary><div class="run-meta">'+(entry.providers || []).map(function(item) {return esc(item.id)+' · v'+esc(item.version)+' · '+esc(item.status);}).join('<br/>')+'</div></details></td><td>'+(index?'<button class="btn btn-ghost history-compare" data-history="'+esc(entry.id)+'">Compare to latest</button>':'<span class="badge">'+(entry.scopeKnown?'Known scope':'Scope unknown')+'</span>')+'</td></tr>';});
+    html+='</tbody></table></div>';
+  }else html+='<div class="empty-note">'+(history.enabled?'Run a scan to save the first summary for this project.':'Saving is off. Enable history to view retained records and save future scans.')+'</div>';
+  const delta=history.comparison;
+  if(delta){
+    html+='<div class="method-category"><h2>Reimport &amp; scan comparison</h2><p>'+esc(history.comparisonLabel || '')+'</p></div>';
+    if(!delta.available)html+='<div class="notice"><strong>Comparison unavailable</strong> · '+esc(delta.reason || 'The scopes cannot be established as equivalent.')+'</div>';
+    else{
+      html+='<div class="policy-summary"><span><strong>'+delta.newlyReported.length+'</strong> newly reported</span><span><strong>'+delta.noLongerReported.length+'</strong> no longer reported</span><span><strong>'+delta.unchanged+'</strong> still reported</span></div>';
+      [['newlyReported','Newly reported'],['noLongerReported','No longer reported']].forEach(function(group) {const findings=delta[group[0]] || [];if(!findings.length)return;html+='<div class="panel-card" style="margin-top:12px"><div class="panel-title">'+group[1]+'<span class="subtle">'+findings.length+' findings</span></div>';findings.slice(0,200).forEach(function(finding,index) {html+='<div class="policy-row history-finding-row"><span><span class="badge '+(finding.severity==='ERROR'?'err':finding.severity==='WARN'?'warn':'info')+'">'+esc(finding.severity)+'</span> '+esc(finding.title)+'<div class="review-path">'+esc(finding.providerId)+' · '+esc(finding.ruleId)+' · '+esc(finding.path)+'</div></span>'+(finding.path==='.'?'<span>Project-level finding</span>':'<button class="link-btn history-open" data-group="'+group[0]+'" data-index="'+index+'">Open current file</button>')+'</div>';});if(findings.length>200)html+='<p class="method-note">Showing the first 200 findings.</p>';html+='</div>';});
+    }
+  }
+  html+='<p class="method-note">Comparisons require the same project, operation and known configuration, with complete, fresh, untruncated scans. All fingerprints count, including approved findings. “No longer reported” describes the scanner output; it does not prove a vulnerability was fixed. History never changes your baseline approvals or enforcement.</p>';
+  panel.innerHTML=html;
+  byId('historyToggle').addEventListener('click',function() {vscode.postMessage({type:'history-enabled',enabled:!history.enabled});});
+  byId('historyClear').addEventListener('click',function() {post('history-clear');});byId('historyRetention').addEventListener('click',function() {post('history-retention');});
+  panel.querySelectorAll('.history-compare').forEach(function(button) {button.addEventListener('click',function() {vscode.postMessage({type:'history-compare',historyId:button.getAttribute('data-history')});});});
+  panel.querySelectorAll('.history-open').forEach(function(button) {button.addEventListener('click',function() {const finding=delta && delta[button.getAttribute('data-group')][Number(button.getAttribute('data-index'))];if(finding)vscode.postMessage({type:'history-open',historyFinding:finding});});});
+}
+
+function renderAutomation() {
+  const view=state.automation || {configured:false,running:false,status:'Paused · configure providers first',providerIds:[],onChanges:true,debounceMs:2000,intervalMinutes:0};
+  const panel=byId('panel-automation');
+  let html='<div class="page-head"><div class="page-heading"><h1>Automatic scans</h1><p>Reviewed providers, explicit triggers, one project at a time.</p></div><div class="btn-row"><button class="btn btn-ghost" id="automationConfigure">Configure</button><button class="btn '+(view.running?'btn-ghost':'btn-primary')+'" id="automationSession"'+(!view.running&&!view.configured?' disabled':'')+'>'+(view.running?'Pause':'Review &amp; start')+'</button></div></div>';
+  html+='<div class="overview-status '+(view.running?'ok':'warn')+'" role="status" aria-live="polite"><strong>'+esc(view.status)+'</strong></div>';
+  if(view.error)html+='<div class="empty-note err" role="alert">'+esc(view.error)+'</div>';
+  html+='<div class="panel-card" style="margin-top:14px"><div class="panel-title">This editor session<span class="badge">SCAN only</span></div><div class="policy-row"><span>Project</span><span>'+esc(view.project || state.selectedProject || 'Choose an open project')+'</span></div><div class="policy-row"><span>After changes</span><span>'+(view.onChanges?view.debounceMs+' ms debounce':'Off')+'</span></div><div class="policy-row"><span>Interval</span><span>'+(view.intervalMinutes?view.intervalMinutes+' minutes':'Off')+'</span></div><div class="policy-row"><span>Providers</span><span>'+esc(view.providerIds.join(', ') || 'None selected')+'</span></div><div class="policy-row"><span>Last automatic scan</span><span>'+esc(view.lastRun?new Date(view.lastRun).toLocaleString():'Not run')+'</span></div></div>';
+  if(view.providerIds.length){html+='<div class="panel-card" style="margin-top:14px"><div class="panel-title">Reviewed provider declarations</div>';view.providerIds.forEach(function(id){const policy=(view.policies || {})[id];html+='<div class="policy-row"><span>'+esc(id)+'</span><span>'+esc(policy?'Network: '+policy.network+' · Cost: '+policy.cost+' · '+(policy.acknowledged?'Reviewed':'Review needed'):'Review settings before Start')+'</span></div>';});html+='</div>';}
+  html+='<p class="method-note">Saving preferences, enabling a method or reloading the editor leaves automation paused. Start reviews the selected providers and their network/cost declarations; no immediate or missed scans run. Automatic scans never launch builds, synchronization, downloads or tool installation. Declarations describe your review and do not restrict trusted tool code. Settings, connection and project changes pause the session.</p>';
+  panel.innerHTML=html;byId('automationConfigure').addEventListener('click',function(){post('automation-configure');});byId('automationSession').addEventListener('click',function(){post(view.running?'automation-pause':'automation-start');});
+}
 function render() {
+  rememberFocus();
+  const selector=byId('projectSelector');
+  if(selector){selector.innerHTML=(state.projects || []).map(function(project) { return '<option value="'+esc(project.root)+'"'+(state.selectedProject===project.root?' selected':'')+'>'+esc(project.name)+'</option>'; }).join('');selector.disabled=state.kind==='scanning'||!(state.projects || []).length;}
   renderStatusCard();
   renderOverview();
   renderFindings();
@@ -430,7 +559,10 @@ function render() {
   renderPolicy();
   renderMethods(false);
   renderMethods(true);
+  renderHistory();
+  renderAutomation();
   renderBusy();
+  restoreFocus();
 }
 
 function verdictMeta() {
@@ -488,7 +620,7 @@ function renderOverview() {
     panel.innerHTML = '<div class="hero"><div class="big"><span class="spin">↻</span> Scanning workspace</div><div>Reading wrappers, build files and provider results.</div></div>';return;
   }
   if (state.kind === 'failed') {
-    panel.innerHTML = '<div class="hero"><div class="big">Scan failed</div><div class="mono">' + esc(state.error || '') + '</div><button class="btn btn-primary" id="retryBtn">↻ Retry scan</button></div>';
+    panel.innerHTML = '<div class="hero"><div class="big">Scan failed</div><div class="mono" role="alert">' + esc(state.error || '') + '</div><button class="btn btn-primary" id="retryBtn">↻ Retry scan</button></div>';
     byId('retryBtn').addEventListener('click', function () { post('scan'); });return;
   }
   const r = state.report;
@@ -1023,6 +1155,7 @@ function setEdgeActive(nodeName, on) {
 
 
 /* tabs */
+window.addEventListener('focus',restoreFocus);
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach(function (t) { const active=t.getAttribute('data-tab') === name;t.classList.toggle('active',active);if(active)t.setAttribute('aria-current','page');else t.removeAttribute('aria-current'); });
   document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.remove('active'); });
@@ -1035,8 +1168,17 @@ byId('tabs').addEventListener('click', function (e) {
   if (!tab) return;
   switchTab(tab.getAttribute('data-tab'));
 });
+byId('tabs').addEventListener('keydown',function(e) {
+  const tab=e.target.closest('.tab');if(!tab)return;
+  const tabs=Array.from(document.querySelectorAll('.tab'));const current=tabs.indexOf(tab);let next;
+  if(e.key==='ArrowRight'||e.key==='ArrowDown')next=(current+1)%tabs.length;
+  else if(e.key==='ArrowLeft'||e.key==='ArrowUp')next=(current+tabs.length-1)%tabs.length;
+  else if(e.key==='Home')next=0;else if(e.key==='End')next=tabs.length-1;else return;
+  e.preventDefault();tabs[next].focus();switchTab(tabs[next].getAttribute('data-tab'));
+});
 
 byId('rescanBtn').addEventListener('click', function () { post('scan'); });
+byId('projectSelector').addEventListener('change',function() { vscode.postMessage({type:'select-project',projectRoot:byId('projectSelector').value}); });
 byId('exportBtn').addEventListener('click', function () { post('export'); });
 byId('settingsBtn').addEventListener('click', function () {
   switchTab('policy');
@@ -1052,6 +1194,7 @@ byId('btnClearFilter').addEventListener('click', function () {
 });
 
 render();
+vscode.postMessage({type:'ready'});
 </script>
 </body>
 </html>`;

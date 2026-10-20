@@ -1,0 +1,3 @@
+<idea-plugin>
+    <!-- The optional dependency itself adds the platform's complete Compose classloader. -->
+</idea-plugin>

@@ -3,6 +3,7 @@ import { RuleIds } from './ruleIds';
 import { findingFingerprint } from './fingerprints';
 import { maskSecretValues } from './redaction';
 import { isAllowed } from './urlAllowlist';
+import { containsUnixNetworkCommand } from './unixNetworkCommands';
 
 export type ScriptFlavor = 'UNIX' | 'WINDOWS' | 'POWERSHELL';
 
@@ -120,7 +121,7 @@ export function analyzeScript(
           'SUPPLY_CHAIN'
         )
       );
-    } else if (networkPattern.test(line)) {
+    } else if (flavor === 'UNIX' ? containsUnixNetworkCommand(line) : networkPattern.test(line)) {
       findings.push(
         finding(
           RuleIds.NETWORK_COMMAND,

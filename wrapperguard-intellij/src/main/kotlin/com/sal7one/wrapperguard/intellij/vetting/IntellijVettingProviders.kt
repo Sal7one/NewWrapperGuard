@@ -10,6 +10,9 @@ import com.sal7one.wrapperguard.core.vetting.*
 import com.sal7one.wrapperguard.intellij.settings.WrapperGuardSettings
 import com.sal7one.wrapperguard.intellij.settings.buildScanSettings
 import com.sal7one.wrapperguard.intellij.settings.OptionalMethodConnections
+import com.sal7one.wrapperguard.intellij.settings.CustomProviders
+import com.sal7one.wrapperguard.intellij.settings.OptionalMethodProfiles
+import com.sal7one.wrapperguard.intellij.settings.managedOperationAllowed
 import com.sal7one.wrapperguard.intellij.demo.WrapperGuardDemo
 import com.sal7one.wrapperguard.rules.RepositoryScanner
 import java.nio.file.Path
@@ -27,14 +30,13 @@ object IntellijVettingProviders {
 
     fun installedProviders(): List<VettingProvider> = if (WrapperGuardDemo.enabled) emptyList() else EP_NAME.extensionList
 
-    fun scan(project: Project, root: Path, policy: ScanPolicy, operation: VettingOperation): ScanReport {
-        if (WrapperGuardDemo.enabled) return WrapperGuardDemo.loadReport()
+    internal fun registrations(project: Project, root: Path): List<ProviderRegistration> {
         val settings = WrapperGuardSettings.getInstance()
         val trusted = TrustedProjects.isProjectTrusted(project)
         val scanner = RepositoryScanner()
         val path = settings.state.providerConfigurationPath.trim()
-        val configured = if (path.isEmpty()) null else ProviderConfiguration.load(Path.of(path), root)
-        val registrations = (configured?.registrations(scanner) ?: listOf(
+        val configured = if (path.isEmpty()) null else ProviderConfiguration.load(Path.of(path), root, OptionalMethodConnections.roots(project))
+        val registrations = (configured?.registrations(scanner, root) ?: listOf(
             ProviderRegistration(BuiltInVettingProvider(scanner), settings.permissions("wrapperguard"))
         )).map { registration ->
             if (settings.state.providers.any { it.id == registration.provider.descriptor.id && it.overrideConfiguredPermissions })
@@ -43,10 +45,24 @@ object IntellijVettingProviders {
         }.toMutableList()
         // In Safe Mode we do not even initialize third-party SDK extensions.
         if (trusted) installedProviders().forEach { provider ->
-            registrations += ProviderRegistration(provider, settings.permissions(provider.descriptor.id))
+            val metadata = settings.state.customProviders.firstOrNull { it.kind == "sdk" && it.id == provider.descriptor.id }
+            val permissions = settings.permissions(provider.descriptor.id)
+            registrations += ProviderRegistration(if (metadata == null) provider else CustomProviders.overlay(provider, metadata),
+                if (metadata != null && !CustomProviders.appliesTo(metadata, root)) permissions.copy(enabled = false) else permissions)
         }
         if (trusted) {
-            val preferredIds = settings.state.methodConnections.filter { connection -> connection.preferManaged &&
+            settings.state.customProviders.filter { it.kind == "command" }.forEach { custom ->
+                require(registrations.none { it.provider.descriptor.id == custom.id }) { "A custom command ID conflicts with an existing provider. Use distinct provider IDs." }
+                val configuredPermissions = settings.permissions(custom.id)
+                val permissions = if (CustomProviders.appliesTo(custom, root)) configuredPermissions else configuredPermissions.copy(enabled = false)
+                val ready = permissions.enabled && runCatching { CustomProviders.validate(custom, OptionalMethodConnections.roots(project)) }.isSuccess
+                val provider = if (ready) CommandVettingProvider(custom.command(permissions)) else CustomProviders.unavailable(custom)
+                registrations += ProviderRegistration(provider, permissions)
+            }
+            settings.state.customProviders.filter { it.kind == "sdk" && registrations.none { registration -> registration.provider.descriptor.id == it.id } }.forEach {
+                registrations += ProviderRegistration(CustomProviders.unavailable(it), settings.permissions(it.id).let { permissions -> if (CustomProviders.appliesTo(it, root)) permissions else permissions.copy(enabled = false) })
+            }
+            val preferredIds = settings.state.methodConnections.filter { connection -> connection.preferManaged && (connection.projectRoot.isBlank() || runCatching { Path.of(connection.projectRoot).toRealPath() == root.toRealPath() }.getOrDefault(false)) &&
                 settings.state.methodFlags[connection.methodId] != false }.mapNotNull { connection ->
                 com.sal7one.wrapperguard.core.methods.SecurityMethodCatalog.find(connection.methodId)?.providerId
                     ?.takeIf { settings.permissions(it).enabled }
@@ -59,7 +75,38 @@ object IntellijVettingProviders {
             if (registration.provider is BuiltInVettingProvider) registration
             else registration.copy(permissions = registration.permissions.copy(enabled = false))
         }
-        val report = VettingCoordinator(effective).scan(root, policy, buildScanSettings(), operation = operation)
+        return effective.map { registration ->
+            val provider = registration.provider
+            if (provider is CommandVettingProvider && !provider.appliesToProject(root)) registration.copy(permissions = registration.permissions.copy(enabled = false))
+            else registration
+        }
+    }
+
+    @JvmOverloads
+    fun scan(project: Project, root: Path, policy: ScanPolicy, operation: VettingOperation, automaticIds: Set<String>? = null): ScanReport {
+        if (WrapperGuardDemo.enabled) return WrapperGuardDemo.loadReport()
+        val trusted = TrustedProjects.isProjectTrusted(project)
+        val report = com.sal7one.wrapperguard.intellij.settings.ManagedStorage.withUse {
+            require(automaticIds == null || operation == VettingOperation.SCAN) { "Automation is restricted to SCAN." }
+            val connections = WrapperGuardSettings.getInstance().state.methodConnections
+            val excluded = mutableSetOf<String>()
+            val providers = registrations(project, root).map { registration ->
+                if (!managedOperationAllowed(registration.provider.descriptor, connections, operation)) {
+                    excluded += registration.provider.descriptor.id
+                    registration.copy(permissions = registration.permissions.copy(enabled = false))
+                } else if (automaticIds == null || registration.provider.descriptor.id in automaticIds) registration
+                else registration.copy(permissions = registration.permissions.copy(enabled = false))
+            }
+            val selectedSettings = if (automaticIds == null) buildScanSettings() else com.sal7one.wrapperguard.intellij.settings.automationSettings(buildScanSettings(), automaticIds)
+            val settings = selectedSettings.copy(methodFlags = selectedSettings.methodFlags + com.sal7one.wrapperguard.core.methods.SecurityMethodCatalog.methods.filter { it.providerId in excluded }.associate { it.id to false })
+            VettingCoordinator(providers).scan(root, policy, settings, operation = operation).let { output ->
+                val notices = output.notices.toMutableList()
+                if (automaticIds != null) notices += ScanNotice("WG-AUTOMATED-SCAN", "Automatic SCAN selected only: ${automaticIds.sorted().joinToString(", ")}. Other providers were not invoked. This selection does not grant build/sync authority.")
+                if (excluded.isNotEmpty()) notices += ScanNotice("WG-PROVIDER-OPERATION-SKIPPED", "Managed connections exclude ${operation.name}: ${excluded.sorted().joinToString(", ")}. No SDK or analyzer was started for those connections.")
+                output.copy(notices = notices)
+            }
+        }
+        project.getService(com.sal7one.wrapperguard.intellij.WrapperGuardProjectService::class.java).observeReportInputs(report)
         return if (trusted) report else report.copy(
             providerRuns = report.providerRuns.map { run ->
                 if (run.descriptor.id == "wrapperguard") run

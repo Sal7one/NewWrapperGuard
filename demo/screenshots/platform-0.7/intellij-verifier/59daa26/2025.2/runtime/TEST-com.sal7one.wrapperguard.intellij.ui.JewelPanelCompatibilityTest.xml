@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.sal7one.wrapperguard.intellij.ui.JewelPanelCompatibilityTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-20T18:57:50.738Z" hostname="runnervm8k3b6" time="0.006">
+  <properties/>
+  <testcase name="a real invocation failure is surfaced without trying another factory" classname="com.sal7one.wrapperguard.intellij.ui.JewelPanelCompatibilityTest" time="0.003"/>
+  <testcase name="legacy and focused factories receive the actual configuration and content" classname="com.sal7one.wrapperguard.intellij.ui.JewelPanelCompatibilityTest" time="0.002"/>
+  <testcase name="missing static shape or exact return and parameter types fails explicitly" classname="com.sal7one.wrapperguard.intellij.ui.JewelPanelCompatibilityTest" time="0.001"/>
+  <testcase name="legacy public signature wins when both are present" classname="com.sal7one.wrapperguard.intellij.ui.JewelPanelCompatibilityTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

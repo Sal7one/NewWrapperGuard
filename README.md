@@ -4,9 +4,12 @@ A security vetting workspace for **Android Studio, IntelliJ IDEA, VS Code and CI
 Review application source, build inputs and dependency findings together. Choose the
 analyzers you need and control whether each can warn, alert, stop a build or stop Gradle sync.
 
-**Current development version: 0.5.0 · Python integration SDK: 0.2.0 · Provider API: 1.**
-The 0.5.0 stable release is pending acceptance. See [verification](docs/verification.md) for test builds, completed checks
-and outstanding release work, and [the changelog](CHANGELOG.md) for published history.
+**Current development version: 0.7.0 · Python integration SDK: 0.4.0 · Provider API: 1.**
+The **0.7.0 RC1 snapshot is frozen at the user’s request with a partial roadmap**.
+[Release builds and checksums](https://github.com/Sal7one/NewWrapperGaurd/releases/tag/v0.7.0-rc.1)
+identify the accepted artifact set. See [verification](docs/verification.md) for real install/test
+instructions and [the handover](HANDOVER.md) for exact provenance and deferred work. Development is stopped until requested.
+[The changelog](CHANGELOG.md) records product changes.
 
 ## Start in the IDE
 
@@ -20,29 +23,29 @@ and outstanding release work, and [the changelog](CHANGELOG.md) for published hi
 4. Use **Research** (**Research & AI** in VS Code) for script behavior signals and local AI explanations.
    Both remain advisory and cannot stop a build or synchronization.
 
-The [setup guide](docs/integrations.md) explains each connection, Windows report imports,
+The [setup guide](docs/integrations.md) explains each connection, Windows direct runners and report imports,
 local model setup and the difference between source analysis and dependency checks.
 The [demo](demo/README.md) and [screenshot gallery](demo/index.html) use clearly labeled,
 fictional data for interface review.
 
 ## Choose the methods
 
-The shared [method catalog](catalog/security-methods.json) contains **15 optional methods**:
+The shared [method catalog](catalog/security-methods.json) contains **19 independently controlled methods**:
 
 | Category | Included connections |
 |---|---|
 | Built-in | Wrapper integrity, script rules, Gradle rules, version catalogs, script graph, Maven POM rules |
-| SAST | Semgrep for Kotlin/Java, Bandit for Python, PSScriptAnalyzer for PowerShell, SARIF reports |
-| Supply chain | Trivy and OSV-Scanner dependency findings |
-| DAST | ZAP reports restricted to explicit application targets |
-| Research | Bounded static Python/PowerShell behavior signals |
+| SAST | Semgrep for Kotlin/Java, Bandit for Python, PSScriptAnalyzer for PowerShell, SARIF and Sonar reports |
+| Supply chain | Trivy, OSV-Scanner and CycloneDX vulnerability findings |
+| DAST | Scoped ZAP reports and explicit owned-target HTTP header/cookie audits |
+| Research | Static Python/PowerShell signals and optional isolated Python execution |
 | AI | Advisory explanations from a user-configured local model server |
 
 Only the six built-in static groups start enabled. Optional tools, models and external
 SDKs require user setup. Every connection can be disabled or replaced independently;
 [organization-specific providers](docs/providers.md) use the same interface and host grants.
-Application analysis is limited to the selected tools, rules and inputs: the bundled
-Semgrep pack contains six Android/Ktor review rules, rather than a complete app audit.
+Application analysis is limited to the selected tools, rules and inputs: five selectable local
+Semgrep packs provide targeted review checks; the original six-rule pack remains the default.
 
 ## What the host controls
 
@@ -50,6 +53,8 @@ Semgrep pack contains six Android/Ktor review rules, rather than a complete app 
 - Warning, major warning, alert, build blocking and sync blocking permissions.
 - Enforcement policy, approved baselines and combined JSON/SARIF reports.
 - Source navigation, execution paths, method settings and connection management.
+- Generic SDK/command setup, declared inputs, multi-root selection and reviewed presets.
+- Opt-in scoped scan history, bounded retention and owned-data cleanup.
 
 Provider requests are capped by user grants and policy. User configuration lives outside
 scanned projects. Imported reports do not prove freshness; optional failures remain visible.
@@ -76,8 +81,9 @@ npm --prefix vscode-extension run package
 ```
 
 An explicitly installed development IDE can be selected with
-`-Pwrapperguard.localIdePath=/path/to/IDE/Contents`. The default verifier targets
-IntelliJ IDEA 2025.3; the minimum plugin platform build is 252.
+`-Pwrapperguard.localIdePath=/path/to/IDE/Contents`. Release compilation defaults to
+IntelliJ IDEA **2025.2** (platform 252); the default verifier targets 2025.3. The host
+matrix separately checks 2025.2, 2026.2.2 and 2026.2.3, including actual Jewel factory calls.
 [Verification instructions](docs/verification.md) cover SDK packaging, installed-host
 checks, real analyzer smoke tests and artifact inspection.
 
@@ -107,5 +113,8 @@ user files outside the project.
 | `schema/` | Report, provider and integration profile contracts |
 | `test-fixtures/` | Tracked inert regression inputs |
 
-[Provider API](docs/providers.md) · [Research rationale](docs/research.md) ·
+[Product and OSS references](docs/product-inspiration.md) · [Provider API](docs/providers.md) · [Research rationale](docs/research.md) ·
 [Engineering handover](HANDOVER.md) · [Roadmap and remaining work](docs/roadmap.md) · [Apache-2.0 license](LICENSE)
+
+[0.7 real-host and Android evidence](demo/screenshots/platform-0.7/README.md) ·
+[Earlier 0.6 platform screenshots](demo/screenshots/platform-0.6/README.md)

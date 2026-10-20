@@ -14,7 +14,7 @@ import kotlin.io.path.name
  * Routes:
  *  - gradlew / *.sh                 → Unix script rules
  *  - gradlew.bat / *.bat / *.cmd    → Windows script rules
- *  - *.ps1                          → PowerShell script rules
+ *  - *.ps1 / *.psm1                 → PowerShell script/module rules
  *  - gradle-wrapper.properties      → wrapper-properties rules
  *  - settings.gradle(.kts)          → build settings rules
  *  - init.gradle / init.gradle.kts  → build init rules
@@ -28,11 +28,11 @@ object FileTypeRouter {
 
     fun rulesFor(path: Path): List<Rule> {
         val name = path.name
-        val extension = name.substringAfterLast('.', missingDelimiterValue = "")
+        val extension = name.substringAfterLast('.', missingDelimiterValue = "").lowercase()
         return when {
             name == "gradlew" || extension == "sh" -> listOf(ScriptRules.unix())
             name == "gradlew.bat" || extension == "bat" || extension == "cmd" -> listOf(ScriptRules.windows())
-            extension == "ps1" -> listOf(ScriptRules.powershell())
+            extension in setOf("ps1", "psm1") -> listOf(ScriptRules.powershell())
             name == "gradle-wrapper.properties" -> listOf(WrapperPropertiesRules)
             name == "settings.gradle" || name == "settings.gradle.kts" -> listOf(BuildScriptRules.settings())
             name.startsWith("init.") && (name.endsWith(".gradle") || name.endsWith(".gradle.kts")) -> listOf(BuildScriptRules.init())
@@ -60,9 +60,9 @@ object FileTypeRouter {
 
     /** True if a path is interesting enough to scan at all. */
     fun isScannable(name: String): Boolean {
-        val extension = name.substringAfterLast('.', missingDelimiterValue = "")
+        val extension = name.substringAfterLast('.', missingDelimiterValue = "").lowercase()
         return name in setOf("gradlew", "gradlew.bat", "gradle-wrapper.properties", "libs.versions.toml", "pom.xml") ||
-            extension in setOf("sh", "bash", "zsh", "ps1", "bat", "cmd", "gradle", "kts") ||
+            extension in setOf("sh", "bash", "zsh", "bats", "ps1", "psm1", "bat", "cmd", "gradle", "kts") ||
             name.startsWith("settings.gradle") || name.startsWith("build.gradle") || name.startsWith("init.gradle")
     }
 }

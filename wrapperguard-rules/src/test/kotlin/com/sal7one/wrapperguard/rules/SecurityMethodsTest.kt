@@ -88,6 +88,17 @@ class SecurityMethodsTest {
         assertTrue(report.findings.all { it.mlSignal == null })
     }
 
+    @Test fun `PowerShell modules and uppercase script extensions cannot bypass source routing`() = fixture { root ->
+        listOf("module.psm1", "OTHER.PSM1", "DEPLOY.PS1").forEach { name ->
+            root.resolve(name).writeText("Invoke-Expression ([System.Convert]::FromBase64String('eA=='))\n")
+        }
+        val report = RepositoryScanner().scan(root, policy, ScanSettings())
+        assertTrue(report.complete)
+        assertEquals(setOf("module.psm1", "OTHER.PSM1", "DEPLOY.PS1"),
+            report.findings.filter { it.ruleId.startsWith("WG-SCRIPT") }.map { it.location.path }.toSet())
+        assertTrue(FileTypeRouter.isScannable("fixture.BATS"))
+    }
+
     @Test fun `Maven static checks cover unsafe repositories and changing versions independently`() = fixture { root ->
         root.resolve("pom.xml").writeText("""
             <project xmlns="http://maven.apache.org/POM/4.0.0">

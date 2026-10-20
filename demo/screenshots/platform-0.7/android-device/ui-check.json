@@ -1,0 +1,11 @@
+{
+  "attempt": 1,
+  "foregroundOwned": true,
+  "treeAvailable": true,
+  "titlePresent": true,
+  "readyPresent": true,
+  "nonBlankPassed": true,
+  "accepted": true,
+  "blockingSystemDialog": false,
+  "ownedNodeCount": 8
+}

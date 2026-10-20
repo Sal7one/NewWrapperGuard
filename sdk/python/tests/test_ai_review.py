@@ -107,6 +107,29 @@ class AiReviewTests(unittest.TestCase):
         self.assertEqual(result["scannedFiles"], 0)
         self.assertTrue(result["complete"])
 
+    def test_structured_output_schema_binds_each_review_and_has_explicit_compatibility_mode(self):
+        run_ai_review(self.profile(), self.root)
+        definition = self.requests[0][2]["response_format"]
+        self.assertEqual(definition["type"], "json_schema")
+        schema = definition["json_schema"]["schema"]
+        self.assertFalse(schema["additionalProperties"])
+        self.assertEqual(schema["properties"]["reviews"]["minItems"], len(self.records))
+        self.assertEqual(schema["properties"]["reviews"]["maxItems"], len(self.records))
+        self.assertEqual(schema["properties"]["reviews"]["items"]["required"], ["explanation"])
+        run_ai_review(self.profile(response_format="json_object"), self.root)
+        self.assertEqual(self.requests[1][2]["response_format"], {"type": "json_object"})
+
+    def test_invalid_response_format_fails_before_contacting_model(self):
+        with self.assertRaises(ValueError):
+            run_ai_review(self.profile(response_format="free_text"), self.root)
+        self.assertEqual(self.requests, [])
+
+    def test_valid_json_with_only_a_schema_placeholder_is_not_a_completed_explanation(self):
+        self.response_reviews = [{"explanation": "plain text"}]
+        with self.assertRaises(ValueError):
+            run_ai_review(self.profile(), self.root)
+        self.assertEqual(len(self.requests), 1)
+
     def test_hostile_model_fields_cannot_change_actions_location_or_render_active_markup(self):
         self.response_reviews = [{"explanation": '<script>alert("bad")</script><b>Review</b> [click](javascript:danger) &lt;img src=x&gt; token=output-secret',
                                   "location": {"path": "../../outside"}, "severity": "ERROR",

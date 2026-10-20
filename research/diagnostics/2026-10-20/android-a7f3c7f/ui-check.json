@@ -1,0 +1,10 @@
+{
+  "attempt": 5,
+  "foregroundOwned": true,
+  "treeAvailable": true,
+  "titlePresent": false,
+  "readyPresent": false,
+  "nonBlankPassed": true,
+  "accepted": false,
+  "ownedNodeCount": 0
+}

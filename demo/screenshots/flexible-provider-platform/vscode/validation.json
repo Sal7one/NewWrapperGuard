@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "appVersion": "0.7.0",
+  "sdkVersion": "0.4.0",
+  "nodeTests": 152,
+  "hardeningChecks": 5,
+  "webviewSyntaxRenderAndFocus": true,
+  "realHostVersion": "1.116.0",
+  "realHostCases": 8,
+  "providerConformanceCases": 6,
+  "formalScreenReaderAudit": false,
+  "actualLocalDockerAcceptance": false,
+  "actualOfflineSdkInstall": true,
+  "actualOwnedHttpRequests": 1,
+  "actualNativePresetImportExport": true,
+  "sourceCheckpoint": "Working tree after final GUI recovery and managed operation-scope fixes; test suite includes Unix command-token and PowerShell module routing fixes."
+}

@@ -1,9 +1,10 @@
 import { BaselineEntry, Finding, ScanNotice, ScanPolicy, ScanReport, ScanSettings, ScriptEdge } from '../models';
+import { ProviderInputScope, validateInputScope } from './inputScope';
 
 export const VETTING_ACTIONS = ['WARNING', 'MAJOR_WARNING', 'ALERT', 'BLOCK_BUILD', 'BLOCK_SYNC'] as const;
 export type VettingAction = typeof VETTING_ACTIONS[number];
 export type VettingOperation = 'SCAN' | 'BUILD' | 'SYNC';
-export interface ProviderDescriptor { id: string; displayName: string; version: string; apiVersion: 1 }
+export interface ProviderDescriptor { id: string; displayName: string; version: string; apiVersion: 1; category?:string; summary?:string; tags?:string[]; inputScope?:ProviderInputScope }
 export interface ProviderPermissions { enabled: boolean; actions: VettingAction[]; required: boolean; timeoutMs: number }
 export interface VettingRequest {
   projectRoot: string; policy: ScanPolicy; settings: ScanSettings; baseline: BaselineEntry[];
@@ -27,8 +28,8 @@ export interface ProviderRun {
 export interface VettingApi {
   readonly apiVersion: 1;
   registerProvider(provider: VettingProvider): { dispose(): void };
-  evaluate(operation?: VettingOperation): Promise<ScanReport>;
-  gate(operation: 'BUILD' | 'SYNC'): Promise<{ allowed: boolean; report: ScanReport }>;
+  evaluate(operation?: VettingOperation, projectRoot?:string): Promise<ScanReport>;
+  gate(operation: 'BUILD' | 'SYNC', projectRoot?:string): Promise<{ allowed: boolean; report: ScanReport }>;
 }
 export const DEFAULT_PERMISSIONS: ProviderPermissions = {
   enabled: true, actions: [...VETTING_ACTIONS], required: true, timeoutMs: 30_000
@@ -37,13 +38,18 @@ export const EXTERNAL_PERMISSIONS: ProviderPermissions = {
   enabled: false, actions: [], required: false, timeoutMs: 30_000
 };
 export function validateDescriptor(value: ProviderDescriptor): ProviderDescriptor {
-  if (!value || typeof value !== 'object' || Object.keys(value).some(k => !['id', 'displayName', 'version', 'apiVersion'].includes(k)) ||
+  if (!value || typeof value !== 'object' || Object.keys(value).some(k => !['id', 'displayName', 'version', 'apiVersion','category','summary','tags','inputScope'].includes(k)) ||
       typeof value.id !== 'string' || !/^[a-z][a-z0-9._-]{0,79}$/.test(value.id) || value.apiVersion !== 1 ||
       typeof value.displayName !== 'string' || !value.displayName.trim() || value.displayName.length > 200 || /[\u0000-\u001f\u007f-\u009f]/.test(value.displayName) ||
       typeof value.version !== 'string' || !value.version.trim() || value.version.length > 80 || /[\u0000-\u001f\u007f-\u009f]/.test(value.version)) {
     throw new Error('Invalid provider descriptor (API version 1 required).');
   }
-  return Object.freeze({ ...value });
+  if (value.category !== undefined && (typeof value.category !== 'string' || !/^[A-Z][A-Z0-9_]{0,31}$/.test(value.category) || value.category === 'BUILT_IN')) throw new Error('Invalid provider category.');
+  if (value.summary !== undefined && (typeof value.summary !== 'string' || value.summary.length>512 || /[\u0000-\u001f\u007f]/.test(value.summary))) throw new Error('Invalid provider summary.');
+  if (value.tags !== undefined && (!Array.isArray(value.tags) || value.tags.length>16 || new Set(value.tags).size!==value.tags.length || value.tags.some(tag=>typeof tag !== 'string' || !/^[a-z0-9][a-z0-9._-]{0,63}$/.test(tag)))) throw new Error('Invalid provider tags.');
+  const scope=value.inputScope===undefined?undefined:validateInputScope(value.inputScope);
+  if(scope){for(const list of Object.values(scope))Object.freeze(list);Object.freeze(scope);}
+  return Object.freeze({ ...value,...(value.tags ? {tags:Object.freeze([...value.tags]) as unknown as string[]} : {}),...(scope ? {inputScope:scope} : {}) });
 }
 export function validatePermissions(value: ProviderPermissions): ProviderPermissions {
   if (!value || typeof value !== 'object' || Object.keys(value).some(k => !['enabled', 'actions', 'required', 'timeoutMs'].includes(k)) ||

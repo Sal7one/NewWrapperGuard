@@ -3,13 +3,14 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-import selectors
+import re
 import stat
-import subprocess
 import tempfile
 import time
 
 from .profile import IntegrationProfile, load_json_document
+from .rule_packs import RULE_PACKS
+from .portable_process import bounded_process as _bounded_process
 
 MAX_SOURCE_FILES = 5_000
 MAX_SOURCE_FILE_BYTES = 1024 * 1024
@@ -31,8 +32,15 @@ DEPENDENCY_FILES = frozenset({"pom.xml", "gradle.lockfile", "verification-metada
 
 
 def _snapshot(project_root: Path, destination: Path, deadline: float,
-              extensions: frozenset[str] = frozenset({".py"}), dependency_only: bool = False) -> tuple[int, bool]:
+              extensions: frozenset[str] = frozenset({".py"}), dependency_only: bool = False,
+              file_names: frozenset[str] = frozenset()) -> tuple[int, bool]:
     """Copy source data via anchored no-follow descriptors, never project programs."""
+    if os.name == "nt":
+        from .windows_snapshot import copy_windows_snapshot, SnapshotLimits
+        return copy_windows_snapshot(project_root, destination, deadline, extensions=extensions,
+            dependency_only=dependency_only, file_names=file_names, dependency_files=DEPENDENCY_FILES,
+            excluded_directories=EXCLUDED_DIRECTORIES,
+            limits=SnapshotLimits(MAX_SOURCE_FILES, MAX_SOURCE_FILE_BYTES, MAX_SOURCE_BYTES, MAX_SOURCE_DEPTH))
     count, total, incomplete = 0, 0, False
     flags = os.O_RDONLY | os.O_NOFOLLOW
     directory_flags = flags | os.O_DIRECTORY
@@ -66,7 +74,8 @@ def _snapshot(project_root: Path, destination: Path, deadline: float,
                         finally:
                             os.close(child)
                     elif entry.is_file(follow_symlinks=False) and (
-                        entry.name in DEPENDENCY_FILES if dependency_only else Path(entry.name).suffix.lower() in extensions
+                        entry.name in DEPENDENCY_FILES if dependency_only else
+                        Path(entry.name).suffix.lower() in extensions or entry.name in file_names
                     ):
                         fd = os.open(entry.name, flags | os.O_NONBLOCK, dir_fd=directory)
                         with os.fdopen(fd, "rb") as source:
@@ -95,56 +104,23 @@ def _snapshot(project_root: Path, destination: Path, deadline: float,
     return count, incomplete
 
 
-def _stop_child(process: subprocess.Popen) -> None:
-    # Keep the host's process group: when the host cancels this SDK with SIGKILL,
-    # Bandit must be included in the same group rather than becoming an orphan.
-    if process.poll() is None:
-        process.terminate()
-        try:
-            process.wait(timeout=0.5)
-        except subprocess.TimeoutExpired:
-            process.kill()
-            process.wait(timeout=0.5)
+def runner_supported(tool: str) -> bool:
+    if tool == 'container-python':
+        return os.name == 'posix' and hasattr(os, 'O_NOFOLLOW')
+    return tool in {"local-ai", "http-audit"} or os.name == "nt" or (os.name == "posix" and hasattr(os, "O_NOFOLLOW"))
 
 
-def _bounded_process(argv: list[str], cwd: Path, environment: dict[str, str],
-                     deadline: float, maximum: int, accepted_codes: tuple[int, ...] = (0,)) -> bytes:
-    _check_deadline(deadline)
-    process = subprocess.Popen(argv, cwd=cwd, env=environment, stdin=subprocess.DEVNULL,
-                               stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-    output = bytearray()
-    selector = selectors.DefaultSelector()
-    try:
-        assert process.stdout is not None
-        descriptor = process.stdout.fileno()
-        os.set_blocking(descriptor, False)
-        selector.register(descriptor, selectors.EVENT_READ)
-        stream_open = True
-        while process.poll() is None or stream_open:
-            _check_deadline(deadline)
-            for key, _ in selector.select(min(0.02, max(0, deadline - time.monotonic()))):
-                data = os.read(key.fd, min(65_536, maximum - len(output) + 1))
-                if not data:
-                    selector.unregister(key.fd)
-                    stream_open = False
-                else:
-                    output.extend(data)
-                    if len(output) > maximum:
-                        raise ValueError("Tool output exceeds limit")
-        if process.returncode not in accepted_codes:
-            raise ValueError("Tool failed")
-        return bytes(output)
-    finally:
-        _stop_child(process)
-        selector.close()
-        if process.stdout is not None:
-            process.stdout.close()
+def _invoke(profile, argv, snapshot, owned, environment, deadline, maximum, accepted_codes=(0,)):
+    if profile.runner.sandbox is not None:
+        from .sandbox import run_container
+        return run_container(profile.runner.sandbox, argv, owned, snapshot, deadline, maximum, accepted_codes)
+    return _bounded_process(argv, snapshot, environment, deadline, maximum, accepted_codes)
 
 
 def run_bandit(profile: IntegrationProfile, project_root: Path) -> tuple[dict, list[dict]]:
     """Analyze static .py data; no project imports, dependency install or active network scan."""
-    if os.name != "posix" or not hasattr(os, "O_NOFOLLOW") or profile.runner is None:
-        raise ValueError("The active Bandit runner requires POSIX no-follow file access")
+    if not runner_supported("bandit") or profile.runner is None:
+        raise ValueError("The active Bandit runner requires supported no-follow file access")
     config = profile.runner
     deadline = time.monotonic() + config.timeout_ms / 1000
     with tempfile.TemporaryDirectory(prefix="wrapperguard-bandit-") as temporary:
@@ -165,27 +141,36 @@ def run_bandit(profile: IntegrationProfile, project_root: Path) -> tuple[dict, l
         yaml.write_text("{}\n", encoding="utf-8")
         home = owned / "home"
         home.mkdir(mode=0o700)
-        environment = {"PATH": os.defpath, "HOME": str(home), "TMPDIR": str(owned),
-                       "TEMP": str(owned), "TMP": str(owned), "PYTHONNOUSERSITE": "1",
-                       "PYTHONDONTWRITEBYTECODE": "1", "PYTHONSAFEPATH": "1", "PYTHONUTF8": "1"}
+        environment = _environment(owned, home=home)
         argv = [str(config.executable), "--ini", str(ini), "--configfile", str(yaml),
                 "--ignore-nosec", "--exit-zero", "-q", "-f", "json", "-r", "."]
-        raw = _bounded_process(argv, snapshot, environment, deadline, config.max_output_bytes)
+        raw = _invoke(profile, argv, snapshot, owned, environment, deadline, config.max_output_bytes)
         document = load_json_document(raw)
         if not isinstance(document, dict):
             raise ValueError("Invalid Bandit document")
+        if config.sandbox is not None:
+            document = _rebase(document, Path('/workspace/source'))
         return document, notices
 
 
 def _rebase(document: object, snapshot: Path) -> object:
     """Map only actual snapshot-prefixed source paths back to project-relative locations."""
     prefixes = (str(snapshot) + os.sep, snapshot.as_uri() + "/")
+    # Go scanners such as OSV emit slash-separated Windows drive paths while
+    # Path uses backslashes. Match only the exact owned root + separator, using
+    # Windows case semantics, never an arbitrary absolute source path.
+    windows_root = (str(snapshot).replace("\\", "/").rstrip("/") + "/"
+                    if re.match(r"^[A-Za-z]:[\\/]", str(snapshot)) else None)
     def visit(value: object, depth: int) -> object:
         if depth > 128:
             raise ValueError("Report nesting exceeds limit")
         if isinstance(value, str):
+            if windows_root is not None:
+                portable = value.replace("\\", "/")
+                if portable.casefold().startswith(windows_root.casefold()):
+                    return portable[len(windows_root):] or "./"
             for prefix in prefixes:
-                if value.startswith(prefix):
+                if value.startswith(prefix) or windows_root is not None and value.casefold().startswith(prefix.casefold()):
                     return value[len(prefix):].replace(os.sep, "/") or "./"
             return value
         if isinstance(value, list):
@@ -196,17 +181,38 @@ def _rebase(document: object, snapshot: Path) -> object:
     return visit(document, 0)
 
 
-def _environment(owned: Path) -> dict[str, str]:
-    home = owned / "home"
-    home.mkdir(mode=0o700)
-    return {"PATH": os.defpath, "HOME": str(home), "TMPDIR": str(owned), "TEMP": str(owned), "TMP": str(owned),
+def _environment(owned: Path, *, home: Path | None = None) -> dict[str, str]:
+    if home is None:
+        home = owned / "home"
+        home.mkdir(mode=0o700)
+    environment = {"PATH": os.defpath, "HOME": str(home), "TMPDIR": str(owned), "TEMP": str(owned), "TMP": str(owned),
             "PYTHONNOUSERSITE": "1", "PYTHONDONTWRITEBYTECODE": "1", "PYTHONSAFEPATH": "1", "PYTHONUTF8": "1",
             "POWERSHELL_TELEMETRY_OPTOUT": "1", "DOTNET_CLI_TELEMETRY_OPTOUT": "1"}
+    if os.name == "nt":
+        import ctypes
+        api = ctypes.WinDLL("kernel32", use_last_error=True)
+        api.GetWindowsDirectoryW.argtypes = [ctypes.c_wchar_p, ctypes.c_uint32]
+        api.GetWindowsDirectoryW.restype = ctypes.c_uint32
+        buffer = ctypes.create_unicode_buffer(32768)
+        length = api.GetWindowsDirectoryW(buffer, len(buffer))
+        if not 0 < length < len(buffer):
+            raise OSError("The Windows system directory could not be located")
+        windows = Path(buffer.value)
+        environment.update({"SystemRoot": str(windows), "WINDIR": str(windows),
+            "PATH": str(windows / "System32"), "PATHEXT": ".EXE", "USERPROFILE": str(home),
+            "APPDATA": str(home / "AppData" / "Roaming"), "LOCALAPPDATA": str(home / "AppData" / "Local")})
+        for path in (environment["APPDATA"], environment["LOCALAPPDATA"]):
+            Path(path).mkdir(parents=True)
+    return environment
 
 
 _PS_ANALYZE = r'''param([string]$ModulePath, [string]$SourceRoot)
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
+# Import only the runtime's own modules before disabling all implicit discovery.
+# PSScriptAnalyzer uses Join-Path; serialization uses Select-Object/ConvertTo-Json.
+Import-Module -Name ([IO.Path]::Combine($PSHOME, 'Modules', 'Microsoft.PowerShell.Management', 'Microsoft.PowerShell.Management.psd1')) -ErrorAction Stop
+Import-Module -Name ([IO.Path]::Combine($PSHOME, 'Modules', 'Microsoft.PowerShell.Utility', 'Microsoft.PowerShell.Utility.psd1')) -ErrorAction Stop
 $PSModuleAutoLoadingPreference = 'None'
 Import-Module -Name $ModulePath -Force -WarningAction SilentlyContinue
 $diagnostics = @(Invoke-ScriptAnalyzer -Path $SourceRoot -Recurse -IncludeDefaultRules -IncludeSuppressed -Settings @{})
@@ -223,8 +229,8 @@ def run_tool(profile: IntegrationProfile, project_root: Path) -> tuple[dict | li
         raise ValueError("Runner is not configured")
     if config.tool == "bandit":
         return run_bandit(profile, project_root)
-    if os.name != "posix" or not hasattr(os, "O_NOFOLLOW"):
-        raise ValueError("Snapshot runners require POSIX no-follow file access")
+    if not runner_supported(config.tool):
+        raise ValueError("Snapshot runners require supported no-follow file access")
     deadline = time.monotonic() + config.timeout_ms / 1000
     with tempfile.TemporaryDirectory(prefix="wrapperguard-" + config.tool + "-") as temporary:
         owned = Path(temporary).resolve()
@@ -232,8 +238,14 @@ def run_tool(profile: IntegrationProfile, project_root: Path) -> tuple[dict | li
         snapshot.mkdir(mode=0o700)
         dependencies = config.tool in {"trivy", "osv"}
         extensions = {"script-semantics": frozenset({".py", ".ps1", ".psm1"}),
+                      "container-python": frozenset({".py"}),
                       "semgrep": frozenset({".kt", ".kts", ".java"})}.get(config.tool, frozenset({".ps1", ".psm1", ".psd1"}))
-        count, incomplete = _snapshot(project_root, snapshot, deadline, extensions, dependencies)
+        file_names = frozenset()
+        selected_packs = config.rule_packs or ("legacy-android-ktor",)
+        if config.tool == "semgrep" and config.rules_path is None:
+            extensions = frozenset(extension for pack in selected_packs for extension in RULE_PACKS[pack]['extensions'])
+            file_names = frozenset(name for pack in selected_packs for name in RULE_PACKS[pack]['fileNames'])
+        count, incomplete = _snapshot(project_root, snapshot, deadline, extensions, dependencies, file_names)
         notices = []
         if incomplete:
             notices.append({"code": "WG-SDK-PARTIAL-SNAPSHOT", "message": "Some inputs were skipped because of symlinks, read failures or snapshot limits."})
@@ -246,6 +258,9 @@ def run_tool(profile: IntegrationProfile, project_root: Path) -> tuple[dict | li
             return result, notices
         if count == 0:
             raise ValueError("No supported scanner inputs were available")
+        if config.tool == 'container-python':
+            from .dynamic_analysis import analyze_container
+            return analyze_container(profile, snapshot, owned, deadline), notices
         environment = _environment(owned)
         accepted_codes = (0,)
         if config.tool == "psscriptanalyzer":
@@ -274,14 +289,22 @@ def run_tool(profile: IntegrationProfile, project_root: Path) -> tuple[dict | li
                     "--format", "json", "--all-packages", "--verbosity", "error", "."]
             accepted_codes = (0, 1)
         elif config.tool == "semgrep":
-            rules = config.rules_path or Path(__file__).parent / "rules" / "android-ktor.yml"
-            argv = [str(config.executable), "scan", "--config", str(rules), "--sarif", "--metrics", "off",
+            rules = [config.rules_path] if config.rules_path else [Path(__file__).parent / 'rules' / RULE_PACKS[pack]['file'] for pack in selected_packs]
+            if config.sandbox is not None:
+                from .profile import bounded_read, MAX_REPORT_BYTES
+                policy = owned / 'policy'; policy.mkdir()
+                copied = []
+                for index, rule in enumerate(rules):
+                    selected = policy / f'rules-{index}.yaml'
+                    selected.write_bytes(bounded_read(rule, MAX_REPORT_BYTES)); copied.append(selected)
+                rules = copied
+            argv = [str(config.executable), "scan", *[argument for rule in rules for argument in ('--config', str(rule))], "--sarif", "--metrics", "off",
                     "--disable-version-check", "--no-git-ignore", "--disable-nosem", "--no-rewrite-rule-ids",
                     "--max-target-bytes", str(MAX_SOURCE_FILE_BYTES), "--timeout", "10", "--jobs", "1", "--quiet", "."]
         else:
             raise ValueError("Unsupported fixed runner")
-        raw = _bounded_process(argv, snapshot, environment, deadline, config.max_output_bytes, accepted_codes)
-        document = _rebase(load_json_document(raw), snapshot)
+        raw = _invoke(profile, argv, snapshot, owned, environment, deadline, config.max_output_bytes, accepted_codes)
+        document = _rebase(load_json_document(raw), Path('/workspace/source') if config.sandbox is not None else snapshot)
         if config.tool == "semgrep" and isinstance(document, dict):
             for run in document.get("runs", []):
                 if not isinstance(run, dict):
@@ -310,7 +333,9 @@ def runner_plan(tool: str) -> dict:
         "osv": (["scan", "source", "--recursive", "--no-resolve", "--config", "<owned-empty-config>", "--format", "json", "--all-packages", "--verbosity", "error", "."], "Allowlisted dependency manifest/lock files only; unresolved transitives can remain uncovered.", "Dependency names and versions are sent to the configured tool's OSV vulnerability service."),
         "script-semantics": ([], "Regular Python and PowerShell source data; bounded literal decoding and simple data-flow signals only.", "No network or tool process."),
         "local-ai": ([], "Minimized metadata from up to five selected findings; source/evidence files are never sent.", "Explicit numeric loopback model server only; advisory review, no cloud endpoint."),
-        "semgrep": (["scan", "--config", "<reviewed-local-or-bundled-rules>", "--sarif", "--metrics", "off", "--disable-version-check", "--no-git-ignore", "--disable-nosem", "--no-rewrite-rule-ids", "--max-target-bytes", str(MAX_SOURCE_FILE_BYTES), "--timeout", "10", "--jobs", "1", "--quiet", "."], "Regular Kotlin/Java source data; bundled Android/Ktor review rules or an explicitly selected external rule file.", "Local rules only; metrics/version checks disabled. No network access requested."),
+        "http-audit": ([], "Bounded response headers/cookie attributes at explicitly owned numeric-address target URLs; response bodies are discarded.", "GET to exact reviewed origins and paths only. No DNS, proxy environment, redirects, crawler, exploit payloads or target startup."),
+        "container-python": (["-I", "<owned-container-agent>", "<copied-python-entry>", "<execution-budget>"], "Only bounded copied Python inputs; the explicitly selected entry executes inside the reviewed isolated container. Observations are advisory and bypassable.", "Container network is disabled; only an explicitly selected local Docker Unix socket is used by the host."),
+        "semgrep": (["scan", "--config", "<reviewed-local-or-bundled-rules>", "--sarif", "--metrics", "off", "--disable-version-check", "--no-git-ignore", "--disable-nosem", "--no-rewrite-rule-ids", "--max-target-bytes", str(MAX_SOURCE_FILE_BYTES), "--timeout", "10", "--jobs", "1", "--quiet", "."], "Regular Kotlin/Java source and exact AndroidManifest.xml files selected by local rule packs; or an explicitly selected external rule file.", "Local rules only; metrics/version checks disabled. No network access requested."),
     }
     if tool not in plans:
         raise ValueError("Unsupported runner")

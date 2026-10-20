@@ -1,152 +1,101 @@
-# WrapperGuard engineering handover
+# WrapperGuard frozen release handover
 
-Updated **2026-10-20**. Current implementation: **app 0.5.0**, **Python SDK 0.2.0**,
-provider **API 1**, report **schemaVersion 1**. Branch: `codex/optional-security-methods`,
-based on merged master `8ed994f` (`Merge pull request #1`). The 0.5.0 stable release is pending acceptance.
+**Work stopped at the user's request on 2026-10-20.** The user accepted a partial roadmap and requested documentation, a release and handover. Do not resume implementation, research or platform fixes unless the user asks. This file is the restart record, not an instruction to keep working.
 
-## Workspace and ownership
+Candidate **v0.7.0-rc.1** contains app **0.7.0**, SDK **0.4.0**, provider **API 1 / schema 1**. The [release](https://github.com/Sal7one/NewWrapperGaurd/releases/tag/v0.7.0-rc.1) and its `RELEASE-MANIFEST.json` identify the actual tag, build source, documentation source, assets and checksums. Verify them before reproducing or republishing anything. Preserve earlier releases.
 
-The active checkout is `/private/tmp/wrapperguard-optional-methods`. The original repository
-is `/Users/salehalanazi/Repos/NewWrapperGaurd`; the initial Documents workspace path is
-blocked by macOS privacy controls. Use the real active checkout explicitly in commands.
-Temporary directories and running demo processes may disappear between sessions.
+## Frozen build and provenance
 
-Repository: `Sal7one/NewWrapperGaurd`. Keep publication status accurate: a local build,
-pushed branch, merged PR and published release are separate events. The user authorized
-integration, optional tools, GUI setup, documentation cleanup and removal of obsolete docs.
-No public Marketplace or PyPI publication
-has occurred as part of this work.
+The accepted installer set was built by [CI 39485233803](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39485233803), branch head **ce1a2c48294cc9bc2771f8d74ac6096867bf8dd8**, tested checkout **1c69fa84019eae80d6c1d3ad05c73e796d73721c**. Later source changes are documentation and an application-only test fixture; they change no production source. Release metadata keeps the installer build commit separate from the final documentation/tag commit. The refreshed bundle uses the audited CI installer bytes and current guides; it does not claim a new CI build of the documentation commit.
 
-## Product and implemented behavior
+## Completed acceptance
 
-WrapperGuard is a shared UI/enforcement host for interchangeable analyzers in Android
-Studio, IntelliJ IDEA, VS Code and CI. Providers own analysis; the host owns grants,
-policy, attribution, approvals, deadlines and aggregate reports. No particular vendor is
-required. Existing custom providers remain supported and are not replaced by the catalog.
+- Main CI passed: minimum-platform build, 234 JVM tests, Python SDK matrix, Node checks, conformance/parity and runtime audit. Local suites also passed 158 Node and 53 script cases.
+- The delivered ce1 bundle passed 348 checksum records, hidden-workflow delivery, offline Markdown closure and exact CLI ZIP byte/mode checks. All host SDK wheels are identical; the backend is pinned to setuptools 84.2.1. Actual packaged CLI gate checks passed on macOS/JDK 21 as well as Linux CI.
+- Minimum IDEA 2025.2 passed six real descriptor/component cases with no failures/errors/skips. All three binary verifiers were compatible; minimum internal usages fell from six to zero after the Java factory boundary.
+- The exact ce1 native ZIP passed real Android Studio 2026.1.1 / AI-261 startup, Tools rendering and persisted selections with a new session PAUSED. No Start/Scan/server was activated in this final smoke. Ordinary reopen sync is not a repeat of all build/sync guard tests. Earlier real guard/lifecycle evidence retains its own source identity.
+- Six ce1 VS Code host jobs passed all 48 cases on 1.95.0/1.142.0 across Linux/macOS/Windows. Its runtime payload matches the actual installed eight-case acceptance checkpoint; only documentation links and reviewed SDK generator metadata differ from earlier packages. The test-only d611 follow-up also passed all six VS Code jobs.
+- Android 16/API 36 emulator acceptance passed with an unobscured actual PNG: secure endpoint zero findings, weak endpoint three expected findings. The first System UI ANR capture remains rejected. The fixture APK is a controlled HTTP target, not the IDE plugin.
+- Windows scanners/process boundaries, Linux Docker isolation, static corpus, source rules and resource checks passed. A Windows pip download truncated before tests; its single job retry passed. Failed attempts are preserved, not counted as successes.
 
-The shared `catalog/security-methods.json` contains 15 entries grouped as Built-in, SAST,
-Supply chain, DAST, Research and AI. The six built-in groups default on; external/research/AI
-methods default off. `ScanSettings.methodFlags` is user configuration, never repository policy.
-Kotlin loads the catalog as a core resource; VS Code packages the same catalog.
+## Deferred work and known limits
 
-Implemented surfaces:
+The newer IDEA 2026.2.2/2026.2.3 runtime suites at ce1 failed in an unrelated Ultimate project post-startup extension before the two descriptor/component test bodies. The d611 follow-up moves those two project-free cases to the official `ApplicationRule`, preserving every assertion and all heavy project/build/sync tests. All six local cached-253 preflight cases passed. Consult release acceptance metadata for any completed remote follow-up; do not assume full newer-IDE startup/build/sync acceptance from binary verification alone. No further fixes are authorized by this handover.
 
-- **Tools**: built-in switches, category filters, connection state, Connect/Disconnect,
-  explicit enabling, permissions and SDK installation.
-- **Research**: local script behavior signals and local AI review, with advisory status
-  and visible limitations. Neither can create build/sync blockers.
-- **Summary / Findings / Execution / Policy**: existing combined reports, editor navigation,
-  call graph, provider permissions, stale/incomplete state and exports.
-- GUI dialogs create managed profiles/provider configuration outside all open projects;
-  users browse paths rather than having to edit JSON. SDK verification does not run a scan.
-- Bundled SDK installation creates a dedicated environment using trusted Python 3.10+.
-  Its wheel installs offline. Bandit 1.9.4 / Semgrep 1.181.0 downloads are explicit choices.
-  PowerShell/PSScriptAnalyzer, Trivy, OSV and model servers use separately installed tools.
-- CLI `--methods /absolute/user/methods.json` reads known boolean method flags from an
-  outside-project file. Existing `--providers`, `--baseline`, operation and JSON/SARIF
-  interfaces remain available.
+Human screen-reader/independent usability review, physical-phone acceptance, publisher signing, Marketplace/PyPI channels, broader detection evaluation and reliable AI explanation quality remain deferred. Research retains known misses, limited labels and incorrect/injected model prose. No complete-security, paper-parity or stable-1.0 claim is made. [Roadmap](docs/roadmap.md) records the remaining work.
 
-Disabling some built-in methods emits reduced-scope notices without failing a completed
-configured scan. All built-ins off plus an enabled real external analysis provider disables
-the built-in invocation, preventing a synthetic required-provider failure. Unknown
-organization SDKs qualify as analysis providers. AI/research alone or zero detectors cannot
-establish complete coverage. Actual failures, malformed input, file/depth caps and skipped
-source remain incomplete; granted required-provider failures can still block.
+<a id="resume-in-this-order"></a>
 
-## Integration SDK
+## Resume only when requested
 
-Runtime dependency-free `sdk/python` supports eight format IDs: six passive importers
-(SARIF, Bandit, PSScriptAnalyzer, Trivy, OSV-Scanner, scoped ZAP), plus script semantics
-and local AI review. Five fixed external runners execute Bandit, Semgrep, PSScriptAnalyzer,
-Trivy or OSV-Scanner over bounded snapshots. The SDK never builds a project or installs
-project dependencies. Direct snapshots require POSIX no-follow file access; Windows uses
-report imports, plus supported local model report review.
+1. Read this file, the release manifest and [verification](docs/verification.md). Check the actual GitHub tag/assets and PR #3 state before assuming publication or merge status. Do not publish a duplicate release.
+2. Inspect the working tree and preserve local changes. Read the manifest's source identities and historical failed reports before reopening a specific deferred item.
+3. Choose a narrow scope with the user. Keep optional tools independently replaceable and retain the trust/authority invariants below.
 
-Semgrep inspects Kotlin/Java with six curated Android/Ktor rules, or a reviewed external
-rule file. This supplies targeted source SAST rather than only Gradle/Maven build checks.
-It is not complete app-security coverage. Trivy/OSV inspect allowlisted dependency inputs;
-upstream supported/resolved versions determine coverage. Trivy may download databases;
-OSV sends package metadata to its vulnerability service. SDK SCA defaults are 120 seconds,
-with matching host timeout allowance in guided setup.
+All owned Studio processes were stopped; original profile properties were restored. The temporary RAM-backed index volume was detached after evidence was copied off it. No background agent or task-owned server should remain. Project-generated node_modules were removed to reclaim disk; run npm ci before future local Node checks. Source, accepted evidence, user SDKs and prior releases were preserved.
 
-Script semantics uses limited Python AST def/use tracking and bounded PowerShell literal
-inspection; it executes no payload and claims no model accuracy. `ai_review.py` sends
-minimized metadata from at most five findings to an explicit numeric-loopback `/v1` model
-server. Source/evidence/project-path fields are excluded and common credential/path forms
-are redacted. Model output is untrusted plain INFO
-audit evidence with no actions and original host-controlled locations. No model is bundled.
+## Workspace and tools
 
-ZAP is report import only with exact origin/path scope. There is no active DAST runner,
-implicit target, backend startup or runtime malware sandbox. Imported reports do not
-establish freshness. See [the operational guide](docs/integrations.md),
-[provider contract](docs/providers.md) and [research mapping](docs/research.md).
+This session uses `/private/tmp/wrapperguard-optional-methods` on `codex/flexible-provider-platform`; original repository `/Users/salehalanazi/Repos/NewWrapperGaurd`, remote `Sal7one/NewWrapperGaurd`. Use explicit workdirs; the original Documents workspace encountered macOS privacy restrictions. Root owns Git changes and publication; coordinate shared Gradle runs.
 
-## Important implementation contracts
+| Tool or evidence | Location / rule |
+| --- | --- |
+| JDK 21 | `/Users/salehalanazi/Library/Java/JavaVirtualMachines/jbr-21.0.8/Contents/Home` |
+| Python | Python 3.10+ with pip; `/opt/homebrew/bin/python3.12`; SDK test environment `/private/tmp/wrapperguard-runtime-venv/bin/python` |
+| Node | Node 22+; `npm --prefix vscode-extension ci` before local checks |
+| Actual Studio | `/Applications/Android Studio.app`; disposable profile `/private/tmp/wrapperguard-studio-acceptance-736707cf/` |
+| Current temporary package review | `/private/tmp/wrapperguard-release-audit-a97dcd1/`; nested bundle, four verified packages and `verification.json` retained |
+| Script log | `/private/tmp/wrapperguard-scripts-final-53.log` |
+| Research | Tracked `research/results/2026-10-20/`; acquired inert sources stay outside Git at `/private/tmp/wrapperguard-research-final` |
 
-- Keep Kotlin and TypeScript scanner/coordinator behavior aligned, including fingerprints,
-  method replacement, incompleteness and source traversal. Stable rule IDs are never renumbered.
-- Existing deterministic fingerprints and trusted baselines remain valid. Repository ignore
-  markers and vendor suppression metadata cannot create user-approved exceptions.
-- Provider requests are intersected with user actions and operation policy. INFO, audit
-  evidence and shadow research signals cannot block. Deterministic findings never receive
-  legacy `MlScorer` annotations: that scorer is not called and cannot downgrade a blocker.
-- Command providers use exact argv, bounded stdin/stdout and generic errors. They are trusted
-  OS-user programs, not sandboxed by host action grants. Keep SDK/tool profiles outside projects.
-- SDK child analyzers inherit the host process group. Detaching them would defeat host group
-  cancellation. Local runner failures terminate/reap the known child.
-- SDK snapshot paths are canonicalized before scanner invocation. Rebase absolute source
-  paths and supported file URIs back to original project locations; preserve valid SARIF bases.
-- Reports become stale after observed source changes. Native seals cover bounded source,
-  script and dependency inputs; VS Code rejects evaluations invalidated by observed edits.
-  These do not seal arbitrary custom-provider inputs or unobserved file-system races.
-- Repository scanner file/depth cap notices are `WG-SCAN-LIMIT` and force incomplete coverage.
-  Canonical roots and recursive discovery respect the file cap.
-- No enabled detector means incomplete; an AI-only success must never become a clean scan.
-- Core/rules/CLI remain IDE-neutral. UI sorting and filtering cannot modify report content.
-- Native setup/state writes are user-level and must preserve existing provider configurations.
-  Same-ID managed connection precedence requires an explicit choice.
+Disk is constrained. Prefer hosted CI for large IDE/emulator/Docker checks; do not remove user SDKs, unrelated caches/daemons, personal IDE profiles or model services. Stop only owned disposable processes. No physical phone is attached. Temporary paths help resumption; tracked evidence and source-matched GitHub checks are authoritative.
 
-## Build and validation
+[Verification](docs/verification.md) separates standalone bundle checks from full-checkout build/driver commands and gives manual installation and gate tests. Release compilation defaults to **2025.2**; a cached `-Pwrapperguard.platformVersion=2025.3` or local IDE override is development evidence only. Newer Compose/Jewel inline APIs can break the advertised minimum.
 
-Use JDK 21, Node 22+, Python 3.10+ with pip. Commands and actual results live in
-[docs/verification.md](docs/verification.md), the single current verification record.
-Completed results include core/rules/CLI, native, Node and installed SDK regressions, real
-Bandit/Semgrep, both command-provider hosts, scanner parity, hardening, actual package
-contents and 21 demo captures. Exact final counts, artifact checksums, binary-verifier
-output and CI status are recorded in the verification record rather than duplicated here.
+## Product contract
 
-`buildIntegrationSdk` / `scripts/build-sdk.py` stage clean package sources and choose a
-Python 3.10+ interpreter with pip. This avoids macOS system Python 3.9 producing an
-`UNKNOWN-0.0.0` artifact or stale modules entering a wheel. The expected wheel is
-`wrapperguard_sdk-0.2.0-py3-none-any.whl`; rebuild after any SDK source/README change.
-Both GUI packages must contain the current wheel and curated rules.
+WrapperGuard hosts interchangeable analyzers in Android Studio, IntelliJ, VS Code and CLI. Providers own detection; the host owns attribution, action grants, policy, approvals, deadlines, content seals and aggregate reports. Original static vetting remains usable. No vendor/language/SDK is mandatory. Arbitrary SDKs/custom commands retain their own categories/tags and independent removal.
 
-Development IDE selection is explicit:
-`-Pwrapperguard.localIdePath=/path/to/IDE/Contents`. Default development/verifier target
-is IDEA 2025.3, minimum platform 252. Native tests use Vintage for IDE JUnit3/4 compatibility.
-Close the demo IDE before packaging/verifier tasks sharing the sandbox. Preserve the native
-`JPanel(BorderLayout)` / Jewel Compose host and validate emitted webview JavaScript, not
-only TypeScript compilation.
+The shared catalog has 19 methods in Built-in/SAST/Supply chain/DAST/Research/AI. Six built-in groups default on; external/research/AI methods default off. Flags are user-owned, not repository grants. Existing API 1 and Kotlin descriptor ABI remain compatible. Zero detectors or AI/research alone cannot establish complete analysis. Deliberately disabled checks produce reduced-scope notices; malformed/partial/expired/unreadable/capped coverage remains incomplete.
 
-## Remaining release work and roadmap
+## GUI and execution
 
-[docs/roadmap.md](docs/roadmap.md) is the prioritized backlog and milestone plan. The
-current delivery includes installers, a standalone test bundle with real scanner fixtures,
-manual test instructions and checksums. Local automation and binary verification are
-complete when recorded in the verification checkpoint. A clean CI run, installation in
-normal host profiles and actual BUILD/SYNC acceptance remain separate release gates.
+Tools owns category filters, connections, flags, presets and automation. Research/AI outputs remain advisory. Native Tools includes custom SDK/storage; VS Code puts these in Providers and exposes explicit multi-root selection. History is opt-in, bounded and stores titles/relative paths/provider/scope metadata, never source/messages/evidence. Unknown producer/SDK/model scopes disable comparison. Baseline approval never looks like remediation.
 
-Do not describe a test candidate as the stable release. Report imports do not establish
-freshness, source SAST is limited to selected rules, Windows direct source runners are
-unsupported, and scanner action grants do not sandbox installed programs. Remaining
-platform/tool matrices, accessibility, provider-declared input scope, broader seals,
-rule/dependency coverage, active DAST and realistic research evaluation have explicit
-acceptance criteria in the roadmap.
+Connections use literal argv, optional declared scope and project bindings. New custom scope is undeclared/unknown until explicitly supplied. Generated profiles live outside projects and default to warning-only SCAN authority. Native/custom setup saves disabled; the reviewed VS Code Connect-and-run action explicitly enables and scans. Canceling setup/review saves nothing and runs nothing. Native connection save/enable does not scan; VS Code's explicit final Connect-and-run action does. Missing-tool repair/edit/remove paths and dialog focus recovery are supported.
 
-## Documentation cleanup
+Automation saves reviewed per-provider network/cost declarations but remains session-paused until explicit Start. Start makes no immediate/catch-up run. Future change/interval events trigger nonoverlapping SCAN; Pause cancels current automatic work. Root/trust/provider/settings changes pause the session. Declarations are not an OS sandbox. Managed SCAN-only HTTP/research connections are skipped before BUILD/SYNC launch; opaque custom adapters retain their legacy operation contract.
 
-`docs/release-readiness.md` was removed because it described superseded 0.4.0 artifacts,
-old hashes and historical validation. Git and the release preserve that history.
-`docs/verification.md` now owns current results, installation/manual test steps and release gates. This handover replaces
-obsolete September state, duplicate implementation narratives and superseded permission
-blocks. Useful provider, SDK, fixture and demo guides remain.
+Organization presets contain issuer/version, flags and canonical SHA-256 only. Import/export review cannot install tools, change saved provider permissions, grant actions or start scans. Setting a catalog flag true can restore eligibility for a previously enabled/granted connection; review those effective flags before applying. Digests do not authenticate issuers.
+
+## SDK and trust boundaries
+
+SDK 0.4 has zero runtime dependencies, eight passive report imports and four controlled/advisory outputs, five fixed scanner runners and five selectable Semgrep packs. The original six-rule pack remains default. Profiles are outside-project and use trusted absolute Python with `-I -m wrapperguard_sdk`. Python 3.10+ is required. Both GUI packages bundle the same normalized wheel bytes.
+
+Direct runners support POSIX and tested Windows handles/job/pipes; actual five-scanner Windows CI and Python 3.10/3.12/3.14 boundary jobs pass. Snapshotting/host action grants do not sandbox installed OS-user code. Trivy may download databases; OSV sends dependency metadata. No runner builds/resolves/installs project dependencies.
+
+Report provenance optionally records exact report/input hashes, producer/version, timestamp/source/database/scope and maximum age. Missing identity stays unverified; no signature/full-analysis claim follows. Dependency coverage exposes resolved/unknown versions and unresolved transitive limits without executing Gradle/Maven.
+
+ZAP remains scoped passive import. Separate optional HTTP audit uses exact numeric-IP/path ownership, bounded GET headers/cookies, no redirects/DNS/target discovery/startup, and authentication variable names only. It is SCAN-only and limited DAST, not crawling/exploit coverage.
+
+Optional local Docker selection supports Bandit/Semgrep and selected-entry Python research. It uses a preinstalled immutable image, copied private staging, no original-project bind, no network, read-only rootfs and explicit cgroup/PID/CPU limits. A trusted root timer/bootstrap retains only KILL/SETUID/SETGID; workers drop to UID/GID 65532 and no capabilities before data access. Cleanup verifies container absence, including SDK kill. Kernel/daemon/bootstrap remain trusted; this is not VM isolation. Python observations are bypassable INFO/AUDIT_EVIDENCE with no actions and no host fallback.
+
+Static semantics never executes decoded/project payloads. Local AI sends minimized finding metadata only to an explicit numeric-loopback server, excluding source/evidence/project paths. Host locations and INFO/advisory/empty-actions are invariant. Real small-model evaluations still show serious incorrect/injected prose; no model quality or paper-parity claim is justified.
+
+## Important engineering invariants
+
+- Keep Kotlin/TS scanner/coordinator and fingerprints aligned. Stable rule IDs are not renumbered. First-party actual reads and declared/config/report inputs participate in before/after content seals. Unknown scope cannot become verified coverage.
+- Source/depth/file/output caps, unsupported inputs and cancellations remain visibly incomplete. Repository suppression markers cannot create host approvals.
+- Requested actions intersect user grants and operation policy. INFO/audit output and bundled advisory research/AI methods cannot block or downgrade deterministic findings. A custom provider category is metadata; its explicit grants control authority. Legacy `MlScorer` is inactive.
+- Keep subprocesses in their provider-owned process trees/groups so cancellation can contain descendants. SDK fixed runners use Windows job objects; the generic Windows command bridge uses best-effort taskkill /T cleanup. Never detach tools to evade cancellation. Error messages/redaction/output are bounded.
+- Core/rules/CLI are IDE-neutral. Sorting/filtering cannot change reports or authority. Native before-run extension registration and UI-thread blocker dialogs have real IDE regressions.
+- Version identity comes from build-expanded core `AppVersion.current`; TS reads packaged package.json. CLI/provider/SARIF must agree with package versions. Provider-smoke catches mismatches.
+- Cleanup removes only explicit owned unused generated artifacts; active/referenced/user/legacy files survive. SDK repair is offline; analyzer update/download remains explicit.
+
+## Build and scope limits
+
+The SDK builder stages clean sources, verifies metadata/runtime bytes and normalizes wheel archive metadata. Its backend is pinned to setuptools 84.2.1. Both IDE packages and the standalone SDK must contain identical wheel bytes. README or source changes can alter package bytes; regenerate all affected artifacts and rerun the audit.
+
+The distribution audit covers actual shipped runtime closure, licenses, source/wheel identity and optional live OSV dependency metadata. It does not prove analyzer accuracy or inventory separately installed tools/platforms. The packager requires clean committed source and captured artifact bytes matching that audit. [Verification](docs/verification.md#build-and-audit-the-final-source) owns the commands.
+
+[Research](research/README.md) retains the 77-source corpus evaluation, known misses, small-model failures and resource measurements. No malicious corpus payloads or model weights are redistributed. Human screen-reader/usability review, physical hardware where required, public-channel credentials/signing and stronger research claims remain explicit [roadmap](docs/roadmap.md) work.

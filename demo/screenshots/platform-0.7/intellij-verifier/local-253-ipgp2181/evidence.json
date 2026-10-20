@@ -1,0 +1,48 @@
+{
+  "kind": "LOCAL_PREFLIGHT_NOT_RELEASE_MINIMUM_PROOF",
+  "baseCommit": "a97dcd19133e9b70b64bc88ae30835822712dbed",
+  "uncommittedPatch": true,
+  "buildPlugin": "org.jetbrains.intellij.platform:2.18.1",
+  "compileAndRuntimePlatform": "cached IDEA253.28294.334",
+  "frameworkBuild": "253.28294.334",
+  "runtimeCounts": {
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "minimumInterfaceProof": {
+    "artifact": "com.jetbrains.intellij.platform:ide:252.23892.409",
+    "url": "https://www.jetbrains.com/intellij-repository/releases/com/jetbrains/intellij/platform/ide/252.23892.409/ide-252.23892.409.jar",
+    "sha256": "cdbd873ec650c37070cd33b238d8a441613643bd637cc8edaa6a6c5257d7f28d",
+    "verifiedDefaultMethods": [
+      "getIcon",
+      "getAnchor",
+      "manage"
+    ]
+  },
+  "factoryAbi": {
+    "class": "com.sal7one.wrapperguard.intellij.ui.WrapperGuardToolWindowFactory",
+    "publicNoArgConstructor": true,
+    "declaredMethods": [
+      "createToolWindowContent(Project,ToolWindow)"
+    ],
+    "internalForwardingOverrides": []
+  },
+  "sourceFilesSha256": {
+    "build.gradle.kts": "c9c9f27b1851dd167504062832337f4fa525bd5df1ba8fda737395c42cc9d03d",
+    "wrapperguard-intellij/build.gradle.kts": "aa208beaf231f62134b8c6871a3b27b940b3a6e3367659a5d0f3d1b7df58e081",
+    "wrapperguard-intellij/src/main/java/com/sal7one/wrapperguard/intellij/ui/WrapperGuardToolWindowFactory.java": "42d2709539c0583d013097bfaf9df804f77a7b0fb9f3b1adcc572b89f1eb9240",
+    "wrapperguard-intellij/src/main/kotlin/com/sal7one/wrapperguard/intellij/ui/WrapperGuardToolWindowContent.kt": "4e47905ab84d715ec15c6da3cd574f5a9815f91592de22cfc812d852d38ea0fd",
+    "wrapperguard-intellij/src/test/kotlin/com/sal7one/wrapperguard/intellij/execution/GuardSmokeTest.kt": "e9268f117358eccbae36d7a93634d95c51dd502bdaf374e9cab7b8bb9c2d120d"
+  },
+  "evidenceSha256": {
+    "README.md": "9c2d0584e33036b9a73173ab8069379130c6c214e1b5000bfa0dcf09506a70e4",
+    "TEST-com.sal7one.wrapperguard.intellij.execution.GuardSmokeTest.xml": "ad54de083a2c3238a3bf4e38c5c6ad6696c8f5e90f979ca3810562eef0d2ebbb",
+    "TEST-com.sal7one.wrapperguard.intellij.ui.JewelPanelCompatibilityTest.xml": "d9e24855fd40455bd558e668f4d1f1c2785e9634eae2f64f3f9505930a1974e7",
+    "factory-javap.txt": "4b0a2f03defb8f80f74a6373f02a893b51a49198486b6979d488096990967f6e",
+    "minimum-252-interface-javap.txt": "c998b3d5bafc322478d964b2552db02a41701e3da7b580a2fd216e0a2a902d54",
+    "preflight.log": "18f33916178fbbbde5816e904e5d9cbde17b0b1c2d02d3d2c5e37256d35d557a",
+    "test-framework.txt": "a798959315d5965e238a43f0ff52312c6d5ca7b18e5b8e513f0ba36ce8133286"
+  }
+}

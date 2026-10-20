@@ -2,7 +2,13 @@
   "apiVersion": 1,
   "builtIn": {
     "enabled": true,
-    "actions": ["WARNING", "MAJOR_WARNING", "ALERT", "BLOCK_BUILD", "BLOCK_SYNC"],
+    "actions": [
+      "WARNING",
+      "MAJOR_WARNING",
+      "ALERT",
+      "BLOCK_BUILD",
+      "BLOCK_SYNC"
+    ],
     "required": true,
     "timeoutMs": 30000
   },
@@ -11,12 +17,32 @@
       "id": "example.compliance",
       "displayName": "Example compliance adapter",
       "version": "1.0.0",
-      "command": ["/absolute/path/to/python3", "/absolute/path/to/example_provider.py"],
+      "command": [
+        "/absolute/path/to/python3",
+        "/absolute/path/to/example_provider.py"
+      ],
       "permissions": {
         "enabled": false,
-        "actions": ["WARNING"],
+        "actions": [
+          "WARNING"
+        ],
         "required": false,
         "timeoutMs": 30000
+      },
+      "category": "OTHER",
+      "summary": "Example user-owned compliance adapter; replace with your organization\u2019s trusted implementation.",
+      "tags": [
+        "compliance",
+        "example"
+      ],
+      "inputScope": {
+        "includes": [
+          "SECURITY.md"
+        ],
+        "excludes": [],
+        "externalFiles": [
+          "/absolute/path/to/example_provider.py"
+        ]
       }
     }
   ]

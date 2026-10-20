@@ -1,7 +1,7 @@
 {
   "id": "sca.trivy",
   "displayName": "Dependency vulnerabilities \u00b7 Trivy",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "analysisKind": "SCA",
   "format": "trivy",
   "runner": {

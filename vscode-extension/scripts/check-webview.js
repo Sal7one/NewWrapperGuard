@@ -56,5 +56,15 @@ const approvedDetail=vm.runInContext('detailHtmlFor(state.report.findings[1],fal
 assert.match(approvedDetail,/Approved baseline/);assert.ok(!approvedDetail.includes('Blocks execution'));
 listeners.message({data:{type:'state',state:{kind:'failed',error:'<script>alert(1)</script>'}}});
 assert.match(elements.get('panel-overview').innerHTML,/&lt;script&gt;/);
+// Native dialogs can open before the host sends another render. Capture the
+// invoking preset control synchronously, then restore its replacement afterward.
+const originalQuery=document.querySelectorAll;
+for(const kind of ['apply-preset','import-preset','export-preset']){
+  const control=()=>({id:'',classList:{contains:value=>value===kind},closest:()=>null,getAttribute:()=>null,focus(){document.activeElement=this;}});
+  document.activeElement=control();vm.runInContext('post('+JSON.stringify(kind)+')',context);
+  const replacement=control();document.activeElement={};document.hasFocus=()=>false;document.querySelectorAll=()=>[replacement];
+  listeners.message({data:{type:'restore-focus'}});assert.equal(document.activeElement,replacement,'Dialog must return focus to '+kind+'.');
+}
+document.querySelectorAll=originalQuery;
 assert.equal(messages.filter(m=>m.type==='webview-error').length,0);
 console.log('Embedded webview syntax, version, render states and active-only counts/graph checks passed.');

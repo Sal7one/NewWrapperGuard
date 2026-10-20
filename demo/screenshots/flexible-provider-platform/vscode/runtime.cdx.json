@@ -1,0 +1,194 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "components": [
+    {
+      "type": "library",
+      "name": "annotations",
+      "group": "org.jetbrains",
+      "version": "13.0",
+      "purl": "pkg:maven/org.jetbrains/annotations@13.0",
+      "bom-ref": "pkg:maven/org.jetbrains/annotations@13.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "kotlin-stdlib",
+      "group": "org.jetbrains.kotlin",
+      "version": "2.2.20",
+      "purl": "pkg:maven/org.jetbrains.kotlin/kotlin-stdlib@2.2.20",
+      "bom-ref": "pkg:maven/org.jetbrains.kotlin/kotlin-stdlib@2.2.20",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "8836ccffd3585fadda9901244b20d42901d2f3cd581058d8434e2ffabcf3a3e7"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "kotlinx-serialization-core-jvm",
+      "group": "org.jetbrains.kotlinx",
+      "version": "1.8.0",
+      "purl": "pkg:maven/org.jetbrains.kotlinx/kotlinx-serialization-core-jvm@1.8.0",
+      "bom-ref": "pkg:maven/org.jetbrains.kotlinx/kotlinx-serialization-core-jvm@1.8.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "d3c94e9d829bba6e0c4cd3ae478a40846dd49d5475d6707877be853976afe416"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "kotlinx-serialization-json-jvm",
+      "group": "org.jetbrains.kotlinx",
+      "version": "1.8.0",
+      "purl": "pkg:maven/org.jetbrains.kotlinx/kotlinx-serialization-json-jvm@1.8.0",
+      "bom-ref": "pkg:maven/org.jetbrains.kotlinx/kotlinx-serialization-json-jvm@1.8.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "7b7c445880cef94dc464f4733da1b33b94bee78805041ea08ae06e8507e4620e"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "wrapperguard-cli",
+      "group": "com.sal7one.wrapperguard",
+      "version": "0.7.0",
+      "purl": "pkg:maven/com.sal7one.wrapperguard/wrapperguard-cli@0.7.0",
+      "bom-ref": "pkg:maven/com.sal7one.wrapperguard/wrapperguard-cli@0.7.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "19291ee8690fd164073002148420df0775c0565218b8b52249f172c8d94b5871"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "wrapperguard-core",
+      "group": "com.sal7one.wrapperguard",
+      "version": "0.7.0",
+      "purl": "pkg:maven/com.sal7one.wrapperguard/wrapperguard-core@0.7.0",
+      "bom-ref": "pkg:maven/com.sal7one.wrapperguard/wrapperguard-core@0.7.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "c094b0ea9c711cdcf6c75b9f6489e3a6772346cec34f33bab9de37250414b464"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "wrapperguard-rules",
+      "group": "com.sal7one.wrapperguard",
+      "version": "0.7.0",
+      "purl": "pkg:maven/com.sal7one.wrapperguard/wrapperguard-rules@0.7.0",
+      "bom-ref": "pkg:maven/com.sal7one.wrapperguard/wrapperguard-rules@0.7.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "4a6935a79dfb0b10d4a98c76ed922cdc199e6ddfba0d66fba5e7357af7119a3e"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "wrapperguard-sdk",
+      "version": "0.4.0",
+      "purl": "pkg:pypi/wrapperguard-sdk@0.4.0",
+      "bom-ref": "pkg:pypi/wrapperguard-sdk@0.4.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "ad9f000207411b362e0f93a02b9c0953429874a093a3ff84aedefd4fc43d7765"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "sax",
+      "version": "1.6.1",
+      "purl": "pkg:npm/sax@1.6.1",
+      "bom-ref": "pkg:npm/sax@1.6.1",
+      "licenses": [
+        {
+          "license": {
+            "id": "BlueOak-1.0.0"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "1cdc1270d987cb0f6ee66dd8efb01c50511aa14d17b6163bbbffb21df8cf1c06"
+        }
+      ]
+    }
+  ]
+}

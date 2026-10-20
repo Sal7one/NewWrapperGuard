@@ -1,0 +1,20 @@
+const test=require('node:test');const assert=require('node:assert/strict');
+const {AutomationController,validateAutomationPreferences,DEFAULT_AUTOMATION}=require('../dist/methods/automation');
+function fixture(run=async()=>{}){let now=0,serial=0;const jobs=new Map(),views=[];const clock={now:()=>now,schedule:(callback,ms)=>{jobs.set(++serial,{callback,at:now+ms});return serial;},cancel:id=>jobs.delete(id)};const controller=new AutomationController(run,view=>views.push(view),clock);return{controller,views,async advance(ms){now+=ms;for(const[id,job]of [...jobs].sort((a,b)=>a[1].at-b[1].at)){if(job.at<=now&&jobs.delete(id)){job.callback();await new Promise(resolve=>setImmediate(resolve));}}}};}
+const preferences=(extra={})=>({...DEFAULT_AUTOMATION,enabled:true,debounceMs:500,providers:{'company.audit':{network:'UNKNOWN',cost:'METERED',acknowledged:true}},...extra});
+test('saved enabled automation remains paused; Start waits for a future debounced trigger and coalesces changes',async()=>{
+ const runs=[];const f=fixture(async(...args)=>runs.push(args));f.controller.configure(preferences());await f.advance(100000);assert.equal(runs.length,0);assert.equal(f.controller.snapshot().running,false);
+ f.controller.start('/project',['company.audit']);await f.advance(10000);assert.equal(runs.length,0);f.controller.inputChanged('/other');await f.advance(500);assert.equal(runs.length,0);
+ f.controller.inputChanged('/project');await f.advance(250);f.controller.inputChanged('/project');await f.advance(499);assert.equal(runs.length,0);await f.advance(1);assert.equal(runs.length,1);assert.deepEqual(runs[0].slice(0,2),['/project',['company.audit']]);assert.ok(runs[0][2] instanceof AbortSignal);
+ f.controller.configure(preferences());assert.equal(f.controller.snapshot().running,false);f.controller.inputChanged('/project');await f.advance(1000);assert.equal(runs.length,1);
+});
+test('interval automation never replays missed runs and Pause cancels current work and future timers',async()=>{
+ let signal,release,calls=0;const f=fixture(async(_root,_ids,input)=>{signal=input;calls++;await new Promise(resolve=>release=resolve);});f.controller.configure(preferences({onChanges:false,intervalMinutes:5}));f.controller.start('/project',['company.audit']);await f.advance(299999);assert.equal(calls,0);await f.advance(1);assert.equal(calls,1);await f.advance(300000);assert.equal(calls,1,'Never overlap in-flight providers.');f.controller.pause();assert.equal(signal.aborted,true);release();await f.advance(600000);assert.equal(calls,1);assert.equal(f.controller.snapshot().running,false);
+});
+test('readiness and acknowledgement are required, and an automatic failure pauses instead of retrying indefinitely',async()=>{
+ const f=fixture(async()=>{throw new Error('Private scanner error');});f.controller.configure(preferences());assert.throws(()=>f.controller.start('/project',[]));f.controller.configure(preferences({providers:{'company.audit':{network:'REMOTE',cost:'UNKNOWN',acknowledged:false}}}));assert.throws(()=>f.controller.start('/project',['company.audit']));f.controller.configure(preferences());f.controller.start('/project',['company.audit']);f.controller.inputChanged('/project');await f.advance(500);assert.equal(f.controller.snapshot().running,false);assert.match(f.controller.snapshot().error,/Automatic evaluation failed/);assert.ok(!JSON.stringify(f.views).includes('Private scanner error'));
+});
+test('automation preferences reject workspace-style authority, invalid triggers, bounds and unreviewed provider shapes',()=>{
+ assert.deepEqual(validateAutomationPreferences(DEFAULT_AUTOMATION).providers,Object.create(null));
+ for(const value of [{...preferences(),actions:['BLOCK_BUILD']},preferences({debounceMs:499}),preferences({intervalMinutes:1}),preferences({onChanges:false,intervalMinutes:0}),preferences({providers:{x:{network:'INTERNET',cost:'LOW',acknowledged:true}}}),preferences({providers:{x:{network:'NONE',cost:'LOW',acknowledged:true,command:['evil']}}})])assert.throws(()=>validateAutomationPreferences(value));
+});

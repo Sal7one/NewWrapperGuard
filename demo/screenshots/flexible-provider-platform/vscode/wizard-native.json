@@ -1,0 +1,17 @@
+{
+  "titles": [
+    "Automation — choose providers",
+    "WrapperGuard built-in scanner — network declaration",
+    "WrapperGuard built-in scanner — resource/cost declaration",
+    "Automation — triggers",
+    "Wait after changes (milliseconds)",
+    "Automation stays paused until Start"
+  ],
+  "before": 1792509823357,
+  "after": {
+    "running": false,
+    "generatedAt": 1792509823357,
+    "focus": "automationConfigure",
+    "status": "Paused · saved settings require explicit Start"
+  }
+}

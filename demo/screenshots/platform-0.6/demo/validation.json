@@ -1,0 +1,18 @@
+{
+  "renderErrors": [],
+  "methodCards": 17,
+  "toolCards": 15,
+  "customConnections": 2,
+  "tested": [
+    "desktop + mobile navigation",
+    "method flag message",
+    "report setup message",
+    "AI setup message",
+    "no document horizontal overflow",
+    "History retention/clear/toggle keyboard order",
+    "Enter activates Add SDK and History saving control",
+    "labelled project selector and custom checkboxes",
+    "project and method toggles disabled while scanning",
+    "History compare/action messages"
+  ]
+}

@@ -180,6 +180,56 @@
       "format": "ai-review",
       "runner": "local-ai",
       "docsUrl": "https://lmstudio.ai/docs/developer/openai-compat"
+    },
+    {
+      "id": "sast.sonar",
+      "title": "External issues \u00b7 Sonar generic JSON",
+      "summary": "Import legacy or current Sonar generic issue data from your own analyzer without connecting a cloud account.",
+      "category": "SAST",
+      "defaultEnabled": false,
+      "providerId": "sast.sonar",
+      "availability": "REPORT_IMPORT",
+      "maturity": "STABLE",
+      "format": "sonar",
+      "docsUrl": "https://docs.sonarsource.com/sonarqube-cloud/analyzing-source-code/importing-external-issues/generic-issue-data"
+    },
+    {
+      "id": "sca.cyclonedx",
+      "title": "SBOM / VEX \u00b7 CycloneDX",
+      "summary": "Import CycloneDX JSON vulnerability assessments. Inventory alone is incomplete; producer VEX statements never become host-approved exceptions.",
+      "category": "SUPPLY_CHAIN",
+      "defaultEnabled": false,
+      "providerId": "sca.cyclonedx",
+      "availability": "REPORT_IMPORT",
+      "maturity": "STABLE",
+      "format": "cyclonedx",
+      "docsUrl": "https://cyclonedx.org/capabilities/vex/"
+    },
+    {
+      "id": "dast.http-audit",
+      "title": "Owned target \u00b7 HTTP response audit",
+      "summary": "Send bounded GET requests to explicitly reviewed numeric-IP URLs. Check response headers and cookie attributes; no crawling, redirects, payloads or target startup.",
+      "category": "DAST",
+      "defaultEnabled": false,
+      "providerId": "dast.http-audit",
+      "availability": "BUILT_IN",
+      "maturity": "EXPERIMENTAL",
+      "format": "http-audit",
+      "runner": "http-audit",
+      "docsUrl": "https://owasp.org/www-project-web-security-testing-guide/"
+    },
+    {
+      "id": "research.container-python",
+      "title": "Isolated Python observations",
+      "summary": "Execute one explicitly reviewed Python entry inside a pinned no-network Linux container. Bounded runtime observations are advisory; no host execution fallback.",
+      "category": "RESEARCH",
+      "defaultEnabled": false,
+      "providerId": "research.container-python",
+      "availability": "OPTIONAL_TOOL",
+      "maturity": "EXPERIMENTAL",
+      "format": "container-python",
+      "runner": "container-python",
+      "docsUrl": "https://docs.docker.com/engine/security/"
     }
   ]
 }

@@ -1,0 +1,141 @@
+name: Platform boundaries and official scanners
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: platform-upstream-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-boundaries:
+    name: Windows handles, job trees and pipes (Python ${{ matrix.python }})
+    runs-on: windows-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.10', '3.12', '3.14']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install SDK
+        run: python -m pip install ./sdk/python
+      - name: Real handle-relative traversal, junction race, limits and pipe cancellation
+        run: |
+          python -m unittest discover -s sdk/python/tests -p test_windows_snapshot.py -v
+          python -m unittest discover -s sdk/python/tests -p test_portable_process.py -v
+          python -m unittest discover -s sdk/python/tests -p test_windows_job.py -v
+          python -m unittest discover -s sdk/python/tests -p test_provenance.py -v
+          python -m unittest discover -s sdk/python/tests -p test_http_audit.py -v
+
+  windows-real-scanners:
+    name: Real Windows ${{ matrix.tool }} through installed SDK
+    runs-on: windows-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        tool: [bandit, semgrep, psscriptanalyzer, osv, trivy]
+    env:
+      TOOL_NAME: ${{ matrix.tool }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install SDK
+        run: python -m pip install ./sdk/python
+      - name: Install explicit pinned Python scanner
+        if: matrix.tool == 'bandit' || matrix.tool == 'semgrep'
+        shell: python
+        run: |
+          import os, subprocess, sys
+          version = 'bandit==1.9.4' if os.environ['TOOL_NAME'] == 'bandit' else 'semgrep==1.181.0'
+          subprocess.run([sys.executable, '-m', 'pip', 'install', version], check=True)
+      - name: Verify and download pinned official Windows scanner
+        if: matrix.tool != 'bandit' && matrix.tool != 'semgrep'
+        shell: python
+        run: |
+          import os, pathlib, subprocess, sys
+          tool = os.environ['TOOL_NAME']
+          subprocess.run([sys.executable, 'scripts/download-upstream-tools.py', '--tool', tool,
+              '--platform', 'windows-amd64', '--destination', str(pathlib.Path(os.environ['RUNNER_TEMP']) / ('tools-' + tool))], check=True)
+      - name: Run scanner on inert snapshot through fixed SDK runner
+        shell: python
+        run: |
+          import json, os, pathlib, shutil, subprocess, sys
+          tool = os.environ['TOOL_NAME']
+          if tool in ('bandit', 'semgrep'):
+              executable = shutil.which(tool)
+              assert executable, 'Pinned scanner executable missing'
+              argv = [sys.executable, 'scripts/sdk-windows-smoke.py', '--tool', tool, '--executable', executable]
+          else:
+              installed = pathlib.Path(os.environ['RUNNER_TEMP']) / ('tools-' + tool)
+              manifest = json.loads((installed / 'installed-manifest.json').read_text())
+              argv = [sys.executable, 'scripts/sdk-tool-smoke.py', '--sdk-python', sys.executable, '--tool', tool,
+                      '--executable', manifest['executable']]
+              if tool == 'psscriptanalyzer': argv += ['--module', manifest['module']]
+              if tool == 'trivy': argv += ['--cache', str(pathlib.Path(os.environ['RUNNER_TEMP']) / 'trivy-db')]
+          subprocess.run(argv, check=True, timeout=330)
+      - uses: actions/upload-artifact@v4
+        if: always() && matrix.tool != 'bandit' && matrix.tool != 'semgrep'
+        with:
+          name: windows-${{ matrix.tool }}-verified-manifest
+          path: ${{ runner.temp }}/tools-${{ matrix.tool }}/installed-manifest.json
+
+  official-scanners:
+    name: Real ${{ matrix.tool }} through installed SDK
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        tool: [psscriptanalyzer, osv, trivy]
+    env:
+      TOOL_NAME: ${{ matrix.tool }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Check available space for vulnerability database downloads
+        if: matrix.tool == 'trivy'
+        shell: python
+        run: |
+          import os, shutil
+          free = shutil.disk_usage(os.environ['RUNNER_TEMP']).free
+          assert free >= 6 * 1024**3, 'Real Trivy acceptance needs at least 6 GiB free for upstream databases'
+      - name: Install SDK
+        run: python -m pip install ./sdk/python
+      - name: Downloader trust and archive boundary tests
+        run: python -m unittest discover -s scripts/tests -p test_upstream_downloader.py -v
+      - name: Download pinned official assets and verify SHA256 manifests
+        run: python scripts/download-upstream-tools.py --tool "$TOOL_NAME" --destination "$RUNNER_TEMP/tools-$TOOL_NAME"
+      - name: Run real static scanner against inert acceptance inputs
+        shell: python
+        run: |
+          import json, os, pathlib, subprocess, sys
+          tool = os.environ['TOOL_NAME']
+          installed = pathlib.Path(os.environ['RUNNER_TEMP']) / ('tools-' + tool)
+          manifest = json.loads((installed / 'installed-manifest.json').read_text())
+          argv = [sys.executable, 'scripts/sdk-tool-smoke.py', '--sdk-python', sys.executable,
+                  '--tool', tool, '--executable', manifest['executable']]
+          if tool == 'psscriptanalyzer':
+              argv += ['--module', manifest['module']]
+          if tool == 'trivy':
+              argv += ['--cache', str(pathlib.Path(os.environ['RUNNER_TEMP']) / 'trivy-db')]
+          subprocess.run(argv, check=True, timeout=330)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: upstream-${{ matrix.tool }}-verified-manifest
+          path: ${{ runner.temp }}/tools-${{ matrix.tool }}/installed-manifest.json

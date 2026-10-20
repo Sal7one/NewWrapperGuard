@@ -1,0 +1,4 @@
+<!-- Deliberately unsafe review data. This folder has no Android build configuration. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application android:debuggable="true" android:usesCleartextTraffic="true" android:allowBackup="true" />
+</manifest>

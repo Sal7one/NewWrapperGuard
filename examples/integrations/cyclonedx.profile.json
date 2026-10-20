@@ -1,0 +1,15 @@
+{
+  "id": "sca.cyclonedx",
+  "displayName": "CycloneDX vulnerability assessment",
+  "version": "0.3.0",
+  "analysisKind": "SCA",
+  "format": "cyclonedx",
+  "reportPath": "/absolute/user-reports/cyclonedx.json",
+  "projectRoot": "/absolute/project",
+  "allowedOperations": [
+    "SCAN"
+  ],
+  "requestedActions": [
+    "WARNING"
+  ]
+}

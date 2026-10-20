@@ -27,33 +27,48 @@ import java.nio.file.Path
 @Composable
 internal fun MethodsTab(settings: ScanSettings, report: ScanReport?, revision: Int, research: Boolean, demo: Boolean,
     onSetup: (SecurityMethod) -> Unit, onEnabled: (SecurityMethod, Boolean) -> Unit,
-    onPermissions: (SecurityMethod) -> Unit, onInstallSdk: () -> Unit, onGuide: (SecurityMethod) -> Unit) {
+    onPermissions: (SecurityMethod) -> Unit, onInstallSdk: () -> Unit, onGuide: (SecurityMethod) -> Unit,
+    onAddProvider: () -> Unit, onEditProvider: (CustomProviderState) -> Unit,
+    onCustomEnabled: (CustomProviderState, Boolean) -> Unit, onCustomPermissions: (CustomProviderState) -> Unit,
+    onCustomRemove: (CustomProviderState) -> Unit, onStorage: () -> Unit, onPresets: () -> Unit, onAutomation: () -> Unit) {
     var category by remember { mutableStateOf<MethodCategory?>(null) }
+    var customSelected by remember { mutableStateOf(false) }
     val state = remember(revision, demo, settings) {
         if (demo) WrapperGuardSettings.State(methodFlags = settings.methodFlags.toMutableMap())
         else WrapperGuardSettings.getInstance().state.copy(methodFlags = WrapperGuardSettings.getInstance().state.methodFlags.toMutableMap(),
             methodConnections = WrapperGuardSettings.getInstance().state.methodConnections.map { it.copy() }.toMutableList(),
-            providers = WrapperGuardSettings.getInstance().state.providers.map { it.copy() }.toMutableList())
+            providers = WrapperGuardSettings.getInstance().state.providers.map { it.copy() }.toMutableList(),
+            customProviders = WrapperGuardSettings.getInstance().state.customProviders.map { it.copy() }.toMutableList())
     }
     val all = SecurityMethodCatalog.methods.filter { (it.category in setOf(MethodCategory.RESEARCH, MethodCategory.AI)) == research }
     val methods = all.filter { if (research) true else if (category == null) it.category != MethodCategory.BUILT_IN else it.category == category }
+    val customProviders = state.customProviders.filter { provider ->
+        if (research) provider.category in setOf("RESEARCH", "AI") else customSelected || category == null || provider.category == category?.name
+    }
     WorkspacePage {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 Text(if (research) "Research & local AI" else "Analysis tools", fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
                 Text(if (research) "Optional advisory methods. Choose the analyzer and review its limits." else "Connect independent analyzers and choose the methods used in your workspace.", color = mutedTextColor(), fontSize = 12.sp)
             }
-            OutlinedButton(onClick = onInstallSdk, enabled = !demo) { Text("Install SDK…", fontSize = 12.sp) }
+            OutlinedButton(onClick = onAddProvider, enabled = !demo) { Text("Add provider…", fontSize = 12.sp) }
+        }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            OutlinedButton(onClick = onInstallSdk, enabled = !demo) { Text("Install SDK…", fontSize = 11.sp) }
+            OutlinedButton(onClick = onPresets, enabled = !demo) { Text("Method presets…", fontSize = 11.sp) }
+            OutlinedButton(onClick = onStorage, enabled = !demo) { Text("Managed storage…", fontSize = 11.sp) }
+            OutlinedButton(onClick = onAutomation, enabled = !demo) { Text("Automatic scans…", fontSize = 11.sp) }
         }
         if (!research) FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            ChoiceChip("Connections", category == null) { category = null }
+            ChoiceChip("Connections", category == null && !customSelected) { category = null; customSelected = false }
+            ChoiceChip("Custom  ${state.customProviders.size}", customSelected) { customSelected = true; category = null }
             listOf(MethodCategory.BUILT_IN to "Built-in", MethodCategory.SAST to "SAST", MethodCategory.SUPPLY_CHAIN to "Supply chain", MethodCategory.DAST to "DAST").forEach { (value, label) ->
-                ChoiceChip("$label  ${all.count { it.category == value }}", category == value) { category = value }
+                ChoiceChip("$label  ${all.count { it.category == value }}", category == value && !customSelected) { category = value; customSelected = false }
             }
         }
         if (research) WorkspacePanel("Advisory by design", subtitle = "No trained detector or model is bundled") {
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                Text("Script behavior signals use bounded static decoding and linked patterns. Local AI reviews a minimized finding report through a model server you select. Neither method executes project source or creates build/sync blockers.", fontSize = 12.sp)
+                Text("Static script signals decode bounded patterns; local AI reviews a minimized finding report. Container Python is a separate opt-in method that executes a selected entry inside a reviewed local Docker backend. Research and AI remain advisory and cannot create build/sync blockers.", fontSize = 12.sp)
                 Text("Experimental signals need your review. Research references provide context; this integration does not reproduce, train or claim the accuracy of a paper's model.", color = mutedTextColor(), fontSize = 11.sp)
             }
         } else if (category != MethodCategory.BUILT_IN) {
@@ -62,7 +77,7 @@ internal fun MethodsTab(settings: ScanSettings, report: ScanReport?, revision: I
                 Text("Install the bundled SDK, connect an installed analyzer or existing report, then enable warnings. Permissions are reviewed separately.", color = mutedTextColor(), fontSize = 11.sp, modifier = Modifier.weight(1f))
             }
         }
-        if (category == MethodCategory.BUILT_IN && !research) {
+        if (category == MethodCategory.BUILT_IN && !research && !customSelected) {
             WorkspacePanel("Built-in methods", subtitle = "Included locally · changes apply to all projects") {
                 methods.forEachIndexed { index, method ->
                     val enabled = SecurityMethodCatalog.isEnabled(method.id, state.methodFlags)
@@ -78,7 +93,7 @@ internal fun MethodsTab(settings: ScanSettings, report: ScanReport?, revision: I
                 }
             }
             Text("Disabling a method reduces the configured scope. If every built-in method is off, built-in coverage is incomplete. Repository files cannot change these application preferences.", fontSize = 11.sp, color = mutedTextColor())
-        } else BoxWithConstraints(Modifier.fillMaxWidth()) {
+        } else if (!customSelected) BoxWithConstraints(Modifier.fillMaxWidth()) {
             val columns = if (maxWidth >= 1050.dp) 2 else 1
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 methods.chunked(columns).forEach { row ->
@@ -91,6 +106,8 @@ internal fun MethodsTab(settings: ScanSettings, report: ScanReport?, revision: I
                 }
             }
         }
+        if (customProviders.isNotEmpty()) CustomProviderCards(customProviders, state, report, demo, onEditProvider, onCustomEnabled, onCustomPermissions, onCustomRemove)
+        else if (customSelected) EmptyHint("No custom providers yet. Add an installed SDK or an API 1 command adapter to get started.")
         Text(if (demo) "Demo controls are read-only. Connections, settings and model services are not invoked." else "Application settings · connections and profiles stay outside your projects · enabled provider code runs with your permissions",
             fontSize = 10.sp, color = mutedTextColor())
     }
@@ -108,28 +125,29 @@ private fun MethodConnectionCard(method: SecurityMethod, state: WrapperGuardSett
     val pathsReady = connection?.let {
         runCatching { Files.isExecutable(Path.of(it.pythonExecutable)) && Files.isRegularFile(Path.of(it.profilePath)) &&
             (it.mode != "report" && method.id != "ai.external-model" || Files.isRegularFile(Path.of(it.reportPath))) &&
-            (it.mode != "runner" || method.id in setOf("research.script-semantics", "ai.external-model") || Files.isExecutable(Path.of(it.runnerExecutable))) &&
+            (it.mode != "runner" || method.id in setOf("research.script-semantics", "ai.external-model", "dast.http-audit") || (it.sandboxEnabled && Files.isExecutable(Path.of(it.sandboxExecutable)) && Files.exists(Path.of(it.sandboxEndpoint)) || !it.sandboxEnabled && Files.isExecutable(Path.of(it.runnerExecutable)))) &&
             (method.id != "sast.powershell" || it.mode != "runner" || Files.exists(Path.of(it.modulePath))) &&
             (method.id != "sast.semgrep" || it.mode != "runner" || it.rulesPath.isBlank() || Files.isRegularFile(Path.of(it.rulesPath))) }.getOrDefault(false)
     } ?: false
-    val unsupported = System.getProperty("os.name").startsWith("Windows") && method.id == "research.script-semantics"
+    val unsupported = connection?.mode == "runner" && System.getProperty("os.name").startsWith("Windows") && OptionalMethodProfiles.runnerTool(method.id) !in connection.supportedRunners
     val legacy = connection == null && lastRun != null
     val status = when {
         demo -> "Not connected · demo"
-        unsupported -> "Requires a POSIX host"
+        unsupported -> "SDK runner support needs review"
         legacy -> "Existing provider"
         connection == null -> "Setup required"
         !pathsReady -> "Connection needs attention"
         !enabled -> "Connected · disabled"
         lastRun?.status == ProviderRunStatus.FAILED -> "Last scan failed"
         lastRun?.status == ProviderRunStatus.TIMED_OUT -> "Last scan timed out"
+        connection?.sandboxEnabled == true && lastRun == null -> "SDK verified · container not tested"
         method.id == "ai.external-model" && lastRun == null -> "SDK verified · model not tested"
         lastRun?.status == ProviderRunStatus.COMPLETED -> "Last scan completed"
         else -> "SDK verified · ready to scan"
     }
     val tone = when { !enabled -> mutedTextColor(); !pathsReady && !legacy -> warningColor(); lastRun?.status in setOf(ProviderRunStatus.FAILED, ProviderRunStatus.TIMED_OUT) -> warningColor(); else -> successColor() }
     WorkspacePanel(method.title, subtitle = when (method.category) {
-        MethodCategory.SAST -> "Source analysis"; MethodCategory.SUPPLY_CHAIN -> "Dependency analysis"; MethodCategory.DAST -> "Application report"
+        MethodCategory.SAST -> "Source analysis"; MethodCategory.SUPPLY_CHAIN -> "Dependency analysis"; MethodCategory.DAST -> if (method.id == "dast.http-audit") "Owned response audit" else "Application report"
         MethodCategory.RESEARCH -> "Experimental static signals"; MethodCategory.AI -> "Local model review"; else -> "Built-in"
     }, trailing = { StatusBadge(if (enabled) "Enabled" else "Off", if (enabled) accentColor() else mutedTextColor()) }) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -141,6 +159,8 @@ private fun MethodConnectionCard(method: SecurityMethod, state: WrapperGuardSett
                 Text(when {
                     method.id == "ai.external-model" -> "${connection.model} · ${connection.endpoint}"
                     method.id == "research.script-semantics" -> "Installed SDK static analyzer · advisory"
+                    method.id == "research.container-python" -> "Container entry ${connection.entryPath} · advisory / SCAN only"
+                    connection.sandboxEnabled -> "Reviewed local Docker backend · ${connection.allowedOperations.joinToString(" / ")}"
                     connection.mode == "runner" -> "Installed analyzer · ${connection.allowedOperations.joinToString(" / ")}"
                     else -> "Report import · current source freshness is not established"
                 }, fontSize = 10.sp, color = mutedTextColor(), maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -148,7 +168,7 @@ private fun MethodConnectionCard(method: SecurityMethod, state: WrapperGuardSett
             if (connection != null) Text(if (connection.preferManaged) "Uses this managed connection when enabled." else "Existing registrations with the same ID take precedence.",
                 fontSize = 10.sp, color = mutedTextColor())
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                OutlinedButton(onClick = { onSetup(method) }, enabled = !demo && !unsupported) { Text(if (connection == null) "Connect…" else "Configure…", fontSize = 11.sp) }
+                OutlinedButton(onClick = { onSetup(method) }, enabled = !demo) { Text(if (connection == null) "Connect…" else "Configure…", fontSize = 11.sp) }
                 OutlinedButton(onClick = { onEnabled(method, !enabled) }, enabled = !demo && (!unsupported || enabled)) { Text(if (enabled) "Disable" else "Enable", fontSize = 11.sp) }
                 OutlinedButton(onClick = { onPermissions(method) }, enabled = !demo) { Text("Permissions…", fontSize = 11.sp) }
                 OutlinedButton(onClick = { onGuide(method) }, enabled = !demo) { Text("Setup guide ↗", fontSize = 11.sp) }

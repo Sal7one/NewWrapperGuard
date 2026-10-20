@@ -1,0 +1,28 @@
+{
+  "id": "research.container-python",
+  "displayName": "Optional isolated Python observations",
+  "version": "1",
+  "analysisKind": "SAST",
+  "format": "container-python",
+  "runner": {
+    "tool": "container-python",
+    "entryPath": "controlled-probe.py",
+    "executionConfirmed": true,
+    "executionTimeoutMs": 1000,
+    "timeoutMs": 15000,
+    "sandbox": {
+      "engine": "docker",
+      "executable": "/usr/bin/docker",
+      "endpoint": "/run/user/1000/docker.sock",
+      "image": "python@sha256:34386ef0cb081344d7ec1c103ba398e6e9f64e9ab3a1509accc92a4e24a07258",
+      "allowRootfulDaemon": false,
+      "memoryMiB": 128,
+      "cpus": 1,
+      "pidsLimit": 32
+    }
+  },
+  "allowedOperations": [
+    "SCAN"
+  ],
+  "requestedActions": []
+}

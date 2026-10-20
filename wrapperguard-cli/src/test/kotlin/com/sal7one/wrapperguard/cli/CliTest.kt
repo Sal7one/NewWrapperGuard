@@ -1,5 +1,9 @@
 package com.sal7one.wrapperguard.cli
 
+import com.sal7one.wrapperguard.core.inputs.ProviderInputScope
+import com.sal7one.wrapperguard.core.vetting.*
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 import java.nio.file.Files
@@ -60,5 +64,73 @@ class CliTest {
             assertEquals("", stdout.toString())
             assertTrue(stderr.toString().contains("could not complete"))
         } finally { root.toFile().deleteRecursively() }
+    }
+
+    @Test fun `passive provider check never launches commands and conformance really validates output`() {
+        val root = Files.createTempDirectory("wg-cli-check-").toRealPath()
+        val user = Files.createTempDirectory("wg-cli-check-user-").toRealPath()
+        try {
+            val marker = root.resolve("launched")
+            val adapter = Files.writeString(user.resolve("adapter.sh"), "IFS= read -r request\nprintf 'yes' > launched\nprintf '%s' '{\"findings\":[],\"scannedFiles\":1}'\n")
+            val command = CommandProviderConfiguration("custom", "Custom", "1", listOf("/bin/sh", adapter.toString()),
+                ProviderPermissions(enabled = true), category = "SAST", inputScope = ProviderInputScope())
+            val config = Files.writeString(user.resolve("providers.json"), Json.encodeToString(ProviderConfiguration(providers = listOf(command))))
+            val stdout = ByteArrayOutputStream()
+            val stderr = ByteArrayOutputStream()
+            assertEquals(0, runCli(arrayOf(root.toString(), "--providers", config.toString(), "--check-providers", "--json"), PrintStream(stdout), PrintStream(stderr)))
+            assertTrue(stdout.toString().contains("\"executed\": false"))
+            assertFalse(Files.exists(marker))
+            stdout.reset()
+            assertEquals(0, runCli(arrayOf(root.toString(), "--providers", config.toString(), "--conformance", "--json"), PrintStream(stdout), PrintStream(stderr)))
+            assertTrue(Files.exists(marker))
+            assertTrue(stdout.toString().contains("COMPLETED"))
+            Files.writeString(adapter, "printf '%s' 'token=private-output malformed'\n")
+            stdout.reset()
+            assertEquals(1, runCli(arrayOf(root.toString(), "--providers", config.toString(), "--conformance", "--json"), PrintStream(stdout), PrintStream(stderr)))
+            assertTrue(stdout.toString().contains("FAILED"))
+            assertFalse(stdout.toString().contains("private-output"))
+            assertFalse(stdout.toString().contains(adapter.toString()))
+        } finally { root.toFile().deleteRecursively(); user.toFile().deleteRecursively() }
+    }
+
+    @Test fun `changed declared source cannot authorize CLI build gate even when provider returns clean`() {
+        val root = Files.createTempDirectory("wg-cli-race-").toRealPath()
+        val user = Files.createTempDirectory("wg-cli-race-user-").toRealPath()
+        try {
+            Files.writeString(root.resolve("Main.kt"), "good")
+            val adapter = Files.writeString(user.resolve("adapter.sh"), "IFS= read -r request\nprintf 'evil' > Main.kt\nprintf '%s' '{\"findings\":[],\"scannedFiles\":1}'\n")
+            val command = CommandProviderConfiguration("custom", "Custom", "1", listOf("/bin/sh", adapter.toString()),
+                ProviderPermissions(enabled = true), category = "SAST", inputScope = ProviderInputScope(listOf("**/*.kt"), externalFiles = listOf(adapter.toString())))
+            val config = Files.writeString(user.resolve("providers.json"), Json.encodeToString(ProviderConfiguration(providers = listOf(command))))
+            val stdout = ByteArrayOutputStream()
+            val stderr = ByteArrayOutputStream()
+            assertEquals(1, runCli(arrayOf(root.toString(), "--providers", config.toString(), "--operation", "build", "--enforce", "--json"), PrintStream(stdout), PrintStream(stderr)))
+            assertTrue(stdout.toString().contains("WG-INPUT-CHANGED"))
+            assertTrue(stdout.toString().contains("\"stale\": true"))
+            assertFalse(stdout.toString().contains("\"complete\": true"))
+            assertEquals("", stderr.toString())
+        } finally { root.toFile().deleteRecursively(); user.toFile().deleteRecursively() }
+    }
+
+    @Test fun `changed trusted configuration is caught even with an explicitly empty source scope`() {
+        val root = Files.createTempDirectory("wg-cli-config-race-").toRealPath()
+        val user = Files.createTempDirectory("wg-cli-config-race-user-").toRealPath()
+        try {
+            val config = user.resolve("providers.json")
+            val adapter = Files.writeString(user.resolve("adapter.sh"), "IFS= read -r request\nprintf '{}' > \"${'$'}1\"\nprintf '%s' '{\"findings\":[]}'\n")
+            val command = CommandProviderConfiguration("custom", "Custom", "1", listOf("/bin/sh", adapter.toString(), config.toString()),
+                ProviderPermissions(enabled = true), category = "SAST", inputScope = ProviderInputScope())
+            Files.writeString(config, Json.encodeToString(ProviderConfiguration(providers = listOf(command))))
+            val stdout = ByteArrayOutputStream()
+            assertEquals(1, runCli(arrayOf(root.toString(), "--providers", config.toString(), "--operation", "sync", "--json"), PrintStream(stdout)))
+            assertTrue(stdout.toString().contains("WG-INPUT-CHANGED"))
+        } finally { root.toFile().deleteRecursively(); user.toFile().deleteRecursively() }
+    }
+
+    @Test fun `provider checks reject incompatible modes`() {
+        assertFailsWith<IllegalArgumentException> { CliOptions.parse(arrayOf("--check-providers", "--conformance")) }
+        assertFailsWith<IllegalArgumentException> { CliOptions.parse(arrayOf("--conformance", "--sarif")) }
+        assertFailsWith<IllegalArgumentException> { CliOptions.parse(arrayOf("--check-providers", "--operation", "build")) }
+        assertFailsWith<IllegalArgumentException> { CliOptions.parse(arrayOf("--conformance", "--enforce")) }
     }
 }

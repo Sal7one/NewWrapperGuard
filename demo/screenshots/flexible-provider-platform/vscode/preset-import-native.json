@@ -1,0 +1,9 @@
+{
+  "identity": "acceptance.passive",
+  "digest": "ed4bc2e830566a0f089f1fb4888d0ffe6fc79bc8ed37b5a182f76005958c436f",
+  "changedFlag": "builtin.script-rules=false",
+  "grantsUnchanged": true,
+  "noAnalysis": true,
+  "focusRestored": true,
+  "digestIsNotAuthentication": true
+}

@@ -48,13 +48,23 @@ def main():
             if ('Requires-Dist:' in metadata or 'Requires-Python: >=3.10' not in metadata
                     or '\nName: wrapperguard-sdk\n' not in metadata or '\nVersion: ' + version + '\n' not in metadata):
                 raise RuntimeError('Unexpected bundled SDK dependency/runtime contract')
-            for module in ('ai_review.py', 'semantics.py', 'runner.py'):
+            for module in (str(path.relative_to(source / 'src/wrapperguard_sdk')) for path in (source / 'src/wrapperguard_sdk').rglob('*') if path.is_file()):
                 if archive.read('wrapperguard_sdk/' + module) != (source / 'src/wrapperguard_sdk' / module).read_bytes():
                     raise RuntimeError('Bundled SDK source mismatch')
-        shutil.copyfile(built, wheel)
+        # Normalize archive metadata so both independently built GUI packages carry
+        # identical wheel bytes for the same sources/backend, regardless of build time.
+        with zipfile.ZipFile(built) as original, zipfile.ZipFile(wheel, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=9) as normalized:
+            for name in sorted(original.namelist()):
+                info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
+                info.create_system = 3
+                info.external_attr = 0o100644 << 16
+                info.compress_type = zipfile.ZIP_DEFLATED
+                normalized.writestr(info, original.read(name))
     if options.copy_vscode:
         target = ROOT / 'vscode-extension/resources/sdk'
         target.mkdir(parents=True, exist_ok=True)
+        for previous in target.glob('wrapperguard_sdk-*-py3-none-any.whl'):
+            if previous.name != wheel.name: previous.unlink()
         shutil.copyfile(wheel, target / wheel.name)
     print('Bundled SDK wheel: ' + str(wheel))
 

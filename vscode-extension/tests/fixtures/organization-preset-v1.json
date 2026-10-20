@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "acme.android",
+  "title": "Acme Android",
+  "version": "1.0.0",
+  "issuer": "Acme Security",
+  "createdAt": 1700000000000,
+  "methodFlags": {
+    "builtin.script-rules": true,
+    "sast.semgrep": false
+  },
+  "digest": "fda3700e05955537cbc71b8b2bcab10b88784cccddb92db25d50ab4950cd3c96"
+}

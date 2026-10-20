@@ -82,7 +82,7 @@ class ScriptRules private constructor(
                     source, lineNumber, evidenceLine, Severity.ERROR, Confidence.HIGH,
                     FindingCategory.SUPPLY_CHAIN
                 )
-            } else if (flavor.networkCommandPattern.containsMatchIn(line)) {
+            } else if (if (flavor == Flavor.UNIX) UnixNetworkCommands.contains(line) else flavor.networkCommandPattern.containsMatchIn(line)) {
                 findings += finding(
                     RuleIds.NETWORK_COMMAND,
                     "Network-capable command detected",

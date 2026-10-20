@@ -1,0 +1,37 @@
+name: Static research corpus evaluation
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: research-corpus-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static-corpus:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install only the trusted SDK
+        run: python -m pip install ./sdk/python
+      - name: Check bounded archive acquisition
+        run: python -m unittest discover -s scripts/tests -p test_research_corpus.py -v
+      - name: Acquire pinned source bytes without executing project code
+        run: python scripts/research-corpus.py --fetch --directory "$RUNNER_TEMP/inert-corpus"
+      - name: Measure selected static signals and preserve all misses
+        run: python scripts/research-corpus.py --directory "$RUNNER_TEMP/inert-corpus" --sdk-python "$(command -v python)" --output "$RUNNER_TEMP/research-result.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: static-research-result
+          # Never redistribute corpus payloads or an extracted sample tree.
+          path: ${{ runner.temp }}/research-result.json

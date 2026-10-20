@@ -1,0 +1,26 @@
+rules:
+  - id: wrapperguard.android.webview-file-origin
+    languages: [java, kotlin]
+    severity: WARNING
+    message: Local file pages can access other file origins. Review the content source and WebView file permissions.
+    pattern-either:
+      - pattern: $SETTINGS.setAllowFileAccessFromFileURLs(true)
+      - pattern: $SETTINGS.allowFileAccessFromFileURLs = true
+    metadata:
+      cwe: CWE-200
+  - id: wrapperguard.android.webview-universal-origin
+    languages: [java, kotlin]
+    severity: ERROR
+    message: Local file pages can access arbitrary origins. Remove universal file URL access or establish a narrowly trusted content boundary.
+    pattern-either:
+      - pattern: $SETTINGS.setAllowUniversalAccessFromFileURLs(true)
+      - pattern: $SETTINGS.allowUniversalAccessFromFileURLs = true
+    metadata:
+      cwe: CWE-346
+  - id: wrapperguard.android.webview-debugging
+    languages: [java, kotlin]
+    severity: WARNING
+    message: WebView debugging is explicitly enabled. Ensure release builds do not expose application web content for debugging.
+    pattern: $WEBVIEW.setWebContentsDebuggingEnabled(true)
+    metadata:
+      cwe: CWE-489

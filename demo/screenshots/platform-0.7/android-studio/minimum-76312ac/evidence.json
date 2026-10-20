@@ -1,0 +1,35 @@
+{
+  "sourceCommit": "76312ace4306c906c329e408346a59d2e893f3c7",
+  "workflowRun": 39459625691,
+  "artifact": "wrapperguard-plugin/wrapperguard-intellij-0.7.0.zip",
+  "artifactBytes": 3935918,
+  "artifactSha256": "bdc57dd1e9b338a434802ff090afa5fa4d609343a746644387c696ad1f7d32e8",
+  "compilationPlatform": "IntelliJ IDEA 2025.2",
+  "testedAtUtc": "2026-10-20T18:48:00Z",
+  "host": "Android Studio Quail 1 | 2026.1.1 Patch 2",
+  "hostBuild": "AI-261.23567.138.2611.15646644",
+  "hostRuntime": "JBR 21.0.10",
+  "platform": "macOS arm64",
+  "isolatedProfile": "/private/tmp/wrapperguard-studio-acceptance-736707cf",
+  "checks": {
+    "actualPluginStartup": "PASS",
+    "toolsRenderedThroughCompatibilityBoundary": "PASS",
+    "savedProviderSelectionsAndNetworkCostReviewRetained": "PASS",
+    "newSessionAutomationPaused": "PASS",
+    "useReviewedColumnHeadersReadable": "PASS"
+  },
+  "scope": "Actual installed signed Studio and minimum-built CI ZIP. PID-locked helper activated only real UI controls/actions. Selected owned windows captured and directly visually inspected. No demo report or scanner/guard/provider API injection. No explicit Scan or Start activated; scanOnOpen remained false. Studio performed its ordinary cached Gradle project sync on reopen. Existing inert HTTP server was stopped before this smoke. This check does not establish runtime 262.2/262.3 or physical-device/accessibility acceptance. Normal Exit remained open; after SaveAll the owned PID was terminated, then only owned system indexes were removed.",
+  "nextArtifactPolicy": "Compare fresh CI ZIP bytes after framework-only changes. Reinstall and repeat this startup/Tools check if bytes differ.",
+  "evidenceSha256": {
+    "automation-paused.png": "45a8778041fcf27efebce346fa450b28b0de2d1dfa8e4516acda3bfd92baa0a4",
+    "runtime-evidence.log": "76c669615026907f88863cfaf2078fcd0244e706e1d2e1e65d33cfa76b835379",
+    "tools.png": "022fc933e62ecdb7042a7834bb3f237cf9e1881010e9ce111e31aca86e09c2eb"
+  },
+  "subsequentByteIdenticalArtifact": {
+    "branchHead": "59daa2615c5c15654fc43847df1e6482d73edafb",
+    "workflowRun": 39478013449,
+    "artifactSourceCommit": "a04b51d3926860ff342e03770a829e51274e3a63",
+    "artifactSha256": "bdc57dd1e9b338a434802ff090afa5fa4d609343a746644387c696ad1f7d32e8",
+    "comparison": "Exact SHA-256 identity independently checked against the fresh CI bundle ZIP; no reinstall required for identical bytes."
+  }
+}

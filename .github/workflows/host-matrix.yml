@@ -1,0 +1,101 @@
+name: Supported host compatibility
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: host-compatibility-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  vscode-compatibility:
+    name: VS Code ${{ matrix.version }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        version: ['1.95.0', '1.142.0']
+    env:
+      VSCODE_VERSION: ${{ matrix.version }}
+      WRAPPERGUARD_HOST_EVIDENCE: ${{ github.workspace }}/host-evidence.json
+    defaults:
+      run:
+        working-directory: vscode-extension
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - run: npm run compile
+      - name: Real extension-host acceptance on Linux
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run test:host
+      - name: Real extension-host acceptance on macOS or Windows
+        if: runner.os != 'Linux'
+        run: npm run test:host
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vscode-host-${{ matrix.os }}-${{ matrix.version }}
+          path: host-evidence.json
+
+  intellij-compatibility:
+    name: IntelliJ binary compatibility ${{ matrix.ide }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        # Jewel 0.40 in 2026.2.2 removed old bridge overloads restored by 0.41.
+        # Keep this intermediate release in addition to the advertised minimum/current.
+        include:
+          - ide: '2025.2'
+            build: '252.23892.409'
+          - ide: '2026.2.2'
+            build: '262.10315.125'
+          - ide: '2026.2.3'
+            build: '262.10968.63'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reserve disk for two IDE distributions and verifier
+        # These are unused preinstalled tools on this disposable hosted runner.
+        # Keep the JDK/Gradle and downloaded verifier reports intact.
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+          df -h .
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Verify the declared minimum or current stable platform
+        run: ./gradlew --no-daemon --max-workers=2 :wrapperguard-intellij:verifyPlugin -Pwrapperguard.verifierVersion=${{ matrix.ide }}
+      - name: Invoke the public Jewel bridge in the actual target runtime
+        run: ./gradlew --no-daemon --max-workers=2 :wrapperguard-intellij:testJewelBridgeRuntime -Pwrapperguard.bridgeRuntimeVersion=${{ matrix.ide }} -Pwrapperguard.bridgeRuntimeBuild=${{ matrix.build }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: intellij-verifier-${{ matrix.ide }}
+          path: wrapperguard-intellij/build/reports/pluginVerifier/
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: intellij-bridge-runtime-${{ matrix.ide }}
+          path: |
+            wrapperguard-intellij/build/test-results/testJewelBridgeRuntime/*.xml
+            wrapperguard-intellij/build/reports/jewel-bridge-runtime/test-framework.txt

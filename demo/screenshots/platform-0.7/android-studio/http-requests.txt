@@ -1,0 +1,4 @@
+/acceptance/secure
+/acceptance/weak
+/acceptance/secure
+/acceptance/weak

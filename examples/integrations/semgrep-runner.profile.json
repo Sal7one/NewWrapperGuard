@@ -1,7 +1,7 @@
 {
   "id": "sast.semgrep",
   "displayName": "Android / Ktor source review",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "analysisKind": "SAST",
   "format": "sarif",
   "runner": {

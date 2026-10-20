@@ -1,0 +1,145 @@
+name: Android device acceptance
+
+on:
+  pull_request:
+  push:
+    branches: [master, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-device-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  android-build:
+    name: Build owned Android acceptance APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Provision Android command-line tools
+        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+        with:
+          packages: 'platform-tools'
+          log-accepted-android-sdk-licenses: 'false'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+      - name: Ensure the explicitly selected Android build SDK is installed
+        run: sdkmanager 'platforms;android-36' 'build-tools;35.0.0'
+      - name: Build the owned acceptance APK
+        run: gradle -p examples/android-acceptance --no-daemon --max-workers=2 :app:assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-owned-test-apk
+          path: examples/android-acceptance/app/build/outputs/apk/debug/app-debug.apk
+
+  android-device:
+    name: Android 16 emulator launch and HTTP audit
+    needs: android-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Provision Android command-line tools and emulator
+        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+        with:
+          packages: 'platform-tools emulator'
+          log-accepted-android-sdk-licenses: 'false'
+      - uses: actions/download-artifact@v4
+        with:
+          name: android-owned-test-apk
+          path: android-apk
+      - name: Install the integration SDK
+        run: python -m pip install ./sdk/python
+      - name: Reject blank device evidence before emulator acceptance
+        run: python -m unittest discover -s scripts/tests -p test_android_device_acceptance.py -v
+      - name: Reclaim unused SDK build components on this fresh runtime-only hosted runner
+        shell: python
+        run: |
+          import os, pathlib, shutil
+          assert os.environ.get('RUNNER_ENVIRONMENT') == 'github-hosted' and os.environ.get('RUNNER_OS') == 'Linux'
+          sdk = pathlib.Path(os.environ['ANDROID_SDK_ROOT']).resolve()
+          assert sdk.is_absolute() and sdk.name == 'sdk' and len(sdk.parts) > 3
+          # The APK was built in a separate job. Keep command-line tools, emulator,
+          # platform-tools and images; only unused preinstalled build/NDK inputs go.
+          removed = []
+          for name in ('ndk', 'ndk-bundle', 'cmake', 'build-tools', 'platforms', 'sources'):
+              path = sdk / name
+              assert path.parent == sdk and not path.is_symlink()
+              if path.exists(): shutil.rmtree(path); removed.append(name)
+          print({'removedUnusedSdkComponents':removed,'freeBytes':shutil.disk_usage(sdk).free})
+          assert shutil.disk_usage(sdk).free >= 12*1024**3, 'Standard rendered Android image needs at least12GiB free before provisioning'
+      - name: Provision an isolated Android 16 virtual device
+        run: |
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/wrapperguard-avds"
+          test -e /dev/kvm
+          sudo chmod a+rw /dev/kvm
+          df -h
+          # ATD disables hardware rendering and cannot validate a real screenshot.
+          # https://developer.android.com/studio/test/managed-devices#use-atd
+          sdkmanager 'system-images;android-36;default;x86_64'
+          mkdir -p "$ANDROID_AVD_HOME"
+          echo no | avdmanager create avd --name wrapperguard-acceptance --path "$ANDROID_AVD_HOME/wrapperguard-acceptance.avd" --package 'system-images;android-36;default;x86_64' --device pixel_6
+          python - <<'PY'
+          import os, pathlib
+          directory = pathlib.Path(os.environ['ANDROID_AVD_HOME'])
+          (directory / 'wrapperguard-acceptance.ini').write_text('avd.ini.encoding=UTF-8\npath=' + str(directory / 'wrapperguard-acceptance.avd') + '\ntarget=android-36\n')
+          # SwiftShader rendering at Pixel6 resolution exhausted first-boot SystemUI
+          # responsiveness on the hosted runner. Keep a real rendered display with
+          # a bounded720p workload and enough guest CPU/RAM for the normal system UI.
+          config = directory / 'wrapperguard-acceptance.avd/config.ini'
+          values = dict(line.split('=',1) for line in config.read_text().splitlines() if '=' in line)
+          values.update({'hw.lcd.width':'720','hw.lcd.height':'1280','hw.lcd.density':'240',
+              'skin.name':'720x1280','skin.path':'_no_skin','skin.dynamic':'yes',
+              'hw.cpu.ncore':str(min(4,os.cpu_count() or 2)),'hw.ramSize':'3072'})
+          config.write_text('\n'.join(key+'='+value for key,value in values.items())+'\n')
+          PY
+          "$ANDROID_SDK_ROOT/emulator/emulator" -avd wrapperguard-acceptance -no-window -no-audio -no-snapshot -no-boot-anim -no-metrics -memory 3072 -gpu swiftshader > "$RUNNER_TEMP/emulator.log" 2>&1 &
+          timeout 180 adb -s emulator-5554 wait-for-device
+      - name: Settle the fresh first-boot UI before launching the owned activity
+        shell: python
+        run: |
+          import os, pathlib, subprocess, time
+          adb = str(pathlib.Path(os.environ['ANDROID_SDK_ROOT']) / 'platform-tools/adb')
+          def call(*arguments):
+              return subprocess.run([adb,'-s','emulator-5554',*arguments],capture_output=True,text=True,timeout=15,check=True).stdout.strip()
+          deadline = time.monotonic()+180
+          while call('shell','getprop','sys.boot_completed') != '1':
+              assert time.monotonic()<deadline, 'Fresh emulator boot exceeded180seconds'
+              time.sleep(1)
+          for setting in ('window_animation_scale','transition_animation_scale','animator_duration_scale'):
+              call('shell','settings','put','global',setting,'0')
+          call('shell','input','keyevent','KEYCODE_WAKEUP')
+          call('shell','wm','dismiss-keyguard')
+          call('shell','input','keyevent','KEYCODE_HOME')
+          # sys.boot_completed precedes all first-boot launcher/SystemUI work.
+          # Do not launch the test target while that initial display load is settling.
+          time.sleep(15)
+      - name: Test real device runtime, accessibility tree and SDK response audit
+        run: |
+          python scripts/android-device-acceptance.py --adb "$ANDROID_SDK_ROOT/platform-tools/adb" --serial emulator-5554 --apk android-apk/app-debug.apk --output "$RUNNER_TEMP/android-evidence" --sdk-python "$(command -v python)"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-device-evidence
+          path: |
+            ${{ runner.temp }}/android-evidence/
+            ${{ runner.temp }}/emulator.log
+      - name: Stop only the acceptance emulator
+        if: always()
+        run: adb -s emulator-5554 emu kill || true

@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "vscodeVersion": "1.116.0",
+  "platform": "darwin",
+  "apiVersion": 1,
+  "fixtureOnly": true,
+  "passed": false,
+  "cases": [
+    "activate-api1-two-roots"
+  ],
+  "error": {
+    "name": "AssertionError",
+    "message": "Unapproved providers stay disabled.\n\n1 !== 0\n"
+  }
+}

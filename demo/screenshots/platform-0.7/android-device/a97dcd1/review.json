@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "ciRun": 39480825850,
+  "branchHead": "a97dcd19133e9b70b64bc88ae30835822712dbed",
+  "sourceCommit": "9b48d88d2bd70deb6e8f39f43e4e1dc97f2344c2",
+  "apkSha256": "f5c8b56ec352e3f106d8806674226415fcbfd90e41a8f5cb82ef208820491579",
+  "pngSha256": "93aff5f7057f6f9c33ccbf1f49634ba05fc28aabf3b91344f8bafcace5fb297e",
+  "apkHashIndependentlyVerified": true,
+  "pngHashIndependentlyVerified": true,
+  "agentVisualReview": {
+    "accepted": true,
+    "method": "Direct inspection of actual unmodified PNG via view_image",
+    "observations": "720x1280 owned WrapperGuard Device acceptance activity visibly rendered, API36, secure/weak route labels, loopback-only notice, Ready on 127.0.0.1:8765 with 4 requests. No lockscreen, modal, ANR or blank frame.",
+    "humanReviewed": false
+  },
+  "uiGate": {
+    "attempt": 1,
+    "foregroundOwned": true,
+    "treeAvailable": true,
+    "titlePresent": true,
+    "readyPresent": true,
+    "nonBlankPassed": true,
+    "accepted": true,
+    "blockingSystemDialog": false,
+    "ownedNodeCount": 8
+  },
+  "sdkAudit": {
+    "secure": {
+      "complete": true,
+      "findingCount": 0,
+      "ruleIds": []
+    },
+    "weak": {
+      "complete": true,
+      "findingCount": 3,
+      "ruleIds": [
+        "HTTPSEC-CSP/b5d3cbd7c4868a1a2cb7ae71",
+        "HTTPSEC-FRAME/b5d3cbd7c4868a1a2cb7ae71",
+        "HTTPSEC-NOSNIFF/b5d3cbd7c4868a1a2cb7ae71"
+      ]
+    }
+  },
+  "physicalDevice": false,
+  "purpose": "Owned Android HTTP acceptance fixture; not a mobile WrapperGuard plugin.",
+  "expectedBranchHeadIsSourceParent": true
+}

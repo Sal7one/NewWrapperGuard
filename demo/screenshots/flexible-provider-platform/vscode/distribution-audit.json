@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "appVersion": "0.7.0",
+  "sdkVersion": "0.4.0",
+  "bundledWheelsIdentical": true,
+  "unknownRuntimeDependencies": [],
+  "artifactSha256": {
+    "wrapperguard-intellij-0.7.0.zip": "87a7c44822acf5057f4df8c86dc45ac79cd9d741e399baa010f3444982f35e74",
+    "wrapperguard-0.7.0.vsix": "84dc38e980ec79f5beae4f32cccbadab814bbaf671843a8674a06cf5d3a88bd0",
+    "wrapperguard_sdk-0.4.0-py3-none-any.whl": "ad9f000207411b362e0f93a02b9c0953429874a093a3ff84aedefd4fc43d7765",
+    "wrapperguard-cli-0.7.0.zip": "ac3bcad05c6bef82bc98ba343c24747d066ba77b06291d1e2aecc01451fae47d"
+  },
+  "scope": "Packaged runtime inventory only; optional scanners, platform/runtime software and build dependencies excluded"
+}

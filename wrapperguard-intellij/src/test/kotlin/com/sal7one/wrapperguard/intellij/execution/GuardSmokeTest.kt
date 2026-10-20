@@ -36,6 +36,30 @@ import com.sal7one.wrapperguard.intellij.demo.WrapperGuardDemo
  */
 class GuardSmokeTest : HeavyPlatformTestCase() {
 
+    fun testDescriptorRegistersBeforeRunProviderWithIdeRegistry() {
+        val provider = com.intellij.execution.BeforeRunTaskProvider.getProvider(project, WrapperGuardBeforeRunTaskProvider.KEY)
+        assertNotNull("The IDE must resolve the attached task through its project extension registry", provider)
+        assertTrue(provider is WrapperGuardBeforeRunTaskProvider)
+        assertTrue("Static vetting remains available while indexes are rebuilding", provider is com.intellij.openapi.project.DumbAware)
+    }
+
+    fun testWorkerThreadDecisionRunsOnEdtAndPreservesCancellationChoice() {
+        val future = java.util.concurrent.CompletableFuture.supplyAsync {
+            assertFalse(com.intellij.openapi.application.ApplicationManager.getApplication().isDispatchThread)
+            runDecisionOnEdt {
+                assertTrue("Decision UI must be created and shown on the EDT", com.intellij.openapi.application.ApplicationManager.getApplication().isDispatchThread)
+                false
+            }
+        }
+        val deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(10)
+        while (!future.isDone && System.nanoTime() < deadline) {
+            com.intellij.util.ui.UIUtil.dispatchAllInvocationEvents()
+            Thread.sleep(10)
+        }
+        assertFalse("A Cancel choice must remain false after EDT dispatch", future.get(1, java.util.concurrent.TimeUnit.SECONDS))
+        assertTrue(runDecisionOnEdt { true })
+    }
+
     /** A real run configuration whose type id contains "gradle" so the guard applies. */
     private class FakeGradleRunConfiguration(project: Project, factory: ConfigurationFactory) :
         RunConfigurationBase<RunConfigurationOptions>(project, factory, "fake-gradle-run") {
@@ -162,6 +186,8 @@ class GuardSmokeTest : HeavyPlatformTestCase() {
         val configuration = settings.configuration
 
         val runManager = RunManagerImpl.getInstanceImpl(project)
+        // Simulate a configuration saved before the plugin was installed. Registered providers now attach new tasks automatically.
+        runManager.setBeforeRunTasks(configuration, runManager.getBeforeRunTasks(configuration).filterNot { it.providerId == WrapperGuardBeforeRunTaskProvider.KEY })
         assertTrue(
             "pre-existing configuration starts without the guard task",
             runManager.getBeforeRunTasks(configuration).none { it.providerId == WrapperGuardBeforeRunTaskProvider.KEY }

@@ -42,7 +42,7 @@ During a `BUILD` evaluation only `BLOCK_BUILD` is effective; during `SYNC` only
 
 ## User permissions and failures
 
-New third-party providers start disabled with no actions granted. The user enables them
+API registrations default to disabled with no actions granted. Reviewed custom-command GUI setup starts disabled with a WARNING grant. The user enables them
 and selects actions, a 100–300000 ms timeout, and whether completion is required.
 Default built-in scanning is enabled, required, and has all five action grants.
 
@@ -73,7 +73,7 @@ providers qualify; catalog AI/research methods alone do not establish analysis c
 Zero detectors, missing explicitly requested connections and real scan failures remain
 incomplete. Required failure blocking still depends on relevant grants and policy.
 
-The [setup guide](integrations.md) covers GUI-managed connections, SDK 0.2.0 profiles,
+The [setup guide](integrations.md) covers GUI-managed connections, SDK 0.4.0 profiles,
 source SAST, dependency analysis and advisory research/AI. Custom providers need not use
 the Python SDK or adopt a particular algorithm to share the host interface.
 
@@ -147,8 +147,8 @@ external terminals and other plugins' arbitrary processes remain outside this sc
 Activate `sal7one.wrapperguard`, then call its exported API `registerProvider(provider)`.
 Keep the returned disposable in your extension's subscriptions. SDK providers expose
 `descriptor` and an async `scan(request)`; honor the request's `AbortSignal`.
-Use the shipped declaration files for exact types. `evaluate(operation)` returns the
-combined fresh report; `gate(operation)` returns `{ allowed, report }`. The integrating
+Use the shipped declaration files for exact types. `evaluate(operation, projectRoot?)` returns the
+combined fresh report; `gate(operation, projectRoot?)` returns `{ allowed, report }`. Supply the intended absolute project root for multi-root integrations; omission uses the UI-selected root. The integrating
 extension must abort its build/sync when `allowed` is false. Invalid configuration or
 workspace trust causes evaluation to fail. See the extension's [SDK instructions](../vscode-extension/README.md).
 
@@ -186,3 +186,83 @@ configuration, not every possible input read by an arbitrary SDK or its remote s
 SDKs remain responsible for declaring or independently checking their relevant inputs.
 Credential masking is applied to known credential patterns; it cannot identify every
 possible vendor-specific secret. Providers should return minimal, redacted evidence.
+
+## Generic setup, declared inputs and conformance
+
+Native **Tools → Add SDK / custom command** can select a discovered SDK or enter a command. VS Code exposes **Providers → Add SDK** for a command adapter; installed extension SDKs register through API 1. Enter an executable and individual arguments. The wizard records literal argv: spaces,
+quotes and shell syntax are not interpreted by WrapperGuard. New connections are disabled
+and have only the reviewed warning grant. Enablement, required completion, timeouts and
+build/sync authority remain independent controls. Custom connections can be edited or
+removed without adding a catalog method or changing host code.
+
+API 1 descriptors can add `category`, `summary`, `tags` and `inputScope`. Categories are
+extensible uppercase identifiers; `BUILT_IN` is reserved for the host. Metadata is optional
+for compatibility. An absent input scope is **unknown**, while an explicit empty scope
+means metadata-only. In Kotlin the original descriptor constructor/copy ABI is retained;
+use the metadata constructor or `copyWithMetadata` to add fields.
+
+```json
+{
+  "category": "SAST",
+  "summary": "Organization-specific source review",
+  "tags": ["android", "internal"],
+  "inputScope": {
+    "includes": ["**/*.kt", "**/AndroidManifest.xml"],
+    "excludes": ["build/**"],
+    "externalFiles": ["/absolute/user-config/review-rules.json"]
+  },
+  "projectRoots": ["/absolute/project"]
+}
+```
+
+`projectRoots` belongs to command configuration, not the SDK descriptor. An omitted or
+empty list preserves reusable legacy connections. A nonempty list binds invocation to
+those canonical roots; a different selected project displays a disabled provider and does
+not start the command. VS Code has an explicit project selector for multi-root workspaces.
+GUI report/model connections also bind their integration profile to the selected project.
+
+Scope globs support `*`, `?` and whole-segment `**`; absolute patterns, dot segments,
+backslashes, brace expansion and character classes are rejected. Inputs use bounded
+no-follow traversal and SHA-256 content comparisons. Core source bounds are 1 MiB/file,
+5,000 files, 64 MiB total, 50,000 visited entries, depth 64 and a 30-second capture budget;
+external report/config files use a separate 16 MiB/file bound. Trusted native executable
+identity has larger explicit limits. Exceeding a bound invalidates coverage. The built-in
+scanner additionally records the bytes it actually reads, including recursively reached
+files with unusual extensions. These checks detect changes; they do not prove that an
+arbitrary SDK declared everything it read or that an imported report describes current code.
+
+Check a user configuration without launching providers:
+
+```sh
+wrapperguard-cli /absolute/project --providers /absolute/user/providers.json --check-providers
+```
+
+Explicitly execute enabled command providers for API 1 conformance:
+
+```sh
+wrapperguard-cli /absolute/project --providers /absolute/user/providers.json --conformance
+```
+
+Conformance validates the result contract and reports failures. It is not an audit of the
+analyzer's detection accuracy, OS isolation, remote dependencies or licensing. Existing
+runtime deadline/output/action clipping and cancellation regressions remain required.
+
+Shared [presets](../catalog/security-presets.json) change method flags only after review.
+They never install tools, change saved provider permissions, grant blockers or trigger an analysis. A reviewed true flag can restore eligibility for an already enabled/granted connection that a false flag had masked. An enabled
+method with no connected enabled provider makes coverage incomplete. A provider intentionally bound to another selected project is disabled there and does not create a missing-connection failure.
+
+## Optional local history
+
+History starts off. Its GUI can enable/pause collection, set retention (20 by default,
+1–100), inspect provider versions and clear owned records. Stored summaries include issue
+titles and relative paths, but exclude messages, evidence, call chains and source contents.
+Treat arbitrary provider titles as potentially sensitive. Storage is outside projects and
+is separated by a hash of the canonical root; cleanup preserves unrelated files.
+
+Deltas require the same project, operation and known semantic scope, with complete,
+current, untruncated summaries. Rules, method flags, effective grants and provider
+configuration affect scope; project source and finding payload bytes do not; available SARIF producer/version/rule/configuration metadata does, so changed code or
+reimported findings can be compared. Unverifiable SDK configuration disables comparison. Native currently treats every imported report as unknown producer scope. VS Code can compare SARIF only when explicit versioned producer/rule identity is available; other imports remain unknown. Opaque package wrappers and local model names also disable comparison.
+Identity is provider plus fingerprint across all statuses, so approving a finding does not
+make it disappear. “Newly reported” and “no longer reported” describe observations,
+not confirmed introduction or remediation. History never changes baseline or gate results.

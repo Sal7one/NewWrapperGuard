@@ -1,0 +1,36 @@
+{
+  "sourceCommit": "76312ace4306c906c329e408346a59d2e893f3c7",
+  "workflowRun": 39459625955,
+  "job": 118755379923,
+  "ideVersion": "2026.2.2",
+  "ideBuild": "IU-262.10315.125",
+  "binaryVerification": {
+    "verdict": "Compatible",
+    "deprecatedApiUsages": 88,
+    "experimentalApiUsages": 18,
+    "internalApiUsages": 0
+  },
+  "runtime": {
+    "status": "HARNESS_STARTUP_FAILED",
+    "actualProductTestsExecuted": 0,
+    "syntheticExecutorFailures": 1,
+    "javaRuntime": "25.0.4",
+    "rootCause": "java.lang.NoClassDefFoundError: com/intellij/util/Java11Shim",
+    "initializationPath": [
+      "com.intellij.testFramework.common.TestEnvironmentKt.initializeTestEnvironment(testEnvironment.kt:34)",
+      "com.intellij.testFramework.UsefulTestCase.<clinit>(UsefulTestCase.java:139)",
+      "com.intellij.tests.JUnit5TestSessionListener.<init>(JUnit5TestSessionListener.java:36)"
+    ],
+    "productCompatibilityProven": false,
+    "nextStep": "Inspect target runtime resolved test-framework version and inherited base test runtime; align the test harness with the target IDE, then rerun all six actual bridge cases. Do not count the executor placeholder as a product test."
+  },
+  "evidenceSha256": {
+    "runtime/TEST-Gradle#20Test#20Executor#201.xml": "9fd8d663eef6aea9ecb73f33f50ec396d5f66f6898766beb26f43f2dc2eec1a9",
+    "runtime/ci-failed-step.log": "7cad2e17d5b2f2098054a43c61a0ab4d98a9b1c9aa522e1246d704f26273c4ea",
+    "verifier/dependencies.txt": "1a6c8fee1b6218b27a4f2c10e81c1ad34241d839d41fd276964e5de9ea6c45dc",
+    "verifier/deprecated-usages.txt": "750909d6a9e0122d9c1b613f6104e2abd9d49aad00eec4b67b752f556d4d6ad8",
+    "verifier/experimental-api-usages.txt": "24c0b4adb85676910c23727f5f2a3f1fc01df24004b13e9deac8db7412cd5dc6",
+    "verifier/telemetry.txt": "00ce0b9fffb0289f3bc6b5d6178cad2822dccf21252934d9a1a602e1f3c58fab",
+    "verifier/verification-verdict.txt": "b1b525e3d6028278a5cc3e25b8127c2dcbc5dd433d2615aeb70a9944ed99ba68"
+  }
+}

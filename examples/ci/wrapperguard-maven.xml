@@ -1,0 +1,22 @@
+<!-- Add this reviewed profile inside your POM's <profiles>. It has no lifecycle execution.
+     Explicit invocation: mvn -Pwrapperguard org.codehaus.mojo:exec-maven-plugin:3.5.0:exec -->
+<profile>
+  <id>wrapperguard</id>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>3.5.0</version>
+        <configuration>
+          <executable>${env.WRAPPERGUARD_CLI}</executable>
+          <arguments>
+            <argument>${maven.multiModuleProjectDirectory}</argument>
+            <argument>--operation</argument><argument>build</argument>
+            <argument>--enforce</argument><argument>--json</argument>
+          </arguments>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</profile>

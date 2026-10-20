@@ -190,6 +190,85 @@
         },
         "apiVersion": {
           "const": 1
+        },
+        "category": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[A-Z][A-Z0-9_]{0,31}$",
+          "description": "Suggested: SAST, SUPPLY_CHAIN, DAST, RESEARCH, AI, OTHER. Custom uppercase categories are supported."
+        },
+        "summary": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "tags": {
+          "type": "array",
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$"
+          },
+          "default": []
+        },
+        "inputScope": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/inputScope"
+            }
+          ]
+        }
+      }
+    },
+    "inputScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "User-declared freshness inputs; no execution or action grants. Absent scope means unknown, an empty object declares no local inputs. Excluded directories exclude their descendants.",
+      "properties": {
+        "includes": {
+          "type": "array",
+          "maxItems": 128,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "description": "Relative forward-slash segments; * and ? within a segment, whole-segment ** across directories. No ., .., empty segments, backslashes, character classes, braces, colons or negation."
+          },
+          "default": []
+        },
+        "excludes": {
+          "type": "array",
+          "maxItems": 128,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "description": "Relative forward-slash segments; * and ? within a segment, whole-segment ** across directories. No ., .., empty segments, backslashes, character classes, braces, colons or negation."
+          },
+          "default": []
+        },
+        "externalFiles": {
+          "type": "array",
+          "maxItems": 128,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "default": [],
+          "description": "Absolute regular files outside EVERY open project root; explicit user-selected rules/configuration/report/adapter files. Links are rejected; limits apply."
         }
       }
     }

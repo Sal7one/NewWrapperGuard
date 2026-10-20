@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "vscodeVersion": "1.95.0",
+  "platform": "linux",
+  "apiVersion": 1,
+  "fixtureOnly": true,
+  "passed": true,
+  "cases": [
+    "activate-api1-two-roots",
+    "disabled-until-granted-no-implicit-execution",
+    "actual-sdk-attribution-status-action-clipping",
+    "independent-build-sync-authority",
+    "explicit-root-binding-outside-root-rejection",
+    "missing-tool-isolated-incomplete-repairable",
+    "actual-before-after-declared-input-seal",
+    "actual-contributed-webview-open"
+  ]
+}

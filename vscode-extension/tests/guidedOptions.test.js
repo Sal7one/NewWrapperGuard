@@ -1,0 +1,33 @@
+const test=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs/promises');const path=require('node:path');const os=require('node:os');const Module=require('node:module');
+const ui={picks:[],inputs:[],files:[],messages:[]};const vscode={window:{showQuickPick:async items=>{const pick=ui.picks.shift();return typeof pick==='string'?items.find(item=>item.action===pick):pick;},showInputBox:async()=>ui.inputs.shift(),showOpenDialog:async()=>ui.files.shift(),showInformationMessage:async message=>ui.messages.push(message)}};
+const original=Module._load;let http,evidence,container;
+try{Module._load=function(id,...args){return id==='vscode'?vscode:original.call(this,id,...args);};http=require('../dist/methods/httpAuditSetup');evidence=require('../dist/methods/evidenceSettings');container=require('../dist/methods/containerSetup');}finally{Module._load=original;}
+function reset(){ui.picks=[];ui.inputs=[];ui.files=[];ui.messages=[];}
+test('HTTP audit URL validation requires explicit numeric addresses and rejects ambiguous/external target syntax',()=>{
+ for(const value of ['http://127.0.0.1:8080/api','https://192.168.1.20/','http://[::1]:3000/check'])assert.doesNotThrow(()=>http.numericAuditUrl(value));
+ for(const value of ['http://localhost:3000/','http://example.com/','http://127.1/','http://2130706433/','file:///etc/passwd','http://user:pass@127.0.0.1/','http://127.0.0.1/a/../b','http://127.0.0.1/%2e%2e','http://127.0.0.1/a?token=secret','http://127.0.0.1/#x','http://127.0.0.1/a//b'])assert.throws(()=>http.numericAuditUrl(value),value);
+});
+test('owned HTTP audit wizard stores exact budgets and environment references after explicit ownership/review',async()=>{
+ reset();ui.picks=[{owned:true},'add','done',{auth:true},[{value:'Authorization'}],{approved:true}];ui.inputs=['http://127.0.0.1:43123/api','2','2500','65536','10000','AUDIT_TOKEN'];
+ const value=await http.configureHttpAudit();assert.deepEqual(value.targetScope,{origins:['http://127.0.0.1:43123'],pathPrefixes:['/api']});assert.deepEqual(value.runner,{tool:'http-audit',ownershipConfirmed:true,targetUrls:['http://127.0.0.1:43123/api'],maxRequests:2,requestTimeoutMs:2500,maxResponseBytes:65536,timeoutMs:10000,authHeadersEnv:{Authorization:'AUDIT_TOKEN'}});assert.ok(!('executable'in value.runner));
+ reset();ui.picks=[{owned:false}];assert.equal(await http.configureHttpAudit(),undefined);assert.equal(ui.inputs.length,0);
+});
+test('HTTP audit wizard rejects invalid budgets and token-like secret values instead of persisting them',async()=>{
+ reset();ui.picks=[{owned:true},'add','done'];ui.inputs=['http://127.0.0.1/','0'];await assert.rejects(http.configureHttpAudit(),/budget/);
+ reset();ui.picks=[{owned:true},'add','done',{auth:true},[{value:'Authorization'}]];ui.inputs=['http://127.0.0.1/','1','1000','1024','1000','Bearer PRIVATE_TOKEN'];await assert.rejects(http.configureHttpAudit(),/environment variable name/);
+});
+test('evidence GUI saves optional provenance/version constraints without executing analyzers and rejects project manifests',async t=>{
+ reset();const temporary=await fs.mkdtemp(path.join(os.tmpdir(),'wg-evidence-'));const base=await fs.realpath(temporary);t.after(()=>fs.rm(base,{recursive:true,force:true}));const root=path.join(base,'project'),storage=path.join(base,'storage'),directory=path.join(storage,'integrations');await fs.mkdir(root);await fs.mkdir(directory,{recursive:true});
+ const method={id:'sca.osv',providerId:'sca.osv',title:'Dependency audit',category:'SUPPLY_CHAIN'};const file=path.join(directory,'sca.osv.profile.json');const initial={id:'sca.osv',format:'osv',reportPath:path.join(base,'report.json'),requestedActions:['WARNING'],allowedOperations:['SCAN']};await fs.writeFile(file,JSON.stringify(initial));const manifest=path.join(base,'provenance.json');await fs.writeFile(manifest,'{}');ui.picks=['provenance','age','versions','save'];ui.files=[[{fsPath:manifest}]];ui.inputs=['3600'];assert.equal(await evidence.editEvidenceSettings(storage,method,[root]),true);const profile=JSON.parse(await fs.readFile(file,'utf8'));assert.deepEqual(profile.reportProvenance,{manifestPath:manifest,maxAgeSeconds:3600});assert.deepEqual(profile.dependencyCoverage,{requireResolvedVersions:true});assert.deepEqual(profile.requestedActions,['WARNING']);assert.deepEqual(profile.allowedOperations,['SCAN']);
+ const inside=path.join(root,'manifest.json');await fs.writeFile(inside,'{}');ui.picks=['provenance'];ui.files=[[{fsPath:inside}]];await assert.rejects(evidence.editEvidenceSettings(storage,method,[root]),/outside every/);assert.deepEqual(JSON.parse(await fs.readFile(file,'utf8')),profile);
+ reset();ui.picks=['clear','versions','save'];assert.equal(await evidence.editEvidenceSettings(storage,method,[root]),true);const removed=JSON.parse(await fs.readFile(file,'utf8'));assert.ok(!removed.reportProvenance);assert.equal(removed.dependencyCoverage.requireResolvedVersions,false);
+});
+
+test('container configuration requires immutable digests and image-local executable paths',()=>{
+ for(const image of ['sha256:'+ 'a'.repeat(64),'registry.example/tools/bandit@sha256:'+ '1'.repeat(64)])assert.doesNotThrow(()=>container.validatePinnedImage(image));
+ for(const image of ['python:latest','registry/tools:1.0','sha256:abc','repo@sha256:'+ 'a'.repeat(63),'repo@sha256:'+ 'G'.repeat(64),'repo@sha256:'+ 'a'.repeat(64)+'; rm'])assert.throws(()=>container.validatePinnedImage(image));
+ assert.doesNotThrow(()=>container.validateImageToolPath('/usr/local/bin/bandit'));for(const executable of ['bandit','C:\\python','/usr/../bin/tool','/usr//bin/tool','/tool name','/tool\n'])assert.throws(()=>container.validateImageToolPath(executable));
+});
+test('container GUI cancellation performs no daemon/image action and never invents a runnable connection',async()=>{
+ reset();ui.files=[undefined];if(process.platform==='win32')await assert.rejects(container.configureContainerSandbox(['/project']),/POSIX/);else assert.equal(await container.configureContainerSandbox(['/project']),undefined);
+});

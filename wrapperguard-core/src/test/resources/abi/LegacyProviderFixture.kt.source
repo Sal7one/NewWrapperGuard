@@ -1,0 +1,13 @@
+package com.sal7one.wrapperguard.core.abi
+import com.sal7one.wrapperguard.core.vetting.*
+import com.sal7one.wrapperguard.core.spi.ScannerEngine
+
+// Compiled against the published 0.5.0 RC1 core JAR, not current source.
+class LegacyProviderFixture {
+    fun descriptor(): ProviderDescriptor = ProviderDescriptor("legacy.sdk", "Legacy SDK", "1")
+    fun copied(): ProviderDescriptor = descriptor().copy(displayName = "Legacy copied")
+    fun command(): CommandProviderConfiguration = CommandProviderConfiguration("legacy.sdk", "Legacy SDK", "1", listOf("/bin/sh"))
+    fun copiedCommand(): CommandProviderConfiguration = command().copy(displayName = "Legacy command copied")
+    fun validateConfiguration() { ProviderConfiguration().validate(); command().validate() }
+    fun registrations(engine: ScannerEngine) = ProviderConfiguration().registrations(engine)
+}

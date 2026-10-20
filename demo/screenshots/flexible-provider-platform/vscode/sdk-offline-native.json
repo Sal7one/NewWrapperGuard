@@ -1,0 +1,23 @@
+{
+  "titles": [
+    "SDK maintenance",
+    "Prepare the bundled SDK — choose Python",
+    "Review SDK repair"
+  ],
+  "version": "0.4.0",
+  "httpAuditSupported": true,
+  "containerCapability": [
+    {
+      "engine": "docker",
+      "supported": true,
+      "tools": [
+        "bandit",
+        "semgrep",
+        "container-python"
+      ]
+    }
+  ],
+  "kind": "not-scanned",
+  "focus": "sdkMaintenance",
+  "realOfflineInstallation": true
+}

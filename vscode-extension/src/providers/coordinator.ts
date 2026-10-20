@@ -89,6 +89,7 @@ function normalize(result: ProviderResult, id: string, permissions: ProviderPerm
 }
 export interface CoordinatorOptions {
   providers: VettingProvider[]; permissions?: Record<string, ProviderPermissions>; concurrency?: number;
+  notApplicableProviders?:readonly string[];
 }
 /** Bounded provider work with cooperative SDK cancellation and isolated failures. Native analysis stays in process. */
 export async function evaluateProviders(request: VettingRequest, options: CoordinatorOptions): Promise<ScanReport> {
@@ -104,7 +105,7 @@ export async function evaluateProviders(request: VettingRequest, options: Coordi
     const permissions=validatePermissions(options.permissions?.[id] ?? (id === 'wrapperguard' ? DEFAULT_PERMISSIONS : EXTERNAL_PERMISSIONS));
     permissionsById[id]=providerMethodDisabled(flags,id) ? {...permissions,enabled:false} : permissions;
   }
-  const realAnalysis=(id:string):boolean=>!SECURITY_METHODS.some(method=>method.providerId === id && ['AI','RESEARCH'].includes(method.category));
+  const realAnalysis=(id:string):boolean=>!['AI','RESEARCH'].includes(providers.find(provider=>provider.descriptor.id===id)?.descriptor.category ?? '') && !SECURITY_METHODS.some(method=>method.providerId === id && ['AI','RESEARCH'].includes(method.category));
   const hasExternalAnalysis=providers.some(provider=>provider.descriptor.id !== 'wrapperguard' && permissionsById[provider.descriptor.id].enabled && realAnalysis(provider.descriptor.id));
   const replaceBuiltIn=BUILTIN_METHOD_IDS.every(id=>flags[id] === false) && hasExternalAnalysis;
   if (replaceBuiltIn && permissionsById.wrapperguard) permissionsById.wrapperguard={...permissionsById.wrapperguard,enabled:false};
@@ -116,7 +117,8 @@ export async function evaluateProviders(request: VettingRequest, options: Coordi
       if (index >= providers.length) return;
       const provider = providers[index];
       const permissions = permissionsById[provider.descriptor.id];
-      const run: ProviderRun = { descriptor: {...provider.descriptor,displayName:clean(provider.descriptor.displayName),version:clean(provider.descriptor.version)}, permissions, status: 'DISABLED', durationMs: 0, findingCount: 0 };
+      const run: ProviderRun = { descriptor: {...provider.descriptor,displayName:clean(provider.descriptor.displayName),version:clean(provider.descriptor.version),...(provider.descriptor.summary!==undefined?{summary:clean(provider.descriptor.summary)}:{})}, permissions, status: 'DISABLED', durationMs: 0, findingCount: 0 };
+      if(options.notApplicableProviders?.includes(provider.descriptor.id))run.message='Not applicable to this project.';
       const entry: {run: ProviderRun; result?: NormalizedProviderResult} = {run}; results[index] = entry;
       if (!permissions.enabled) continue;
       const remaining = permissions.timeoutMs - (Date.now() - start);
@@ -169,11 +171,12 @@ export async function evaluateProviders(request: VettingRequest, options: Coordi
   await Promise.all(Array.from({length: Math.min(providers.length, Math.max(1,Math.min(8, options.concurrency ?? 4)))}, () => worker()));
   const findings = results.flatMap(r => r.result?.findings ?? []);
   const notices = results.flatMap(r => r.result?.notices ?? []);
+  for(const provider of providers)if(provider.descriptor.id!=='wrapperguard'&&permissionsById[provider.descriptor.id].enabled&&provider.descriptor.inputScope===undefined)notices.push({code:'WG-PROVIDER-SCOPE-UNKNOWN',message:'Provider input scope is not declared; freshness covers only the host-known inputs.'});
   const hasAnalysis=hasExternalAnalysis || !!permissionsById.wrapperguard?.enabled && BUILTIN_METHOD_IDS.some(id=>methodEnabled(flags,id));
   let complete = hasAnalysis && results.some(r => r.run.status === 'COMPLETED') && results.every(r => r.run.status === 'DISABLED' || r.run.status === 'COMPLETED' && r.result?.complete !== false);
   if (replaceBuiltIn) notices.push({code:'WG-METHOD-REPLACED',message:'Built-in methods are disabled; configured external analysis providers define the scan scope.'});
   if (!hasAnalysis) notices.push({code:'WG-NO-ANALYSIS-PROVIDERS',message:'No security analysis providers are enabled; advisory AI and research methods cannot establish scan coverage.'});
-  for (const method of SECURITY_METHODS) if (method.category !== 'BUILT_IN' && flags[method.id] === true && !permissionsById[method.providerId ?? '']?.enabled) {
+  for (const method of SECURITY_METHODS) if (method.category !== 'BUILT_IN' && flags[method.id] === true && !permissionsById[method.providerId ?? '']?.enabled && !options.notApplicableProviders?.includes(method.providerId??'')) {
     notices.push({code:'WG-METHOD-NOT-CONNECTED',message:'Security method is enabled but no provider is connected: '+method.id+'.'});complete=false;
   }
   for (const {run,result} of results) {

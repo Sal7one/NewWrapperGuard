@@ -11,9 +11,10 @@ import sys
 from . import __version__
 from .models import MAX_FINDINGS, redact_text
 from .profile import (MAX_OUTPUT_BYTES, MAX_PROFILE_BYTES, MAX_REPORT_BYTES, OPERATIONS,
-                      IntegrationProfile, bounded_read, load_json_document, load_profile)
+                      FORMATS, IntegrationProfile, bounded_read, load_json_document, load_profile)
+from .rule_packs import RULE_PACKS
 from .runner import (EXCLUDED_DIRECTORIES, MAX_SOURCE_BYTES, MAX_SOURCE_DEPTH,
-                     MAX_SOURCE_FILE_BYTES, MAX_SOURCE_FILES, run_tool, runner_plan)
+                     MAX_SOURCE_FILE_BYTES, MAX_SOURCE_FILES, run_tool, runner_plan, runner_supported)
 
 
 class _SafeParser(argparse.ArgumentParser):
@@ -22,11 +23,13 @@ class _SafeParser(argparse.ArgumentParser):
 
 
 def build_plan(profile: IntegrationProfile, project_root: Path, operation: str = "SCAN") -> dict:
+    if profile.project_root is not None and profile.project_root.resolve(strict=True) != project_root.resolve(strict=True):
+        raise ValueError("This integration profile belongs to another project")
     if operation not in profile.allowed_operations:
         raise ValueError("Operation is not allowed by the user profile")
     active = profile.runner is not None
     tool = profile.runner.tool if profile.runner else None
-    process = active and tool not in {"script-semantics", "local-ai"}
+    process = active and tool not in {"script-semantics", "local-ai", "http-audit"}
     plan = {"sdkVersion": __version__, "providerApiVersion": 1,
             "profile": {"id": profile.id, "displayName": profile.display_name, "version": profile.version},
             "analysisKind": profile.analysis_kind, "format": profile.format,
@@ -43,9 +46,24 @@ def build_plan(profile: IntegrationProfile, project_root: Path, operation: str =
                        "providerOutputBytes": MAX_OUTPUT_BYTES}}
     if profile.report_path is not None:
         plan["reportPath"] = redact_text(str(profile.report_path))
+        plan["reportFreshness"] = "Report import does not verify scanner generation time or source revision."
+        if profile.report_provenance is not None:
+            plan["reportProvenance"] = {"manifestPath": redact_text(str(profile.report_provenance.manifest_path)),
+                "maxAgeSeconds": profile.report_provenance.max_age_seconds,
+                "guarantee": "Report digest, age and explicitly listed input digests only; no producer authentication or whole-project coverage."}
+    if profile.dependency_coverage is not None:
+        plan["dependencyCoverage"] = {"requireResolvedVersions": profile.dependency_coverage.require_resolved_versions,
+                                     "executesResolver": False}
+    plan["projectBinding"] = "explicit" if profile.project_root is not None else "unbound"
     if profile.target_scope is not None:
         plan["targetScope"] = profile.target_scope.to_dict()
         plan["inputAccess"] = "Existing passive ZAP JSON report; only findings matching explicit target scope are imported."
+    if tool == "http-audit":
+        plan.update({"targetUrls": [redact_text(url) for url in profile.runner.target_urls],
+            "ownershipConfirmed": profile.runner.ownership_confirmed, "followsRedirects": False,
+            "startsTarget": False, "authHeaderReferences": {name: variable for name, variable in profile.runner.auth_headers_env}})
+        plan["limits"].update({"requests": profile.runner.max_requests, "requestTimeoutMs": profile.runner.request_timeout_ms,
+                               "responseBytes": profile.runner.max_response_bytes, "responseHeaderBytes": 32768})
     if profile.runner is not None:
         if profile.runner.executable:
             plan["executable"] = redact_text(str(profile.runner.executable))
@@ -53,14 +71,34 @@ def build_plan(profile: IntegrationProfile, project_root: Path, operation: str =
             plan["modulePath"] = redact_text(str(profile.runner.module_path))
         if tool == "local-ai":
             plan.update({"endpoint": profile.runner.endpoint, "model": profile.runner.model,
-                         "inputReportPath": redact_text(str(profile.runner.input_report_path)), "advisoryOnly": True})
+                         "inputReportPath": redact_text(str(profile.runner.input_report_path)), "advisoryOnly": True,
+                         "responseFormat": profile.runner.response_format})
         if tool == "script-semantics":
             plan["advisoryOnly"] = True
+        if tool == 'container-python':
+            plan.update({'advisoryOnly': True, 'executesProjectCode': True,
+                'entryPath': redact_text(profile.runner.entry_path), 'executionConfirmed': profile.runner.execution_confirmed})
+            plan['limits']['executionTimeoutMs'] = profile.runner.execution_timeout_ms
+        if profile.runner.sandbox is not None:
+            sandbox = profile.runner.sandbox
+            plan['sandbox'] = {'engine': 'docker', 'executable': redact_text(str(sandbox.executable)),
+                'endpoint': redact_text(str(sandbox.endpoint)), 'image': sandbox.image,
+                'allowRootfulDaemon': sandbox.allow_rootful_daemon, 'memoryMiB': sandbox.memory_mib,
+                'cpus': sandbox.cpus, 'pidsLimit': sandbox.pids_limit, 'network': 'none', 'pullsImages': False,
+                'readOnlyRoot': True, 'snapshotOnlyMount': True, 'workerUser': '65532:65532',
+                'trustedTimerUser': '0:0', 'trustedTimerCapabilities': ['KILL', 'SETUID', 'SETGID'],
+                'limitation': 'Docker daemon and kernel are trusted. Normal cancellation removes and verifies the container; forced SDK SIGKILL relies on in-container timeout and auto-removal.'}
+        if tool == "semgrep" and profile.runner.rules_path is None:
+            plan["rulePacks"] = list(profile.runner.rule_packs or ("legacy-android-ktor",))
         plan.update(runner_plan(tool))
         plan["isolation"] = ("Snapshot input and sanitized environment limit accidental repository influence; "
                              "installed scanners and their plugins remain trusted code with OS user privileges. "
-                             "The runner inherits the host process group for cancellation and terminates its known child on local failures.")
-        plan["runnerSupported"] = tool == "local-ai" or os.name == "posix" and hasattr(os, "O_NOFOLLOW")
+                             "Windows fixed tools use an atomic kill-on-close Job Object; POSIX tools inherit the host process group for cancellation.")
+        plan["runnerSupported"] = runner_supported(tool)
+        if tool == "http-audit":
+            plan["isolation"] = "Owned target GET requests are scope checked, use no proxies or redirects and are budgeted; no target or project process is started."
+        if profile.runner.sandbox is not None:
+            plan['isolation'] = 'Explicit local Docker isolation: immutable installed image, no network, private read-only snapshot/root and bounded resources. A trusted UID0 timer has only KILL/SETUID/SETGID; workers drop all groups, IDs and capabilities to65532 before input analysis. Docker and the host kernel remain trusted.'
         plan["limits"].update({"timeoutMs": profile.runner.timeout_ms,
                                "toolOutputBytes": profile.runner.max_output_bytes,
                                "sourceFiles": MAX_SOURCE_FILES, "sourceFileBytes": MAX_SOURCE_FILE_BYTES,
@@ -89,17 +127,28 @@ def evaluate(profile: IntegrationProfile, project_root: Path, operation: str) ->
     # Review and operation validation happen before report access or process creation.
     build_plan(profile, project_root, operation)
     notices: list[dict] = []
+    provenance_notices: list[dict] = []
     if profile.report_path is not None:
         report = profile.report_path.resolve(strict=True)
         if not report.is_file():
             raise ValueError("A regular report file is required")
-        document = load_json_document(bounded_read(report, MAX_REPORT_BYTES))
+        raw = bounded_read(report, MAX_REPORT_BYTES)
+        if profile.report_provenance is not None:
+            from .provenance import verify_manifest
+            provenance_notices = verify_manifest(profile.report_provenance, raw, project_root)
+        else:
+            provenance_notices = [{"code": "WG-REPORT-PROVENANCE-UNKNOWN", "message":
+                "Imported report provenance is unverified: producer, generation time, database freshness and source revision are unknown. Report import does not prove current or whole-project coverage."}]
+        document = load_json_document(raw)
     else:
         if profile.runner.tool == "local-ai":
             from .ai_review import run_ai_review
             return run_ai_review(profile, project_root)
+        if profile.runner.tool == "http-audit":
+            from .http_audit import run_http_audit
+            return run_http_audit(profile, project_root)
         document, notices = run_tool(profile, project_root)
-    if profile.format == "script-semantics":
+    if profile.format in {"script-semantics", "container-python"}:
         result = document
     else:
         from .adapters import parse_report
@@ -109,6 +158,14 @@ def evaluate(profile: IntegrationProfile, project_root: Path, operation: str) ->
     if notices:
         result["notices"] = list(result.get("notices", [])) + notices
         result["complete"] = False
+    if provenance_notices:
+        result["notices"] = list(result.get("notices", [])) + provenance_notices
+    if profile.dependency_coverage is not None:
+        from .dependency_coverage import summarize
+        coverage_notices, incomplete = summarize(profile.format, document,
+            require_resolved=profile.dependency_coverage.require_resolved_versions)
+        result["notices"] = list(result.get("notices", [])) + coverage_notices
+        if incomplete: result["complete"] = False
     return result
 
 
@@ -116,11 +173,27 @@ def main(argv: list[str] | None = None) -> int:
     try:
         parser = _SafeParser(description="Explicit WrapperGuard report adapters; provider API 1 on stdin/stdout.")
         parser.add_argument("--version", action="version", version="%(prog)s " + __version__)
-        parser.add_argument("--profile", required=True, help="Absolute user-owned profile outside the project")
+        parser.add_argument("--profile", help="Absolute user-owned profile outside the project")
+        parser.add_argument("--capabilities", action="store_true", help="Describe formats and bundled rule packs without scanning or connecting a tool")
         parser.add_argument("--plan", "--dry-run", action="store_true", help="Print review JSON without reading reports or executing tools")
         parser.add_argument("--project", type=Path, help="Absolute project directory for --plan")
         parser.add_argument("--operation", choices=sorted(OPERATIONS), default="SCAN", help="Operation reviewed by --plan")
         args = parser.parse_args(argv)
+        if args.capabilities:
+            if args.profile or args.plan or args.project or args.operation != "SCAN":
+                raise ValueError("Capability discovery does not use a project or profile")
+            print(json.dumps({"sdkVersion": __version__, "providerApiVersion": 1,
+                              "formats": sorted(FORMATS), "rulePacks": [
+                                  {"id": key, "title": value['title'], "extensions": value['extensions'], "fileNames": value['fileNames']}
+                                  for key, value in RULE_PACKS.items()],
+                              "runners": [{"tool": tool, "supported": runner_supported(tool), 'executesProjectCode': tool == 'container-python'} for tool in
+                                  ("bandit", "semgrep", "psscriptanalyzer", "trivy", "osv", "script-semantics", "local-ai", "http-audit", 'container-python')],
+                              "executesProjectCode": False, 'optionalDynamicExecution': True,
+                              'sandboxBackends': [{'engine': 'docker', 'supported': os.name == 'posix', 'tools': ['bandit', 'semgrep', 'container-python']}],
+                              "installsTools": False}, separators=(',', ':')))
+            return 0
+        if not args.profile:
+            raise ValueError("An explicit user profile is required")
         if args.plan:
             if args.project is None or not args.project.is_absolute() or not args.project.is_dir():
                 raise ValueError("Plan requires an absolute project directory")

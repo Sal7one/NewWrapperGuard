@@ -1,0 +1,370 @@
+{
+  "schemaVersion": 1,
+  "kind": "Actual VS Code extension-development host acceptance",
+  "date": "2026-10-20",
+  "editorVersion": "1.116.0",
+  "platform": "macOS arm64",
+  "sourceBaseCommit": "38775428d68682c7fc0b107393754442f07c7cb6",
+  "sourceNote": "Working-source roadmap additions and final focused fixes; actual screenshots span displayed app 0.6.0 and 0.7.0. This directory does not claim release-package installation.",
+  "profile": "Disposable user profile, extension directory and inert project; no personal editor profile",
+  "fixtures": "Synthetic inert wrapper and missing executable; real built-in scanner, real SDK offline installation and real bounded local HTTP requests. No security verdict for a production project.",
+  "assertions": {
+    "keyboard": "Tab/Enter across all eight tabs, Home/End, accessible names, focus after native dialogs",
+    "themes": [
+      "light",
+      "dark",
+      "high contrast",
+      "high contrast light"
+    ],
+    "narrowViewportPixels": 300,
+    "automation": "No immediate run on Start; real source debounce triggers selected builtin only; Pause suppresses later source triggers",
+    "http": "Only explicit Connect executed one GET against our ephemeral owned loopback server; authorization and authentication-review cancellation executed nothing",
+    "presets": "Actual native export/import; only reviewed flags changed, no authority or analyzer execution",
+    "sdk": "Actual offline bundled SDK 0.4.0 install/repair and passive capability probe"
+  },
+  "limits": [
+    "CDP AX and keyboard sanity are not a formal human VoiceOver audit.",
+    "Installed local editor is 1.116.0; minimum/current cross-platform version matrix is separate CI evidence.",
+    "No local Docker container or scanner was launched in these GUI checks. Capability advertisement is not daemon/image readiness.",
+    "Native system Open/Save controls used the editor simple-dialog option in this disposable profile.",
+    "HTTP fixture has intentionally absent security headers/cookie attributes; findings are expected protocol test data."
+  ],
+  "files": [
+    {
+      "file": "automation-narrow-light.png",
+      "bytes": 256150,
+      "sha256": "c6763fbc1fd41e6945d06de3d4cf34d7a480e31e9cb71c93a877f235994fd7bf",
+      "kind": "actual-editor-screenshot",
+      "displayedAppVersion": "0.6.0"
+    },
+    {
+      "file": "automation-narrow-dark.png",
+      "bytes": 252249,
+      "sha256": "79cb50e5aaa24f60491fc66d5dccf22791acda83833d7ecbf0e0bb661885b568",
+      "kind": "actual-editor-screenshot",
+      "displayedAppVersion": "0.6.0"
+    },
+    {
+      "file": "automation-narrow-high-contrast.png",
+      "bytes": 241003,
+      "sha256": "41a1343627230bbedfb3fbfda26b73c44e906a85bd38ff480105a853049b33c6",
+      "kind": "actual-editor-screenshot",
+      "displayedAppVersion": "0.6.0"
+    },
+    {
+      "file": "automation-narrow-high-contrast-light.png",
+      "bytes": 243392,
+      "sha256": "2e13420c5fc2bb3823e1551e4d2f6ed7bca3ec41944ff4d08e4f582876d4c273",
+      "kind": "actual-editor-screenshot",
+      "displayedAppVersion": "0.6.0"
+    },
+    {
+      "file": "automation-native-review.png",
+      "bytes": 276254,
+      "sha256": "acde401e557d9685627e9edc4cedd7a0a47ec7efe8f083b8caf625d12fc1a76e",
+      "kind": "actual-editor-screenshot",
+      "displayedAppVersion": "0.6.0"
+    },
+    {
+      "file": "automation-native-save-review.png",
+      "bytes": 274820,
+      "sha256": "ccf7bd6737fdaa12bbeddd35ab32e46f5543fc95c80c02afc692f81769ef21ec",
+      "kind": "actual-editor-screenshot",
+      "displayedAppVersion": "0.6.0"
+    },
+    {
+      "file": "automation-paused-after-real-scan.png",
+      "bytes": 251440,
+      "sha256": "5766be79c257f896d0cb6050542061995a97ec650177742b169fc7c5b3f9f1c1",
+      "kind": "actual-editor-screenshot",
+      "displayedAppVersion": "0.6.0"
+    },
+    {
+      "file": "missing-tool-native-repair-builder.png",
+      "bytes": 360461,
+      "sha256": "f701fcc8592b8d6967213f353ae69c215fc4417b6b43b8d2b0aeffec310a0e54",
+      "kind": "actual-editor-screenshot",
+      "displayedAppVersion": "0.6.0"
+    },
+    {
+      "file": "missing-tool-isolated-failure.png",
+      "bytes": 265130,
+      "sha256": "3322c4baabec0686eb195841af5087a754db894749b41f3726cfe306a63d8078",
+      "kind": "actual-editor-screenshot",
+      "displayedAppVersion": "0.6.0"
+    },
+    {
+      "file": "sdk-offline-install-review.png",
+      "bytes": 293561,
+      "sha256": "e16172d498e4f66da678bb99d71f13d749e76a2b61a2d7a61c8a29f72fb5cedc",
+      "kind": "actual-editor-screenshot",
+      "displayedAppVersion": "0.6.0"
+    },
+    {
+      "file": "http-auth-env-reference-review.png",
+      "bytes": 290119,
+      "sha256": "ca5fa458e82b3aca8721f1596b92d0f872c080ac618fad3ba7ee9bae3c5b9df5",
+      "kind": "actual-editor-screenshot",
+      "displayedAppVersion": "0.6.0"
+    },
+    {
+      "file": "http-final-connect-review.png",
+      "bytes": 286120,
+      "sha256": "18be154cda107dd636415b82ef2542c0396ef91b7624007bb6eed585dbe7ffe5",
+      "kind": "actual-editor-screenshot",
+      "displayedAppVersion": "0.6.0"
+    },
+    {
+      "file": "http-owned-target-real-findings.png",
+      "bytes": 264911,
+      "sha256": "5bbcd949437131b2ec16925cf18d2b11200bd125706334b4b1287ba9617b5506",
+      "kind": "actual-editor-screenshot",
+      "displayedAppVersion": "0.6.0"
+    },
+    {
+      "file": "preset-import-identity-review.png",
+      "bytes": 296040,
+      "sha256": "4101eb5513e551ff2c0ce61f0a8d054d1933d53018021b09e3d4db41491384f0",
+      "kind": "actual-editor-screenshot",
+      "displayedAppVersion": "0.7.0"
+    },
+    {
+      "file": "keyboard.json",
+      "bytes": 1094,
+      "sha256": "22e5154836dbc37a96f72b0548d7966a5d97b850ed21d120a8411985f2a81b6d",
+      "kind": "assertion-evidence",
+      "displayedAppVersion": null
+    },
+    {
+      "file": "automation-native.json",
+      "bytes": 1183,
+      "sha256": "21b813a48b75312d9466cd4ddfedadceebe868b235dba22adb41fb9c5eb6cedc",
+      "kind": "assertion-evidence",
+      "displayedAppVersion": null
+    },
+    {
+      "file": "wizard-native.json",
+      "bytes": 503,
+      "sha256": "efcbd8f2afb57eb467659ea9e58215e78b6582985ad7fa8ac2d9a6af42e553ed",
+      "kind": "assertion-evidence",
+      "displayedAppVersion": null
+    },
+    {
+      "file": "missing-tool-native.json",
+      "bytes": 376,
+      "sha256": "850c1bed02c3b08bcf7e6945c7ab7a54a7c635128faa805cf8f978cdf7f51cff",
+      "kind": "assertion-evidence",
+      "displayedAppVersion": null
+    },
+    {
+      "file": "themes.json",
+      "bytes": 1269,
+      "sha256": "7b62b52f291d894938dd5279380c3dcd5024ef670050b2a1acf69c4f05434295",
+      "kind": "assertion-evidence",
+      "displayedAppVersion": null
+    },
+    {
+      "file": "sdk-offline-native.json",
+      "bytes": 442,
+      "sha256": "13e56bf3789248e1361b9b4be1350df575d52d442e45afcacdd65fb415a52844",
+      "kind": "assertion-evidence",
+      "displayedAppVersion": null
+    },
+    {
+      "file": "http-native.json",
+      "bytes": 2837,
+      "sha256": "0766745184cae3aa22e10ce9173e8cc1ba8551e6963f8515468ac06edfeb3ad9",
+      "kind": "assertion-evidence",
+      "displayedAppVersion": null
+    },
+    {
+      "file": "preset-export-native.json",
+      "bytes": 434,
+      "sha256": "fe174c7ba1a47da46e44dee006a894a794d09a4b934f11880f0a8e72ba299fac",
+      "kind": "assertion-evidence",
+      "displayedAppVersion": null
+    },
+    {
+      "file": "preset-import-native.json",
+      "bytes": 276,
+      "sha256": "43f65ae95d93ef9be18585130a627374f802a539fab9ba8e49957914e38ef2b5",
+      "kind": "assertion-evidence",
+      "displayedAppVersion": "0.7.0"
+    },
+    {
+      "file": "automation-keyboard-ax.json",
+      "bytes": 129436,
+      "sha256": "d537c2884fdefa91bb2e63261f566ff7267d1b78553547a59e19d7c8d5778280",
+      "kind": "actual-CDP-accessibility-tree",
+      "displayedAppVersion": null
+    },
+    {
+      "file": "automation-light-ax.json",
+      "bytes": 143236,
+      "sha256": "5a14be53b0e3274ed05a3579befcb31a07b9ee8f30335039616ebc178882f147",
+      "kind": "actual-CDP-accessibility-tree",
+      "displayedAppVersion": null
+    },
+    {
+      "file": "automation-dark-ax.json",
+      "bytes": 143236,
+      "sha256": "e9ad268d606121dcd9838605b1d9e4cac3465cc22bde1718729b8bf9f33f16dd",
+      "kind": "actual-CDP-accessibility-tree",
+      "displayedAppVersion": null
+    },
+    {
+      "file": "automation-high-contrast-ax.json",
+      "bytes": 143236,
+      "sha256": "b4506a16db46b76d709e1c259cd91333338b215f59c222eef010cd0cef29197c",
+      "kind": "actual-CDP-accessibility-tree",
+      "displayedAppVersion": null
+    },
+    {
+      "file": "automation-high-contrast-light-ax.json",
+      "bytes": 143236,
+      "sha256": "dae86caff04e719821265868513f93ba79cd7997b1a4800f47ba015eab6e068b",
+      "kind": "actual-CDP-accessibility-tree",
+      "displayedAppVersion": null
+    },
+    {
+      "file": "automation-review-native-ax.json",
+      "bytes": 370854,
+      "sha256": "c86cc21e2b58cf18bf8774630f6b60f01ba12a796477a833d5c6babefa1dc3e3",
+      "kind": "actual-CDP-accessibility-tree",
+      "displayedAppVersion": null
+    },
+    {
+      "file": "wizard-providers-native-ax.json",
+      "bytes": 386324,
+      "sha256": "89123a190e0f3c604232432e103585e01e68193742eba41dc79c34b770802264",
+      "kind": "actual-CDP-accessibility-tree",
+      "displayedAppVersion": null
+    },
+    {
+      "file": "wizard-save-native-ax.json",
+      "bytes": 373821,
+      "sha256": "28c25e0bed57eaad5661853508aa633b8d8b94d1d548b370b8687c56a1fe735b",
+      "kind": "actual-CDP-accessibility-tree",
+      "displayedAppVersion": null
+    },
+    {
+      "file": "missing-tool-builder-native-ax.json",
+      "bytes": 516391,
+      "sha256": "0cb6c9ec7245545fe4cac4b3f8a82ad8622c6cec27718752203c26b82813926a",
+      "kind": "actual-CDP-accessibility-tree",
+      "displayedAppVersion": null
+    },
+    {
+      "file": "http-auth-native-ax.json",
+      "bytes": 376979,
+      "sha256": "35097656db02e44b998926c1b8a4e2633ccdfa593e87a24d3ea563dd2ee82f00",
+      "kind": "actual-CDP-accessibility-tree",
+      "displayedAppVersion": null
+    },
+    {
+      "file": "http-owned-native-ax.json",
+      "bytes": 375922,
+      "sha256": "5f81fcd3180be23f26f313454c2b8ff785ac86b09e5b04f85a8e097fec5a73ca",
+      "kind": "actual-CDP-accessibility-tree",
+      "displayedAppVersion": null
+    },
+    {
+      "file": "preset-import-native-ax.json",
+      "bytes": 371253,
+      "sha256": "42b8fa8f79d05b4088bbe88e0cfb3512327635d2c0e9d1768ae2c0d595f1e9a7",
+      "kind": "actual-CDP-accessibility-tree",
+      "displayedAppVersion": "0.7.0"
+    },
+    {
+      "file": "official-host-1.116.0.json",
+      "kind": "assertion-evidence",
+      "bytes": 521,
+      "sha256": "5afa921dabd0131de5d37b897e6bb37a2d1a919bb8c65d1eaef95f21a965b4a7"
+    },
+    {
+      "file": "validation.json",
+      "kind": "assertion-evidence",
+      "bytes": 604,
+      "sha256": "c064f721a3dc8a578e087a0405efe9644442e558dc24d7e33ba91445682e07bf"
+    },
+    {
+      "file": "node-hardening-webview-tests.txt",
+      "kind": "assertion-evidence",
+      "bytes": 37280,
+      "sha256": "c01e31ca2feb254ed6ce25989657f3cdd48f2fe9dd3517745bdd7241c87f09c4"
+    },
+    {
+      "file": "distribution-audit.json",
+      "kind": "packaged-runtime-assertion-evidence",
+      "bytes": 718,
+      "sha256": "c4e1e3c34b0ba833fd5475a0662a02d30d618660f582d794c11cff0af7d4b456"
+    },
+    {
+      "file": "runtime.cdx.json",
+      "kind": "packaged-runtime-assertion-evidence",
+      "bytes": 5010,
+      "sha256": "b016179407dc65a09fd64625eebdd9df2b90097869ebfe1d5bee5d6becdbd542"
+    },
+    {
+      "file": "packaged-runtime-validation.json",
+      "kind": "packaged-runtime-assertion-evidence",
+      "bytes": 461,
+      "sha256": "1dd8b218de426304a0717710dea1f50ad2929a168aadeaf8708bbe48878578ff"
+    },
+    {
+      "file": "host-matrix-76312ac/acceptance-summary.json",
+      "kind": "verified-ci-editor-host-summary",
+      "bytes": 3641,
+      "sha256": "9a908c9095efa975c2bed4af20af844a6121daa56cc43d1d642fd54c416891b9"
+    },
+    {
+      "file": "host-matrix-76312ac/vscode-host-macos-latest-1.142.0.json",
+      "kind": "actual-ci-editor-host-evidence",
+      "bytes": 521,
+      "sha256": "f494a50d649b939067e569c6f4f02dfb8aa4200d872ebd289645faacf397b754"
+    },
+    {
+      "file": "host-matrix-76312ac/vscode-host-macos-latest-1.95.0.json",
+      "kind": "actual-ci-editor-host-evidence",
+      "bytes": 520,
+      "sha256": "f27e41ccc29b63b40f16dad4e9cde23803fac2847e48a9c9cbf87233497bbe22"
+    },
+    {
+      "file": "host-matrix-76312ac/vscode-host-ubuntu-latest-1.142.0.json",
+      "kind": "actual-ci-editor-host-evidence",
+      "bytes": 520,
+      "sha256": "bd73f3d328afa0ac0b46acf33aa9186f9ae4b655e181d01f79c7e2b2cefad755"
+    },
+    {
+      "file": "host-matrix-76312ac/vscode-host-ubuntu-latest-1.95.0.json",
+      "kind": "actual-ci-editor-host-evidence",
+      "bytes": 519,
+      "sha256": "724a9f943a511a934867087063595e7f11e608e4e5954900ee809808da55943c"
+    },
+    {
+      "file": "host-matrix-76312ac/vscode-host-windows-latest-1.142.0.json",
+      "kind": "actual-ci-editor-host-evidence",
+      "bytes": 520,
+      "sha256": "d30e8f5e7b57850081bdd3c28a09bdb1ec291f9f5576b9458043de612962ff95"
+    },
+    {
+      "file": "host-matrix-76312ac/vscode-host-windows-latest-1.95.0.json",
+      "kind": "actual-ci-editor-host-evidence",
+      "bytes": 519,
+      "sha256": "9c00a830662a9e5b3ab0fa31140f60b04fe3cedeb0bf9e3f21a4853b0e4ad5b3"
+    }
+  ],
+  "validation": "validation.json",
+  "packagedRuntimeValidation": "packaged-runtime-validation.json",
+  "ciHostMatrix": {
+    "headSha": "76312ace4306c906c329e408346a59d2e893f3c7",
+    "workflowRun": 39459625955,
+    "url": "https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39459625955",
+    "summary": "host-matrix-76312ac/acceptance-summary.json",
+    "jobCount": 6,
+    "casesPerJob": 8,
+    "caseCount": 48,
+    "allSixJobsCompleteAndSuccessful": true,
+    "scope": "Actual VS Code 1.95.0 and 1.142.0 editor processes on macOS/Linux/Windows. Separate native IDE jobs and historical local screenshots are not included in this result."
+  }
+}

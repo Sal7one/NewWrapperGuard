@@ -7,6 +7,10 @@ import com.sal7one.wrapperguard.core.policy.ScanPolicy
 import com.sal7one.wrapperguard.core.policy.ScanSettings
 import com.sal7one.wrapperguard.core.util.CredentialRedaction
 import com.sal7one.wrapperguard.core.util.Fingerprints
+import com.sal7one.wrapperguard.core.inputs.ProviderReadTracker
+import com.sal7one.wrapperguard.core.inputs.ProviderInputSealer
+import com.sal7one.wrapperguard.core.inputs.InputSeal
+import com.sal7one.wrapperguard.core.inputs.InputSealException
 import java.nio.file.Path
 import java.util.concurrent.Executors
 import java.util.concurrent.ExecutionException
@@ -16,6 +20,7 @@ import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * Runs registered SDKs concurrently and owns policy, grants, identity and suppression.
@@ -55,13 +60,17 @@ class VettingCoordinator(registrations: List<ProviderRegistration>, private val 
                 "The built-in provider identifier is reserved."
             }
             require(descriptor.apiVersion == 1) { "Unsupported vetting API version." }
+            descriptor.validateMetadata(registration.provider is BuiltInVettingProvider)
             require(validMetadata(descriptor.displayName, 200) && validMetadata(descriptor.version, 80)) {
                 "Invalid provider metadata."
             }
             require(registration.permissions.timeoutMs in 100..300_000) { "Provider timeout must be between 100 and 300000 milliseconds." }
             Registration(
                 registration.provider,
-                descriptor.copy(displayName = mask(descriptor.displayName), version = mask(descriptor.version)),
+                descriptor.copyWithMetadata(displayName = mask(descriptor.displayName), version = mask(descriptor.version),
+                    summary = descriptor.summary?.let(::mask), tags = descriptor.tags.toList(), inputScope = descriptor.inputScope?.let { scope ->
+                        scope.copy(includes = scope.includes.map(::mask), excludes = scope.excludes.map(::mask), externalFiles = scope.externalFiles.map(::mask))
+                    }),
                 registration.permissions.copy(actions = registration.permissions.actions.toSet())
             )
         }
@@ -75,17 +84,23 @@ class VettingCoordinator(registrations: List<ProviderRegistration>, private val 
         operation: VettingOperation = VettingOperation.SCAN
     ): ScanReport {
         val started = System.nanoTime()
+        val root = runCatching { projectRoot.toRealPath() }.getOrElse { projectRoot.toAbsolutePath().normalize() }
         val optionalMethods = SecurityMethodCatalog.methods.filter { it.category != MethodCategory.BUILT_IN }
+        val notApplicable = this.registrations.filter {
+            it.provider is CommandVettingProvider && !it.provider.appliesToProject(root)
+        }.map { it.descriptor.id }.toSet()
         // Explicit off choices apply to the matching catalog provider only. Missing flags
         // preserve already configured SDKs and never grant or auto-enable a provider.
         val configured = this.registrations.map { registration ->
-            val disabled = registration.provider !is BuiltInVettingProvider && optionalMethods.any {
+            val disabled = (registration.provider is CommandVettingProvider && !registration.provider.appliesToProject(root)) ||
+                (registration.provider !is BuiltInVettingProvider && optionalMethods.any {
                 it.providerId == registration.descriptor.id && settings.methodFlags[it.id] == false
-            }
+            })
             if (disabled) registration.copy(permissions = registration.permissions.copy(enabled = false)) else registration
         }
         val hasExternalAnalysis = configured.any { registration ->
             registration.permissions.enabled && registration.provider !is BuiltInVettingProvider &&
+                registration.descriptor.category !in setOf("RESEARCH", "AI") &&
                 optionalMethods.none { it.providerId == registration.descriptor.id && it.category in setOf(MethodCategory.RESEARCH, MethodCategory.AI) }
         }
         val allBuiltInOff = SecurityMethodCatalog.builtInMethods.all { settings.methodFlags[it.id] == false }
@@ -94,7 +109,6 @@ class VettingCoordinator(registrations: List<ProviderRegistration>, private val 
             if (registration.provider is BuiltInVettingProvider) registration.copy(permissions = registration.permissions.copy(enabled = false))
             else registration
         } else configured
-        val root = projectRoot.toAbsolutePath().normalize()
         // The host keeps its own policy snapshot; providers receive separate copies.
         val hostPolicy = policy.copy(blockedRuleIds = policy.blockedRuleIds.toSet())
         val trustedBaseline = baseline.toList()
@@ -102,7 +116,11 @@ class VettingCoordinator(registrations: List<ProviderRegistration>, private val 
         val edges = mutableListOf<ScriptEdge>()
         val notices = mutableListOf<ScanNotice>()
         val runs = mutableListOf<ProviderRun>()
+        val observedInputs = AtomicReference<InputSeal>()
         var complete = true
+        registrations.filter { it.permissions.enabled && it.provider !is BuiltInVettingProvider && it.descriptor.inputScope == null }.forEach {
+            notices += ScanNotice("WG-PROVIDER-SCOPE-UNKNOWN", "${it.descriptor.id}: Provider input scope is not declared; freshness covers only the host-known inputs.")
+        }
         if (replaceBuiltIn && configured.any { it.provider is BuiltInVettingProvider && it.permissions.enabled }) {
             notices += ScanNotice("WG-METHOD-REPLACED", "Built-in methods are disabled; configured external analysis providers define the scan scope.")
         }
@@ -113,7 +131,8 @@ class VettingCoordinator(registrations: List<ProviderRegistration>, private val 
             notices += ScanNotice("WG-NO-ANALYSIS-PROVIDERS", "No security analysis providers are enabled; advisory AI and research methods cannot establish scan coverage.")
         }
         optionalMethods.filter { method ->
-            settings.methodFlags[method.id] == true && registrations.none { it.permissions.enabled && it.descriptor.id == method.providerId }
+            method.providerId !in notApplicable && settings.methodFlags[method.id] == true &&
+                registrations.none { it.permissions.enabled && it.descriptor.id == method.providerId }
         }.forEach { method ->
             complete = false
             notices += ScanNotice("WG-METHOD-NOT-CONNECTED", "Security method is enabled but no provider is connected: ${method.id}.")
@@ -148,7 +167,12 @@ class VettingCoordinator(registrations: List<ProviderRegistration>, private val 
                     invocation.started.set(true)
                     try {
                         if (Thread.currentThread().isInterrupted) throw InterruptedException()
-                        TimedResult(snapshot(registration.provider.scan(request)), System.nanoTime())
+                        // Ordinary in-process providers without observed reads preserve their
+                        // legacy contract. First-party IO records the bytes actually inspected.
+                        val result = if (registration.provider is BuiltInVettingProvider)
+                            ProviderReadTracker.verifyReads(root, onCaptured = { observedInputs.set(it) }) { snapshot(registration.provider.scan(request)) }
+                        else snapshot(registration.provider.scan(request))
+                        TimedResult(result, System.nanoTime())
                     } finally {
                         invocation.completed.set(true)
                         QUARANTINED.remove(registration.descriptor.id, invocation)
@@ -160,7 +184,8 @@ class VettingCoordinator(registrations: List<ProviderRegistration>, private val 
             // Registration order determines output, never provider completion timing.
             for (registration in registrations) {
                 if (!registration.permissions.enabled) {
-                    runs += ProviderRun(registration.descriptor, registration.permissions, ProviderRunStatus.DISABLED)
+                    runs += ProviderRun(registration.descriptor, registration.permissions, ProviderRunStatus.DISABLED,
+                        message = if (registration.descriptor.id in notApplicable) "Not applicable to this project." else null)
                     continue
                 }
                 val task = pending.getValue(registration.descriptor.id)
@@ -187,8 +212,11 @@ class VettingCoordinator(registrations: List<ProviderRegistration>, private val 
                 } catch (error: ExecutionException) {
                     task.future.cancel(true)
                     failureStatus = if (error.cause is TimeoutException) ProviderRunStatus.TIMED_OUT else ProviderRunStatus.FAILED
-                    failureMessage = if (failureStatus == ProviderRunStatus.TIMED_OUT) "Provider exceeded its configured time limit."
-                        else "Provider failed or returned an invalid response."
+                    failureMessage = when {
+                        failureStatus == ProviderRunStatus.TIMED_OUT -> "Provider exceeded its configured time limit."
+                        error.cause is InputSealException -> "Observed provider inputs changed or could not be verified safely."
+                        else -> "Provider failed or returned an invalid response."
+                    }
                 } catch (_: Exception) {
                     task.future.cancel(true)
                     failureStatus = ProviderRunStatus.FAILED
@@ -215,7 +243,11 @@ class VettingCoordinator(registrations: List<ProviderRegistration>, private val 
                     val message = requireNotNull(failureMessage)
                     runs += ProviderRun(registration.descriptor, registration.permissions, status, duration, message = message)
                     notices += ScanNotice(
-                        if (status == ProviderRunStatus.TIMED_OUT) "WG-PROVIDER-TIMEOUT" else "WG-PROVIDER-FAILED",
+                        when {
+                            status == ProviderRunStatus.TIMED_OUT -> "WG-PROVIDER-TIMEOUT"
+                            message == "Observed provider inputs changed or could not be verified safely." -> "WG-INPUT-SEAL-FAILED"
+                            else -> "WG-PROVIDER-FAILED"
+                        },
                         "${registration.descriptor.displayName}: $message"
                     )
                     requiredFailure(registration, hostPolicy, operation)?.let { findings += it }
@@ -224,6 +256,21 @@ class VettingCoordinator(registrations: List<ProviderRegistration>, private val 
         } finally {
             pending.values.filter { !it.future.isDone }.forEach(::cancelAndQuarantine)
             executor.shutdownNow()
+        }
+        // A slower parallel SDK may outlive the built-in scanner. Recheck its actual read
+        // set at the end of the coordinated operation, before the host accepts the result.
+        observedInputs.get()?.let { expected ->
+            val stable = runCatching {
+                val paths = expected.hashes.keys.map { root.resolve(it.removePrefix("project:")) }
+                ProviderInputSealer.captureProjectFiles(root, paths).hashes == expected.hashes
+            }.getOrDefault(false)
+            if (!stable) {
+                complete = false
+                notices += ScanNotice("WG-INPUT-CHANGED", "Observed first-party inputs changed or could not be rechecked before vetting completed.")
+                registrations.firstOrNull { it.provider is BuiltInVettingProvider && it.permissions.enabled }?.let { registration ->
+                    requiredFailure(registration, hostPolicy, operation)?.let { findings += it }
+                }
+            }
         }
         val verdict = when {
             findings.any { it.status == FindingStatus.ACTIVE && it.policyAction == PolicyAction.BLOCK } -> ScanVerdict.EXECUTION_BLOCKED

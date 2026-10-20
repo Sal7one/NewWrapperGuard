@@ -1,0 +1,28 @@
+rules:
+  - id: wrapperguard.android.manifest-debuggable
+    languages: [generic]
+    severity: WARNING
+    message: Review an explicitly debuggable application before shipping a release manifest.
+    pattern-regex: '(?s)<application\b[^>]*\bandroid:debuggable\s*=\s*["'']true["'']'
+    paths:
+      include: ["**/AndroidManifest.xml", "AndroidManifest.xml"]
+    metadata:
+      cwe: CWE-489
+  - id: wrapperguard.android.manifest-cleartext
+    languages: [generic]
+    severity: WARNING
+    message: Cleartext traffic is explicitly permitted. Review endpoints and the release network security configuration.
+    pattern-regex: '(?s)<application\b[^>]*\bandroid:usesCleartextTraffic\s*=\s*["'']true["'']'
+    paths:
+      include: ["**/AndroidManifest.xml", "AndroidManifest.xml"]
+    metadata:
+      cwe: CWE-319
+  - id: wrapperguard.android.manifest-backup
+    languages: [generic]
+    severity: WARNING
+    message: Review which application data may enter backups and the configured backup/data extraction rules.
+    pattern-regex: '(?s)<application\b[^>]*\bandroid:allowBackup\s*=\s*["'']true["'']'
+    paths:
+      include: ["**/AndroidManifest.xml", "AndroidManifest.xml"]
+    metadata:
+      cwe: CWE-530

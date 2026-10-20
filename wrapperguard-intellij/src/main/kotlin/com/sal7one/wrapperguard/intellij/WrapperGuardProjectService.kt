@@ -9,10 +9,17 @@ import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
 import com.intellij.util.concurrency.AppExecutorUtil
 import com.sal7one.wrapperguard.core.model.ScanReport
+import com.sal7one.wrapperguard.core.model.ScanNotice
+import com.sal7one.wrapperguard.core.inputs.ProviderInputSealer
+import com.sal7one.wrapperguard.core.inputs.InputSealLimits
+import com.sal7one.wrapperguard.intellij.execution.NativeProviderInputs
+import com.sal7one.wrapperguard.intellij.execution.DeclaredInputWatcher
+import com.sal7one.wrapperguard.intellij.execution.observedProjectPaths
 import com.sal7one.wrapperguard.core.policy.EnforcementMode
 import com.sal7one.wrapperguard.core.policy.ScanPolicy
 import com.sal7one.wrapperguard.intellij.settings.buildScanSettings
 import com.sal7one.wrapperguard.intellij.settings.OptionalMethodConnections
+import com.sal7one.wrapperguard.intellij.settings.NativeHistory
 import com.sal7one.wrapperguard.intellij.settings.WrapperGuardSettings
 import com.sal7one.wrapperguard.intellij.vetting.IntellijVettingProviders
 import com.sal7one.wrapperguard.core.vetting.VettingOperation
@@ -46,6 +53,9 @@ class WrapperGuardProjectService(private val project: Project) {
     var scanError: String? = null
         private set
 
+    @Volatile var historyError: String? = null
+        private set
+
     /** A relevant file changed while a scan was running; another pass is needed. */
     private val rescanRequested = AtomicBoolean(false)
     private val inputGeneration = AtomicLong()
@@ -56,6 +66,8 @@ class WrapperGuardProjectService(private val project: Project) {
 
     /** Content hashes of the watched files at the time of the last completed scan. */
     private val lastHashes = ConcurrentHashMap<String, String>()
+    @Volatile private var observedInputs: Set<Path> = emptySet()
+    @Volatile private var inputWatcher = DeclaredInputWatcher()
 
     @Volatile
     var report: ScanReport? = null
@@ -70,24 +82,31 @@ class WrapperGuardProjectService(private val project: Project) {
      * Runs a scan synchronously on the calling thread. Intended for background tasks.
      * UI callers should prefer [scanAsync].
      */
-    fun scan(): ScanReport? {
+    fun scan(): ScanReport? = scanSelected(null)
+
+    private fun scanSelected(automaticIds: Set<String>?): ScanReport? {
         if (project.isDisposed) return null
         if (isDemo) return reloadDemoReport()
         val root = project.basePath?.let(Path::of) ?: return null
         val generation = inputGeneration.get()
         val trusted = TrustedProjects.isProjectTrusted(project)
-        val result = IntellijVettingProviders.scan(project, root, ScanPolicy(mode = EnforcementMode.WARN), VettingOperation.SCAN)
+        val beforeInputs = sealOrNull { computeWatchedHashes(root) }
+        val result = IntellijVettingProviders.scan(project, root, ScanPolicy(mode = EnforcementMode.WARN), VettingOperation.SCAN, automaticIds)
         if (project.isDisposed) return null
         ProgressManager.checkCanceled()
-        refreshHashes(root)
+        val sealed = refreshHashes(root)
+        val scopedResult = if (sealed) result else result.copy(complete = false, notices = result.notices + ScanNotice(
+            "WG-INPUT-SEAL-UNAVAILABLE", "Input freshness could not be verified within the trust and resource limits. Review provider inputs and scan again before building or syncing."))
         ProgressManager.checkCanceled()
         val published = synchronized(publicationLock) {
-            val changed = generation != inputGeneration.get() || trusted != TrustedProjects.isProjectTrusted(project)
+            val changed = generation != inputGeneration.get() || trusted != TrustedProjects.isProjectTrusted(project) ||
+                (beforeInputs != null && sealed && beforeInputs != lastHashes)
             stale = changed
-            if (changed) rescanRequested.set(true)
+            if (changed && automaticIds == null) rescanRequested.set(true)
             scanError = null
-            (if (changed) result.copy(stale = true) else result).also { report = it }
+            (if (changed) scopedResult.copy(stale = true) else scopedResult).also { report = it }
         }
+        recordHistory(published, VettingOperation.SCAN)
         notifyListeners(published)
         return published
     }
@@ -98,39 +117,50 @@ class WrapperGuardProjectService(private val project: Project) {
      * observes it and re-renders. Single-flight: if a scan is already running,
      * a follow-up pass is requested instead of dropping the change.
      */
-    fun scanAsync() {
-        if (project.isDisposed) return
-        if (isDemo) {
-            reloadDemoReport()
-            return
-        }
+    fun scanAsync() { queueScan(null) }
+
+    /** Automatic scans are selected explicitly and never escalate a dropped trigger into a full manual scan. */
+    internal fun scanAutomaticAsync(ids: Set<String>, finished: (Boolean) -> Unit = {}): () -> Unit = queueScan(ids, finished)
+
+    private fun queueScan(automaticIds: Set<String>?, finished: (Boolean) -> Unit = {}): () -> Unit {
+        if (project.isDisposed) { finished(false); return {} }
+        if (isDemo) { if (automaticIds == null) reloadDemoReport(); finished(false); return {} }
         if (!scanInFlight.compareAndSet(false, true)) {
-            rescanRequested.set(true)
-            return
+            if (automaticIds == null) rescanRequested.set(true)
+            finished(true) // Automatic triggers are dropped, never replayed or overlapped.
+            return {}
         }
+        val cancelled = AtomicBoolean(false)
+        val indicatorReference = java.util.concurrent.atomic.AtomicReference<ProgressIndicator>()
+        val workerReference = java.util.concurrent.atomic.AtomicReference<Thread>()
+        val succeeded = AtomicBoolean(false)
         scanError = null
         notifyListeners(report)
         object : Task.Backgroundable(project, "WrapperGuard: Scanning project", true) {
             override fun run(indicator: ProgressIndicator) {
-                indicator.checkCanceled()
-                if (scan() == null) scanError = "This project has no local directory to scan."
+                indicatorReference.set(indicator); workerReference.set(Thread.currentThread())
+                try {
+                    if (cancelled.get()) indicator.cancel()
+                    indicator.checkCanceled()
+                    val output = scanSelected(automaticIds)
+                    succeeded.set(output != null && output.providerRuns.none { it.status in setOf(com.sal7one.wrapperguard.core.vetting.ProviderRunStatus.FAILED, com.sal7one.wrapperguard.core.vetting.ProviderRunStatus.TIMED_OUT) })
+                    if (output == null) scanError = "This project has no local directory to scan."
+                } finally {
+                    workerReference.set(null)
+                    if (cancelled.get()) Thread.interrupted() // Do not leave a reused IDE worker interrupted.
+                }
             }
-
-            override fun onThrowable(error: Throwable) {
-                // Do not put arbitrary exception text (which may include source data) into the UI.
-                scanError = "The scan could not finish. Review the provider configuration in WrapperGuard settings and retry."
-            }
-
-            override fun onCancel() {
-                scanError = "Scan cancelled. Run a new scan to refresh the results."
-            }
-
+            override fun onThrowable(error: Throwable) { if (!cancelled.get()) scanError = "The scan could not finish. Review the provider configuration in WrapperGuard settings and retry." }
+            override fun onCancel() { if (!cancelled.get()) scanError = "Scan cancelled. Run a new scan to refresh the results." }
             override fun onFinished() {
+                indicatorReference.set(null)
                 scanInFlight.set(false)
                 notifyListeners(report)
+                finished(succeeded.get() && !cancelled.get())
                 if (rescanRequested.getAndSet(false) && !project.isDisposed) scanAsync()
             }
         }.queue()
+        return { cancelled.set(true); indicatorReference.get()?.cancel(); workerReference.get()?.interrupt(); Unit }
     }
 
     /**
@@ -138,7 +168,7 @@ class WrapperGuardProjectService(private val project: Project) {
      * populates immediately on first open without re-scanning on every window toggle.
      */
     fun scanIfNoReport() {
-        if (report == null) scanAsync()
+        if (report == null) scanAutomaticAsync(setOf("wrapperguard"))
     }
 
     /**
@@ -166,10 +196,7 @@ class WrapperGuardProjectService(private val project: Project) {
     private fun runDebouncedRescan() {
         if (project.isDisposed) return
         if (isDemo) return
-        if (scanInFlight.get()) {
-            rescanRequested.set(true)
-            return
-        }
+        if (scanInFlight.get()) return // No replay of an automatic trigger after a manual or automatic scan.
         val root = project.basePath?.let(Path::of) ?: return
         val current = report
         if (current != null && hashesUnchanged(root)) {
@@ -177,7 +204,8 @@ class WrapperGuardProjectService(private val project: Project) {
             stale = false
             notifyListeners(current.copy(stale = false))
         } else {
-            scanAsync()
+            val automation = project.getService(com.sal7one.wrapperguard.intellij.settings.NativeScanAutomation::class.java)
+            if (!automation.inputChanged() && WrapperGuardSettings.getInstance().state.scanOnFileChange) scanAutomaticAsync(setOf("wrapperguard"))
         }
     }
 
@@ -206,6 +234,7 @@ class WrapperGuardProjectService(private val project: Project) {
         val text = buildString {
             append(buildScanSettings().toString())
             append(state.providers.toString())
+            append(state.customProviders.toString())
             append(state.managedSdkPython)
             append(OptionalMethodConnections.inputSeal(state))
             append(TrustedProjects.isProjectTrusted(project))
@@ -225,11 +254,13 @@ class WrapperGuardProjectService(private val project: Project) {
     }
 
     fun settingsChanged() {
+        project.getService(com.sal7one.wrapperguard.intellij.settings.NativeScanAutomation::class.java).pause("Paused · preferences, connections or trust changed")
         synchronized(publicationLock) {
             inputGeneration.incrementAndGet()
             stale = true
         }
-        scanAsync()
+        report?.let { notifyListeners(it.copy(stale = true)) }
+        // Saving preferences never invokes an analyzer. The user can scan or explicitly Start automation.
     }
 
     /**
@@ -237,14 +268,26 @@ class WrapperGuardProjectService(private val project: Project) {
      * ENFORCE-mode scan) so the tool window reflects what actually gated the run. The
      * hash baseline and stale state are refreshed to match that scan.
      */
-    fun publishExternalReport(newReport: ScanReport) {
+    @JvmOverloads
+    fun publishExternalReport(newReport: ScanReport, operation: VettingOperation = VettingOperation.SCAN) {
         if (project.isDisposed) return
         if (isDemo) return
-        project.basePath?.let(Path::of)?.let { refreshHashes(it) }
-        stale = newReport.stale
+        observeReportInputs(newReport)
+        val sealed = project.basePath?.let(Path::of)?.let { refreshHashes(it) } == true
+        val verified = if (sealed) newReport else newReport.copy(complete = false, notices = newReport.notices + ScanNotice(
+            "WG-INPUT-SEAL-UNAVAILABLE", "Input freshness could not be verified. Review declared provider inputs before building or syncing."))
+        stale = verified.stale
         scanError = null
-        report = newReport
-        notifyListeners(newReport)
+        report = verified
+        recordHistory(verified, operation)
+        notifyListeners(verified)
+    }
+
+    private fun recordHistory(value: ScanReport, operation: VettingOperation) {
+        if (isDemo) return
+        historyError = runCatching { NativeHistory.record(project, value.copy(stale = value.stale || stale), operation, lastHashes.toMap()) }.fold({ null }, {
+            "The local history summary could not be saved within its storage or input limits. Analysis and enforcement are unchanged."
+        })
     }
 
     fun addListener(listener: (ScanReport?) -> Unit) {
@@ -273,10 +316,22 @@ class WrapperGuardProjectService(private val project: Project) {
         return report
     }
 
-    private fun refreshHashes(root: Path) {
+    private fun refreshHashes(root: Path): Boolean {
+        val snapshot = sealOrNull { computeWatchedHashes(root) }
         lastHashes.clear()
-        sealOrNull { computeWatchedHashes(root) }.orEmpty()
-            .forEach { (k, v) -> lastHashes[k] = v }
+        snapshot?.forEach { (key, value) -> lastHashes[key] = value }
+        return snapshot != null
+    }
+
+    /** Provider output can add exact project-local inputs, never authorize external reads. */
+    internal fun observeReportInputs(newReport: ScanReport) {
+        val root = project.basePath?.let(Path::of) ?: return
+        observedInputs = observedProjectPaths(root, newReport.edges.flatMap { listOf(it.from.path, it.to.path) })
+    }
+
+    internal fun isWatchedPath(value: String, directory: Boolean = false): Boolean {
+        val root = project.basePath?.let(Path::of) ?: return false
+        return inputWatcher.matches(root, value, directory, observedInputs)
     }
 
     private inline fun <T> sealOrNull(action: () -> T): T? = try {
@@ -289,8 +344,17 @@ class WrapperGuardProjectService(private val project: Project) {
         null
     }
 
-    private fun computeWatchedHashes(root: Path): Map<String, String> =
-        watchedFileHashes(root, buildScanSettings()) { ProgressManager.checkCanceled() }
+    private fun computeWatchedHashes(root: Path): Map<String, String> {
+        val state = WrapperGuardSettings.getInstance().state
+        val inputs = NativeProviderInputs.snapshot(IntellijVettingProviders.registrations(project, root), state, root)
+        inputWatcher = DeclaredInputWatcher(inputs)
+        val settings = buildScanSettings()
+        val exact = ProviderInputSealer.captureProjectFiles(root, observedInputs.toList(),
+            InputSealLimits(maxFiles = settings.maxFilesPerScan, maxFileBytes = settings.maxFileBytes,
+                maxDirectoryDepth = settings.maxDirectoryDepth), ProgressManager::checkCanceled).hashes
+        return watchedFileHashes(root, settings, ProgressManager::checkCanceled) + exact +
+            NativeProviderInputs.capture(root, inputs, OptionalMethodConnections.roots(project), ProgressManager::checkCanceled)
+    }
 
     companion object {
         /** Debounce window for rescans after VFS change bursts (Gradle sync writes etc.). */
@@ -313,7 +377,7 @@ class WrapperGuardProjectService(private val project: Project) {
             "pom.xml", "gradle.lockfile", "verification-metadata.xml", "requirements.txt", "requirements-dev.txt",
             "poetry.lock", "pipfile.lock", "pdm.lock", "uv.lock", "pyproject.toml", "package-lock.json",
             "npm-shrinkwrap.json", "pnpm-lock.yaml", "yarn.lock", "bun.lock", "go.mod", "go.sum",
-            "cargo.lock", "composer.lock", "gemfile.lock", "packages.lock.json"
+            "cargo.lock", "composer.lock", "gemfile.lock", "packages.lock.json", "androidmanifest.xml"
         )
         private val WATCHED_INPUT_SUFFIXES = setOf(
             ".gradle", ".kts", ".kt", ".java", ".py", ".sh", ".bash", ".zsh", ".bats",

@@ -41,7 +41,7 @@ class WrapperGuardStartupActivity : ProjectActivity {
         registerPostSyncRescan(project)
         registerTrustListener(project)
         // scanAsync runs on a background task; the Compose UI observes the result.
-        if (WrapperGuardSettings.getInstance().state.scanOnOpen) service.scanAsync()
+        if (WrapperGuardSettings.getInstance().state.scanOnOpen) service.scanAutomaticAsync(setOf("wrapperguard"))
         // Dev/sandbox-only convenience (set by the runIde task): open the tool window on
         // startup so UI screenshots and visual checks do not need a manual click. Inert
         // in production — the property is only set by the Gradle sandbox task.
@@ -108,7 +108,7 @@ internal fun registerPostSyncRescan(project: Project) {
         object : ProjectDataImportListener {
             override fun onFinalTasksFinished(projectPath: String?) {
                 if (project.isDisposed) return
-                project.getService(WrapperGuardProjectService::class.java).scanAsync()
+                project.getService(WrapperGuardProjectService::class.java).scanAutomaticAsync(setOf("wrapperguard"))
             }
         }
     )
@@ -135,6 +135,6 @@ internal fun backfillBeforeRunTasks(project: Project) {
 /** Dispatcher helper used by the startup activity so scans run off the EDT/coroutine context. */
 internal fun dispatchScan(project: Project) {
     ApplicationManager.getApplication().executeOnPooledThread {
-        project.getService(WrapperGuardProjectService::class.java).scan()
+        project.getService(WrapperGuardProjectService::class.java).scanAutomaticAsync(setOf("wrapperguard"))
     }
 }

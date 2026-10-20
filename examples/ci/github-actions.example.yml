@@ -1,0 +1,22 @@
+# Copy only after reviewing. Provision a verified CLI artifact in a prior trusted step.
+# Do not source provider commands/grants from pull-request-controlled files or artifacts.
+name: Reviewed WrapperGuard gate
+on: [pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      # Install a pinned CLI distribution here and verify its published SHA256.
+      # Configure WRAPPERGUARD_CLI using a trusted workflow/repository variable.
+      - name: Static WrapperGuard build gate
+        env:
+          WRAPPERGUARD_CLI: ${{ vars.WRAPPERGUARD_CLI }}
+        run: python3 examples/ci/check.py "$GITHUB_WORKSPACE"

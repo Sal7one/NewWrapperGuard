@@ -73,6 +73,25 @@ class FileChangeRescanTest : HeavyPlatformTestCase() {
         }
     }
 
+    fun testObservedRecursiveInputRefreshEventInvalidatesCachedSeal() {
+        val root = Path.of(project.basePath!!)
+        writeFixture(root, "gradlew", "#!/bin/sh\necho fixture\n")
+        writeFixture(root, "run[prod]", "first")
+        val service = project.getService(WrapperGuardProjectService::class.java)
+        val initial = service.scan()!!
+        val edge = com.sal7one.wrapperguard.core.model.ScriptEdge(
+            com.sal7one.wrapperguard.core.model.SourceLocation("gradlew"),
+            com.sal7one.wrapperguard.core.model.SourceLocation("run[prod]"), "bash")
+        service.publishExternalReport(initial.copy(edges = listOf(edge)))
+        val before = service.computeSeal()!!
+        val path = root.resolve("run[prod]")
+        val file = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(path)!!
+        Files.writeString(path, "second")
+        WrapperGuardVfsListener(project).after(listOf(VFileContentChangeEvent(null, file, file.modificationStamp, file.modificationStamp + 1, true)))
+        assertTrue("Refresh-origin changes to exact recursive inputs must stale the cached result", service.stale)
+        assertFalse(before == service.computeSeal())
+    }
+
     fun testAsyncScanPublishesBusyAndCompletionState() {
         val root = Path.of(project.basePath!!)
         writeFixture(root, "gradlew", "#!/bin/sh\necho fixture\n")

@@ -1,0 +1,50 @@
+name: Scanner resource acceptance
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scanner-resources-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  packaged-cli-resources:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Build the CLI under test
+        run: ./gradlew :wrapperguard-cli:installDist
+      - name: Measurement and incomplete/cancellation regressions
+        run: python scripts/tests/test_benchmark_scans.py -v
+      - name: Actual packaged CLI on inert small/large/capped inputs
+        shell: python
+        run: |
+          import pathlib, subprocess, sys
+          root = pathlib.Path.cwd()
+          cli = root / 'wrapperguard-cli/build/install/wrapperguard-cli/bin/wrapperguard-cli'
+          output = root / 'build/benchmarks/resource-acceptance.json'
+          subprocess.run([sys.executable, 'scripts/benchmark-scans.py', '--cli', str(cli),
+              '--project', 'clean=' + str(root / 'test-fixtures/scanner/clean'),
+              '--repetitions', '3', '--warmups', '1', '--acceptance', '--generated-files', '4096',
+              '--timeout-seconds', '60', '--max-elapsed-seconds', '30', '--max-peak-rss-mib', '1024',
+              '--output', str(output)], check=True, timeout=300)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: scanner-resource-evidence
+          path: build/benchmarks/*.json

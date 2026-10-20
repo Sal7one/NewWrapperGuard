@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "package": "com.wrapperguard.acceptance",
+  "serial": "emulator-5554",
+  "deviceKind": "emulator",
+  "api": "36",
+  "androidRelease": "16",
+  "abi": "x86_64",
+  "apkSha256": "a5e59a7529507fb9930b7bdf3b7901432b6ea10f287790b71e8f224839597529",
+  "launchPassed": true,
+  "loopbackHeadersPassed": true,
+  "sdkAudit": {
+    "secure": {
+      "complete": true,
+      "findingCount": 0,
+      "ruleIds": []
+    },
+    "weak": {
+      "complete": true,
+      "findingCount": 3,
+      "ruleIds": [
+        "HTTPSEC-CSP/bc57146da6b84c7e5e414364",
+        "HTTPSEC-FRAME/bc57146da6b84c7e5e414364",
+        "HTTPSEC-NOSNIFF/bc57146da6b84c7e5e414364"
+      ]
+    }
+  },
+  "sourceCommit": "71ab3fd7cbec57d95c4ac01f7e1e0dbbe75c3fbb",
+  "validationRun": "https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39450889177",
+  "headCommit": "5b71265f78555567206044b5eddc1084de9dee4f",
+  "sourceCommitKind": "GitHub pull-request merge commit",
+  "visualAcceptancePassed": false,
+  "screenshotLimitation": "Initial ATD image does not support screenshot testing; runtime/UI-tree/HTTP passed, but this black screenshot is rejected by the new standard-image visual gate."
+}

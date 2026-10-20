@@ -1,0 +1,33 @@
+rules:
+  - id: wrapperguard.ktor.stacktrace-response
+    languages: [kotlin]
+    severity: WARNING
+    message: An exception stack trace is returned in a response. Log details internally and return an appropriate client-facing error.
+    pattern-either:
+      - pattern: $CALL.respondText($ERROR.stackTraceToString())
+      - pattern: $CALL.respond($ERROR.stackTraceToString())
+    metadata:
+      cwe: CWE-209
+  - id: wrapperguard.ktor.credentialed-unrestricted-cors
+    languages: [kotlin]
+    severity: ERROR
+    message: Credentialed CORS and an unrestricted host declaration appear together. Review the actual framework behavior and restrict the allowed origins.
+    pattern-either:
+      - pattern: |
+          install(CORS) {
+            ...
+            anyHost()
+            ...
+            allowCredentials = true
+            ...
+          }
+      - pattern: |
+          install(CORS) {
+            ...
+            allowCredentials = true
+            ...
+            anyHost()
+            ...
+          }
+    metadata:
+      cwe: CWE-942

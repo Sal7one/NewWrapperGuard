@@ -16,3 +16,12 @@ application { mainClass.set("com.sal7one.wrapperguard.cli.MainKt") }
 kotlin { jvmToolchain(21) }
 
 tasks.test { useJUnitPlatform() }
+
+distributions {
+    main {
+        contents {
+            from(rootProject.file("LICENSE"))
+            from(rootProject.file("THIRD_PARTY_NOTICES.md"))
+        }
+    }
+}

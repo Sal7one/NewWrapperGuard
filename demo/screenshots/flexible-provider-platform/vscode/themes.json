@@ -1,0 +1,50 @@
+[
+  {
+    "name": "light",
+    "theme": "Light Modern",
+    "bodyClass": "vscode-light",
+    "width": 301,
+    "scrollWidth": 301,
+    "background": "rgb(248, 249, 252)",
+    "foreground": "rgb(37, 39, 55)",
+    "border": "#d6d9e3",
+    "button": "rgb(255, 255, 255)",
+    "focusWidth": "2px"
+  },
+  {
+    "name": "high-contrast",
+    "theme": "Default High Contrast",
+    "bodyClass": "vscode-high-contrast",
+    "width": 301,
+    "scrollWidth": 301,
+    "background": "rgb(0, 0, 0)",
+    "foreground": "rgb(255, 255, 255)",
+    "border": "#6fc3df",
+    "button": "rgb(255, 255, 255)",
+    "focusWidth": "2px"
+  },
+  {
+    "name": "high-contrast-light",
+    "theme": "Default High Contrast Light",
+    "bodyClass": "vscode-high-contrast-light vscode-high-contrast",
+    "width": 301,
+    "scrollWidth": 301,
+    "background": "rgb(255, 255, 255)",
+    "foreground": "rgb(41, 41, 41)",
+    "border": "#0f4a85",
+    "button": "rgb(255, 255, 255)",
+    "focusWidth": "2px"
+  },
+  {
+    "name": "dark",
+    "theme": "Dark Modern",
+    "bodyClass": "vscode-dark",
+    "width": 301,
+    "scrollWidth": 301,
+    "background": "rgb(19, 18, 27)",
+    "foreground": "rgb(228, 225, 238)",
+    "border": "#353440",
+    "button": "rgb(255, 255, 255)",
+    "focusWidth": "2px"
+  }
+]
