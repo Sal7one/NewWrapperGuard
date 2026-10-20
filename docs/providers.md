@@ -42,7 +42,7 @@ During a `BUILD` evaluation only `BLOCK_BUILD` is effective; during `SYNC` only
 
 ## User permissions and failures
 
-New third-party providers start disabled with no actions granted. The user enables them
+API registrations default to disabled with no actions granted. Reviewed custom-command GUI setup starts disabled with a WARNING grant. The user enables them
 and selects actions, a 100–300000 ms timeout, and whether completion is required.
 Default built-in scanning is enabled, required, and has all five action grants.
 
@@ -147,8 +147,8 @@ external terminals and other plugins' arbitrary processes remain outside this sc
 Activate `sal7one.wrapperguard`, then call its exported API `registerProvider(provider)`.
 Keep the returned disposable in your extension's subscriptions. SDK providers expose
 `descriptor` and an async `scan(request)`; honor the request's `AbortSignal`.
-Use the shipped declaration files for exact types. `evaluate(operation)` returns the
-combined fresh report; `gate(operation)` returns `{ allowed, report }`. The integrating
+Use the shipped declaration files for exact types. `evaluate(operation, projectRoot?)` returns the
+combined fresh report; `gate(operation, projectRoot?)` returns `{ allowed, report }`. Supply the intended absolute project root for multi-root integrations; omission uses the UI-selected root. The integrating
 extension must abort its build/sync when `allowed` is false. Invalid configuration or
 workspace trust causes evaluation to fail. See the extension's [SDK instructions](../vscode-extension/README.md).
 
@@ -189,8 +189,7 @@ possible vendor-specific secret. Providers should return minimal, redacted evide
 
 ## Generic setup, declared inputs and conformance
 
-Both editors expose **Add SDK / custom command** in Tools. Select a discovered SDK or
-enter an executable and individual arguments. The wizard records literal argv: spaces,
+Native **Tools → Add SDK / custom command** can select a discovered SDK or enter a command. VS Code exposes **Providers → Add SDK** for a command adapter; installed extension SDKs register through API 1. Enter an executable and individual arguments. The wizard records literal argv: spaces,
 quotes and shell syntax are not interpreted by WrapperGuard. New connections are disabled
 and have only the reviewed warning grant. Enablement, required completion, timeouts and
 build/sync authority remain independent controls. Custom connections can be edited or
@@ -250,7 +249,7 @@ runtime deadline/output/action clipping and cancellation regressions remain requ
 
 Shared [presets](../catalog/security-presets.json) change method flags only after review.
 They never install tools, enable commands, grant blockers or trigger an analysis. An enabled
-method with no applicable enabled provider makes coverage incomplete.
+method with no connected enabled provider makes coverage incomplete. A provider intentionally bound to another selected project is disabled there and does not create a missing-connection failure.
 
 ## Optional local history
 
@@ -262,7 +261,7 @@ is separated by a hash of the canonical root; cleanup preserves unrelated files.
 
 Deltas require the same project, operation and known semantic scope, with complete,
 current, untruncated summaries. Rules, method flags, effective grants and provider
-configuration affect scope; project source/report bytes do not, so changed code or
+configuration affect scope; project source and finding payload bytes do not; available SARIF producer/version/rule/configuration metadata does, so changed code or
 reimported findings can be compared. Unverifiable SDK configuration disables comparison. Native currently treats every imported report as unknown producer scope. VS Code can compare SARIF only when explicit versioned producer/rule identity is available; other imports remain unknown. Opaque package wrappers and local model names also disable comparison.
 Identity is provider plus fingerprint across all statuses, so approving a finding does not
 make it disappear. “Newly reported” and “no longer reported” describe observations,

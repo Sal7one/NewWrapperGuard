@@ -39,8 +39,7 @@ Implemented surfaces:
   and visible limitations. Neither can create build/sync blockers.
 - **History**: explicit opt-in summaries, same-operation/known-scope comparison, retention
   and safe clearing. Issue titles/relative paths persist; messages/evidence/source do not.
-- **Tools** additionally supports generic SDK/command setup, project scope, reviewed presets
-  and owned-storage inventory/cleanup. VS Code explicitly selects multi-root projects.
+- Native **Tools** supports generic SDK/command setup, project scope, presets and owned-storage cleanup. VS Code puts **Add SDK / Storage** in **Providers** and presets in **Tools**. VS Code explicitly selects multi-root projects.
 - **Summary / Findings / Execution / Policy**: existing combined reports, editor navigation,
   call graph, provider permissions, stale/incomplete state and exports.
 - GUI dialogs create managed profiles/provider configuration outside all open projects;
@@ -122,7 +121,7 @@ Use JDK 21, Node 22+, Python 3.10+ with pip. Commands and actual results live in
 [docs/verification.md](docs/verification.md), the single current verification record.
 Completed results include core/rules/CLI, native, Node and installed SDK regressions, real
 Bandit/Semgrep, both command-provider hosts, scanner parity, hardening, actual package
-contents and 21 demo captures. Exact final counts, artifact checksums, binary-verifier
+contents the 21 baseline demo captures and the new platform gallery with actual IDEA and VS Code acceptance. Exact final counts, artifact checksums, binary-verifier
 output and CI status are recorded in the verification record rather than duplicated here.
 
 `buildIntegrationSdk` / `scripts/build-sdk.py` stage clean package sources and choose a
@@ -143,8 +142,7 @@ only TypeScript compilation.
 [docs/roadmap.md](docs/roadmap.md) is the prioritized backlog and milestone plan. The
 current delivery includes installers, a standalone test bundle with real scanner fixtures,
 manual test instructions and checksums. Local automation and binary verification are
-complete when recorded in the verification checkpoint. The prior RC1 CI is green; the new candidate needs its own CI and normal-host
-BUILD/SYNC acceptance. Actual GUI evidence and limitations belong in verification.
+complete when recorded in the verification checkpoint. The prior RC1 CI and new upstream/Windows-helper matrix are green. Final JVM CI must include the pipe-race correction. Actual IDEA2025.3 clean/blocked BUILD/SYNC and VS Code wizard/project/history acceptance now pass; Android Studio, installer upgrades and broader platforms remain separate. Evidence and limits belong in verification.
 
 Do not describe a test candidate as the stable release. Report imports do not establish
 freshness, source SAST is limited to selected rules, Windows direct source runners are

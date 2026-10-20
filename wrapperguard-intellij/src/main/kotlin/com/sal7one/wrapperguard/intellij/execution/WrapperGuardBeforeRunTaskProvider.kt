@@ -140,7 +140,16 @@ open class WrapperGuardBeforeRunTaskProvider : BeforeRunTaskProvider<WrapperGuar
         project: Project,
         configuration: RunConfiguration,
         blockers: List<Finding>
-    ): Boolean = ExecutionBlockedDialog(project, configuration, blockers).showAndGetRunOnce()
+    ): Boolean = runDecisionOnEdt { ExecutionBlockedDialog(project, configuration, blockers).showAndGetRunOnce() }
+}
+
+/** Before-run providers execute on worker threads; Swing dialog creation and display belong on the EDT. */
+internal fun runDecisionOnEdt(decision: () -> Boolean): Boolean {
+    val application = ApplicationManager.getApplication()
+    if (application.isDispatchThread) return decision()
+    var accepted = false
+    application.invokeAndWait({ accepted = decision() }, com.intellij.openapi.application.ModalityState.defaultModalityState())
+    return accepted
 }
 
 /**

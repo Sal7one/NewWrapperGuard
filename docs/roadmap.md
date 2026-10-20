@@ -19,6 +19,7 @@ records actual test evidence; [handover](../HANDOVER.md) records operating contr
 - Opt-in project/operation/scope history, conservative deltas, retention and owned-data cleanup.
 - Passive capability discovery and CLI provider configuration/conformance tools.
 - Real PowerShell/PSScriptAnalyzer and OSV smoke checks, alongside Bandit/Semgrep.
+  Real Trivy and experimental Windows handle/pipe CI also pass.
   Real local-model schema interoperability; these are integration tests, not accuracy scores.
 - Product/OSS decisions and source links in [product-inspiration.md](product-inspiration.md).
 
@@ -32,7 +33,7 @@ available and are not relabeled as the newer version.
 | Priority | Task | Acceptance evidence |
 |---|---|---|
 | P0 | Pass CI on the new candidate commit | JVM/VS Code/Python matrices, real upstream tools and experimental Windows helper jobs green; archive run URL |
-| P0 | Complete normal-host acceptance | Isolated installed IDEA/Android Studio and VS Code: setup, enable, scan, navigate, edit, grants, disable/remove, multi-root/history/cleanup; actual BUILD and Gradle SYNC vetoes separately verified |
+| P0 | Finish Android Studio and installer/upgrade acceptance | IDEA2025.3 actual clean/blocked BUILD and SYNC, and VS Code wizard/execution/multi-root/history passed; exercise Android Studio and fresh install/upgrade/removal paths |
 | P0 | Review/merge release source and publish stable assets | Approved commit, installer hashes, upgrade notes and stable release metadata agree |
 | P1 | Broaden supported-host matrix | Minimum/current IDEA/Android Studio and VS Code; macOS/Linux/Windows import and integration workflows |
 | P1 | Finish accessibility acceptance | Keyboard and screen reader, high contrast/light/dark/narrow UI, focus recovery and all setup/error states |
@@ -46,7 +47,7 @@ available and are not relabeled as the newer version.
 | P1 | Dependency coverage detail | Tested resolved Gradle/Maven and lockfile inputs, unresolved transitives and database age visible. No build/resolution execution without its own explicit option |
 | P1 | Rule-pack review and false-positive evaluation | Licensed realistic Android/Ktor projects, positive/negative cases per rule, release-manifest context and reviewed precision/coverage limits |
 | P2 | Connection upgrade/repair workflow | Reproducible tool checks/upgrades, SDK repair/removal and offline-cache recovery; preserve referenced/user-owned files |
-| P2 | Enable safe Windows direct runners | Experimental handle-based snapshot/process helpers pass real Windows junction/race/cap/timeout/output/cancellation CI and end-to-end scanner tests before wiring. Report import stays available |
+| P2 | Enable safe Windows direct runners | Handle/pipe CI now passes Windows Python 3.10/3.12/3.14. Complete host job/process-tree cancellation, sanitized runtime environment and end-to-end scanner acceptance before wiring. Report import stays available |
 | P2 | Broader binary compatibility | Minimum/current verifier matrix and migration of deprecated/experimental IDE APIs where supported |
 
 ## Interoperability and automation — 0.7

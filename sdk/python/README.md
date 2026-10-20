@@ -10,7 +10,7 @@ wheel in both IDE packages. Vendor scanners and local model servers are separate
 - Local advisory script behavior analysis and loopback-only AI finding explanations.
 - Explicit outside-project profiles, operation limits, bounded inputs/output and host-owned grants.
 
-Use **Tools → Install SDK… / Connect** in the IDE for guided setup. The bundled SDK installs
+Native uses **Tools → Install SDK… / Connect**. VS Code uses a method’s **Set up → Create a managed SDK environment** for guided installation. The bundled SDK installs
 offline into a dedicated environment. Optional pinned Bandit/Semgrep installation is an
 explicit network download. POSIX is required for direct snapshot runners; Windows supports
 existing-report imports and local model report review.

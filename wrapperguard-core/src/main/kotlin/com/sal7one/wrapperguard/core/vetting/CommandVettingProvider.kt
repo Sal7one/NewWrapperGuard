@@ -5,6 +5,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import java.io.ByteArrayOutputStream
+import java.io.IOException
 import java.nio.charset.CodingErrorAction
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
@@ -33,23 +34,28 @@ class CommandVettingProvider(configuration: CommandProviderConfiguration) : Vett
 
     override fun scan(request: VettingRequest): ProviderResult {
         val root = request.projectRoot.toRealPath()
-        require(appliesToProject(root)) { "Provider is not enabled for the selected project." }
-        validateReadiness()
         val input = JSON.encodeToString(buildJsonObject {
             put("apiVersion", 1)
             put("projectPath", root.toString())
             put("operation", request.operation.name)
         }) + "\n"
+        return runAdapter(root, input)
+    }
+
+    internal fun runAdapter(root: Path, input: String): ProviderResult {
+        require(appliesToProject(root)) { "Provider is not enabled for the selected project." }
+        validateReadiness()
         val launch = launchCommand(configuration.command)
         val process = ProcessBuilder(launch.arguments)
             .directory(root.toFile())
             .redirectError(ProcessBuilder.Redirect.DISCARD)
             .start()
+        val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(configuration.permissions.timeoutMs)
         val descendants = mutableSetOf<ProcessHandle>()
-        val reader = Executors.newSingleThreadExecutor { runnable ->
-            Thread(runnable, "wrapperguard-provider-output").apply { isDaemon = true }
+        val io = Executors.newFixedThreadPool(2) { runnable ->
+            Thread(runnable, "wrapperguard-provider-io").apply { isDaemon = true }
         }
-        val output = reader.submit<ByteArray> {
+        val output = io.submit<ByteArray> {
             process.inputStream.use { stream ->
                 val bytes = ByteArrayOutputStream()
                 val buffer = ByteArray(8192)
@@ -62,17 +68,28 @@ class CommandVettingProvider(configuration: CommandProviderConfiguration) : Vett
                 bytes.toByteArray()
             }
         }
+        val delivery = io.submit {
+            try {
+                process.outputStream.bufferedWriter(Charsets.UTF_8).use { it.write(input) }
+            } catch (_: IOException) {
+                // A fast adapter may close stdin without consuming the request. A broken
+                // request pipe alone does not invalidate its answer: still require a timely
+                // zero exit and bounded, strictly decoded result below before accepting it.
+            }
+        }
         try {
-            process.outputStream.bufferedWriter(Charsets.UTF_8).use { it.write(input) }
-            val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(configuration.permissions.timeoutMs)
             while (true) {
                 process.descendants().use { handles -> handles.forEach { descendants.add(it) } }
                 if (output.isDone) output.get() // propagate output limits immediately
+                if (delivery.isDone) delivery.get()
                 if (process.waitFor(25, TimeUnit.MILLISECONDS)) break
                 if (System.nanoTime() >= deadline) throw TimeoutException("Provider process timed out.")
             }
             require(process.exitValue() == 0) { "Provider process exited unsuccessfully." }
-            val remaining = deadline - System.nanoTime()
+            var remaining = deadline - System.nanoTime()
+            if (remaining <= 0) throw TimeoutException("Provider process timed out.")
+            delivery.get(remaining, TimeUnit.NANOSECONDS)
+            remaining = deadline - System.nanoTime()
             if (remaining <= 0) throw TimeoutException("Provider process timed out.")
             val bytes = output.get(remaining, TimeUnit.NANOSECONDS)
             val text = StandardCharsets.UTF_8.newDecoder()
@@ -95,9 +112,10 @@ class CommandVettingProvider(configuration: CommandProviderConfiguration) : Vett
             descendants.filter { it.isAlive }.forEach { it.destroyForcibly() }
             if (process.isAlive) process.destroyForcibly()
             output.cancel(true)
+            delivery.cancel(true)
             runCatching { process.inputStream.close() }
             runCatching { process.outputStream.close() }
-            reader.shutdownNow()
+            io.shutdownNow()
         }
     }
 

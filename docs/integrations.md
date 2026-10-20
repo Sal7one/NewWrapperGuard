@@ -12,8 +12,7 @@ Choose **Built-in**, **SAST**, **Supply chain** or **DAST**. The separate **Rese
 (**Research & AI** in VS Code) contains script behavior signals and local AI review. These categories come from the
 shared [17-method catalog](../catalog/security-methods.json).
 
-1. Choose **Install SDK…** and browse to a trusted Python 3.10+ executable outside your
-   projects. The installer creates a dedicated user environment and installs the bundled
+1. Native: choose **Install SDK…**. VS Code: choose a method’s **Set up → Create a managed SDK environment**. Select a trusted Python 3.10+ executable outside your projects. The installer creates a dedicated user environment and installs the bundled
    SDK wheel offline. It does not modify the chosen Python environment.
 2. Optionally select **Bandit 1.9.4** or **Semgrep 1.181.0**. These explicit choices download
    the named scanner and its dependencies from PyPI. Other analyzers use your existing
@@ -28,8 +27,7 @@ shared [17-method catalog](../catalog/security-methods.json).
 5. Results identify their provider and last-run status. Connection and permission changes
    require another scan; an old report is not a new assessment.
 
-Use **Add SDK / custom command** for any vendor adapter or discovered SDK. Enter literal argv, descriptive category/tags and declared inputs, then review its independent permissions. **Presets** apply reviewed method flags without installing or enabling tools. Existing provider files remain available. A managed connection
-with the same provider ID requires an explicit choice to take precedence. Disconnecting or
+Use native **Tools → Add SDK / custom command** for a vendor adapter or discovered SDK. In VS Code, use **Providers → Add SDK** for command adapters; installed extension SDKs register through API 1. Enter literal argv, descriptive category/tags and declared inputs, then review its independent permissions. **Presets** apply reviewed method flags without installing or enabling tools. Existing provider files remain available. Native same-ID managed precedence requires an explicit choice. VS Code rejects duplicate provider IDs across connection sources; repair the duplicate rather than silently overriding it. Disconnecting or
 disabling a method does not uninstall your tools or alter another provider's permissions.
 
 On Windows, use existing-report imports for source/dependency tools. Controlled file-snapshot
@@ -229,9 +227,7 @@ excludes messages, evidence and source bytes. Retention defaults to 20 (maximum 
 Comparisons require the same project/operation/known scope and complete current reports.
 Imported producer provenance and opaque SDK/package/model semantics can make scope unknown; those saved runs remain visible with comparisons disabled. Approval changes do not look like remediation. Pause and clear are separate controls.
 
-**Managed storage** inventories generated SDK/profile/input data. Cleanup requires an
-explicit selection and preserves original user files, active environments and referenced
-artifacts. Disconnecting does not automatically delete or uninstall them.
+**Managed storage** inventories native owned SDK/profile/input data. VS Code **Providers → Storage** inventories profiles, caches and AI snapshots and preserves all SDK environments. Cleanup requires an explicit selection and preserves original user files, active environments and referenced artifacts. Disconnecting does not automatically delete or uninstall them.
 
 ## Coverage and trust
 

@@ -39,5 +39,34 @@
     "keyboard": "Tab and Enter activation, project selector label, custom checkbox labels, disabled scanning controls",
     "screenReaderAudit": "Not a formal VoiceOver or assistive-technology certification",
     "actualHistorySchemaValidated": true
+  },
+  "intellij": {
+    "kind": "Actual packaged plugin in a normal IntelliJ IDEA2025.3 runtime",
+    "appVersion": "0.6.0",
+    "profile": "Isolated configuration/plugins and disposable Gradle project; demo and unit-test modes off",
+    "activation": "Actual Swing Trust/Cancel buttons and IDE Run UI action through a PID-locked test agent; no guard/scanner/trust-state injection",
+    "evidence": "intellij/acceptance-evidence.txt",
+    "screenshots": [
+      "intellij/sync-blocked.png",
+      "intellij/build-blocked-dialog.png",
+      "intellij/tools.png",
+      "intellij/history-opt-in.png"
+    ],
+    "verified": [
+      "Real Gradle startup sync rejected before configuration",
+      "Real Gradle Run blocked and Cancel preserved absence of task markers",
+      "Restored harmless fixture allowed actual Gradle task and configuration markers"
+    ],
+    "limitations": [
+      "Cached IDE normal bootstrap via declared JVM/classpath after extracted native launcher was terminated",
+      "ZIP extracted into isolated plugin folder; no Marketplace install claim",
+      "Android Studio and formal screen-reader acceptance not performed",
+      "Builder width correction compiled separately after screenshots"
+    ],
+    "regressions": {
+      "focusedGuardTests": 8,
+      "realRegistryResolution": true,
+      "workerThreadDecisionMarshalledToEdt": true
+    }
   }
 }

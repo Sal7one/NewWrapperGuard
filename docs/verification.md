@@ -24,7 +24,7 @@ A useful first manual pass takes about ten minutes after scanner installation:
 2. Open WrapperGuard → **Tools → Built-in**. Confirm six independent checks are present
    and on by default. Scan, inspect provider status, and confirm the selected scope is
    visible. These build/script checks alone are not source-SAST coverage of Kotlin/Java.
-3. Choose **Install SDK…**, select trusted Python 3.10+, and explicitly select Semgrep
+3. Native: choose **Install SDK…**. VS Code: use **Set up → Create a managed SDK environment**. Select trusted Python 3.10+, and explicitly select Semgrep
    1.181.0 and/or Bandit 1.9.4 downloads. Under **SAST**, connect the installed Semgrep using
    bundled rules; connect Bandit for Python. Review the setup summary, keep warning-only
    SCAN permissions, then enable and scan.
@@ -71,7 +71,7 @@ executing project programs.
 
 Additional platform acceptance:
 
-1. **Tools → Add SDK / custom command**: use a copied outside-project sample adapter.
+1. Native **Tools → Add SDK / custom command** or VS Code **Providers → Add SDK**: use a copied outside-project sample adapter.
    Choose a category/tags, literal argv rows and declared source inputs. Save disabled;
    verify its independent warning-only grants, then explicitly enable/scan. Edit/remove
    must remain available after its executable is missing. Do not execute source fixtures.
@@ -95,9 +95,9 @@ Additional platform acceptance:
 
 | Check | Result at this source checkpoint | Meaning |
 |---|---|---|
-| JVM build and packages | 200 tests: core 87, rules 40, CLI 8, native 65; zero failures/skips | Shared grants, scopes, actual-read seals, legacy descriptor ABI, custom GUI/storage/history |
+| JVM build and packages | 205 tests: core 91, rules 40, CLI 8, native 66; zero failures/skips | Shared grants, scopes, actual-read seals, legacy descriptor ABI, custom GUI/storage/history |
 | VS Code | 122 tests and emitted-webview checks passed | Multi-root, generic setup, presets, scope seals, history, cleanup and UI message validation |
-| Python installed SDK wheel | 118 tests, 6 real-Windows skips before remote CI | Eight passive formats, runners, research, structured AI and isolated experimental helpers |
+| Python installed SDK wheel | 118 local tests: 112 passed, 6 Windows-only skips; those six execute successfully in Windows CI | Eight passive formats, runners, research, structured AI and isolated experimental helpers |
 | Downloader | 4 trust/archive regressions passed | Official asset/hash boundaries and bounded no-traversal extraction |
 | Catalog/profile contracts | 17 methods, 15 profiles, 10 format IDs passed | Examples cover every format; host examples remain disabled |
 | Scanner parity | 19/19 fixture findings, 9/9 blockers; 46/46 checkout findings, 19/19 blockers; no fingerprint differences | Existing scanner behavior remains aligned |
@@ -106,10 +106,24 @@ Additional platform acceptance:
 | Real PSScriptAnalyzer 1.25.0 / PowerShell 7.6.7 | Passed; fixed required runtime-module import | Actual analyzer, fixed script and mapped diagnostics |
 | Real OSV-Scanner 2.7.0 | Passed; vulnerable inert npm lock fixture produced findings | Actual online package-advisory integration; database results can change |
 | Real local model | Ollama + SmolLM2:135m structured schema passed, 1 advisory finding, ~0.7 s | Real protocol compatibility; does not measure explanation quality/detection accuracy |
-| Local Trivy 0.76.0 | Database download could not finish: insufficient local disk | Not a pass; roomier Linux CI runs the real check |
-| Windows source runners | Remain disabled; 6 real Windows handle tests run in CI | Helpers are experimental until platform acceptance; imports/model review remain supported |
+| Real Trivy 0.76.0 | Passed in Linux CI; local database download had insufficient disk | Actual vulnerability database/scanner acceptance, independently of protocol fakes |
+| Windows helper matrix | Passed on Python 3.10 / 3.12 / 3.14: 8 snapshot/parser + 6 pipe tests per version; non-Windows-only guard appropriately skipped | Actual handle/junction/race/limits/process checks; active source runners still need end-to-end wiring/acceptance |
 
-Normal-host workflow acceptance and candidate CI results are recorded below when complete.
+The [official-scanner / Windows matrix](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39429520082)
+is green on code checkpoint `31cb2a4`; real PSScriptAnalyzer, OSV and Trivy all completed.
+The [main CI](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39429519950) covers
+VS Code and Python 3.10/3.12/3.14 plus JVM/verifier/parity. Native live acceptance uncovered and fixed incorrect before-run extension registration
+and worker-thread dialog creation. The final isolated IDEA 2025.3 test verified clean
+Gradle execution, actual SYNC veto before configuration, and an actual BUILD blocker
+dialog whose Cancel action prevented execution. No demo/test mode or personal IDE profile
+was used. [Native evidence](../demo/screenshots/platform-0.6/intellij/acceptance-evidence.txt).
+
+The initial JVM CI exposed a Linux fast-exit stdin Broken-pipe race and a platform-specific
+stdout expectation. Request delivery now shares the bounded asynchronous I/O deadline;
+strict successful exit/UTF-8/result/output validation and real descendant cleanup remain
+required. Four additional lifecycle regressions pass locally. The new CI run is linked
+from [PR #3](https://github.com/Sal7one/NewWrapperGaurd/pull/3); final candidate publication
+requires that rerun to pass.
 Do not substitute renderer captures or fake scanner protocol tests for real host/tool evidence.
 
 ## Reproduce the checks
@@ -201,4 +215,4 @@ remain in [the roadmap](roadmap.md).
 
 ## Editor evidence
 
-[0.6 screenshots and acceptance evidence](../demo/screenshots/platform-0.6/README.md) distinguish actual isolated VS Code setup/execution/project-binding/history from synthetic rendered examples. Native acceptance and its registration regression are recorded separately; renderer captures do not prove BUILD/SYNC vetoes.
+[0.6 screenshots and acceptance evidence](../demo/screenshots/platform-0.6/README.md) distinguish actual isolated VS Code setup/execution/project-binding/history from synthetic rendered examples. Actual native BUILD/SYNC evidence and both production fixes are recorded separately from rendered demos. Android Studio, formal screen-reader acceptance and the wider host/OS matrix remain release work.

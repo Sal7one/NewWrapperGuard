@@ -10,8 +10,10 @@ import com.intellij.ui.components.*
 import com.intellij.ui.table.JBTable
 import com.sal7one.wrapperguard.intellij.vetting.IntellijVettingProviders
 import java.awt.BorderLayout
+import java.awt.Component
 import java.awt.Dimension
 import java.awt.FlowLayout
+import java.awt.Rectangle
 import java.nio.file.Path
 import java.util.Locale
 import javax.swing.*
@@ -68,7 +70,14 @@ internal class CustomProviderDialog(private val project: Project, private val pr
     } }
 
     override fun createCenterPanel(): JComponent {
-        val panel = JPanel().apply {
+        val panel = object : JPanel(), Scrollable {
+            override fun getPreferredScrollableViewportSize(): Dimension = preferredSize
+            override fun getScrollableUnitIncrement(visibleRect: Rectangle, orientation: Int, direction: Int): Int = 16
+            override fun getScrollableBlockIncrement(visibleRect: Rectangle, orientation: Int, direction: Int): Int =
+                ((if (orientation == SwingConstants.VERTICAL) visibleRect.height else visibleRect.width) - 24).coerceAtLeast(16)
+            override fun getScrollableTracksViewportWidth(): Boolean = true
+            override fun getScrollableTracksViewportHeight(): Boolean = false
+        }.apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
             add(note("Bring an API 1 adapter or an installed IDE SDK. Commands receive a structured request on standard input and return a provider report on standard output. Saving does not invoke the provider."))
             add(Box.createVerticalStrut(10)); add(field("Connection type", kind))
@@ -106,7 +115,14 @@ internal class CustomProviderDialog(private val project: Project, private val pr
             add(scopePanel); add(Box.createVerticalStrut(10))
             add(note("New providers start disabled, optional, with Warning permission only. Enable and review permissions from the provider card. Enabled adapters must support the operation supplied in their request: scan, build or sync."))
         }
-        return JBScrollPane(panel).apply { preferredSize = Dimension(700, 710); border = BorderFactory.createEmptyBorder() }
+        // Mixed BoxLayout alignments otherwise reserve an empty left column and clip the picker.
+        listOf(panel, commandPanel, sdkPanel, scopePanel).forEach { container ->
+            container.components.filterIsInstance<JComponent>().forEach { it.alignmentX = Component.LEFT_ALIGNMENT }
+        }
+        return JBScrollPane(panel).apply {
+            preferredSize = Dimension(700, 710); border = BorderFactory.createEmptyBorder()
+            horizontalScrollBarPolicy = ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER
+        }
     }
 
     private fun updateKind() {

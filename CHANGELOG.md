@@ -8,6 +8,8 @@
 - Bundle SDK 0.3.0 with CycloneDX vulnerability and Sonar generic-issue imports, passive capabilities and five independently selected Semgrep packs. Preserve the original six-rule default.
 - Fix real PowerShell module discovery and constrain local AI responses with a strict schema; retain explicit compatibility mode and advisory authority.
 - Add CLI configuration/conformance checks, real upstream analyzer smokes and isolated experimental Windows snapshot/process tests without enabling unverified Windows runners.
+- Fix fast-exit adapter stdin races and cover request delivery with the shared deadline, retaining strict output validation and descendant cleanup.
+- Marshal native blocker dialogs to the UI thread when before-run checks execute on background workers.
 - Correct the native before-run provider extension registration and test actual IDE registry resolution; the previous registration could leave supported builds unguarded.
 - Document product/OSS design references, manual acceptance and remaining platform/research/distribution work.
 
