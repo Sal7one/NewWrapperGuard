@@ -58,7 +58,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ide: ['2025.2', '2026.2.3']
+        # Jewel 0.40 in 2026.2.2 removed old bridge overloads restored by 0.41.
+        # Keep this intermediate release in addition to the advertised minimum/current.
+        ide: ['2025.2', '2026.2.2', '2026.2.3']
     steps:
       - uses: actions/checkout@v4
       - name: Reserve disk for two IDE distributions and verifier
@@ -77,8 +79,15 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Verify the declared minimum or current stable platform
         run: ./gradlew --no-daemon --max-workers=2 :wrapperguard-intellij:verifyPlugin -Pwrapperguard.verifierVersion=${{ matrix.ide }}
+      - name: Invoke the public Jewel bridge in the actual target runtime
+        run: ./gradlew --no-daemon --max-workers=2 :wrapperguard-intellij:testJewelBridgeRuntime -Pwrapperguard.bridgeRuntimeVersion=${{ matrix.ide }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: intellij-verifier-${{ matrix.ide }}
           path: wrapperguard-intellij/build/reports/pluginVerifier/
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: intellij-bridge-runtime-${{ matrix.ide }}
+          path: wrapperguard-intellij/build/test-results/testJewelBridgeRuntime/*.xml

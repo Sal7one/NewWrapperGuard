@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-20T16:26:41.090377+00:00",
+  "sourceBaseCommit": "a7f3c7f793f3a0a5a7a4a921f7105f779041c645",
+  "sourceState": "Base commit plus the narrow working-tree cleanup correction; hashes below identify the exact tested source.",
+  "sourceSha256": {
+    "scripts/benchmark-scans.py": "6d7d9be4b4fbb906c16a9e3e8ac0b48594ae4da7f35f2848cb54a7ca8bc4c48c",
+    "scripts/tests/test_benchmark_scans.py": "88a10226b1d27c9629cbeae74d7d22539adcf9bc00d9acc6756ec558fbaa9efd"
+  },
+  "platform": {
+    "system": "Darwin",
+    "release": "25.5.0",
+    "machine": "arm64",
+    "python": "3.12.14"
+  },
+  "rootCause": {
+    "summary": "After TERM and reaping the timed leader, Darwin can return EPERM for the remaining zombie-only process group. The group may disappear before a process-table snapshot.",
+    "upstream": "https://github.com/apple-oss-distributions/xnu/blob/xnu-12377.121.6/bsd/kern/kern_sig.c#L1613-L1622"
+  },
+  "fix": "Only an exited leader plus a bounded (0.5 second) signal-zero probe reaching ESRCH can turn EPERM into confirmed group absence. Persistent/live/unobservable groups still raise. No second signal is sent after a group is confirmed absent.",
+  "actualMacDeadlineRepetitions": {
+    "repetitions": 30,
+    "timeoutSeconds": 0.3,
+    "permissionRaceGroups": 18,
+    "permissionRaceGroupsVerifiedAbsentByEsrch": 18,
+    "allChildPidsIndependentlyVerifiedAbsent": true,
+    "passed": true
+  },
+  "focusedTests": {
+    "count": 11,
+    "passed": true,
+    "coverage": [
+      "EPERM then actual ESRCH acceptance",
+      "Persistent EPERM rejection",
+      "Live-group rejection",
+      "Real TERM-resistant parent and descendant killed after timed leader exit",
+      "Output cap/deadline and real RSS checks"
+    ]
+  },
+  "fullScriptsSuite": {
+    "count": 45,
+    "passed": true,
+    "elapsedSeconds": 4.411,
+    "command": "PYTHONDONTWRITEBYTECODE=1 /private/tmp/wrapperguard-runtime-venv/bin/python -m unittest discover -s scripts/tests -v",
+    "logSha256": "eace80571b92482e4f4cec63e3a3ac14e5fbdfe2d97afcb21fafd821691daccf"
+  },
+  "performanceAttribution": {
+    "originalPerformanceFile": "research/results/2026-10-20/performance.json",
+    "originalPerformanceSha256": "3f13ec2b852f879813e08278a982290e36daed6b71964a3d50d09826c40e7b6f",
+    "sourceBaseUsedByEarlierPerformanceMeasurements": "a7f3c7f793f3a0a5a7a4a921f7105f779041c645",
+    "measurementsChanged": false,
+    "note": "Earlier performance values remain those recorded with the pre-correction benchmark source; this note tests cleanup semantics only.",
+    "preCorrectionBenchmarkSourceSha256": "940fa3fd370a3d4ff14fed76d87cce7d951163aeaa05bfe55c48ba2688ba237d"
+  },
+  "limitations": [
+    "Process groups contain cooperating/trusted subprocesses; detached processes are outside this lifecycle guarantee.",
+    "Only task-created sleeping/TERM-resistant fixtures were launched; no project code, scanner, build or installer ran for this cleanup acceptance."
+  ]
+}

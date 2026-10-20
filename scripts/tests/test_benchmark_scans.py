@@ -3,18 +3,44 @@ import importlib.util
 import io
 import json
 import os
+import signal
 from pathlib import Path
 import sys
 import tempfile
 import time
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 spec = importlib.util.spec_from_file_location('benchmarks', Path(__file__).parents[1]/'benchmark-scans.py')
 bench = importlib.util.module_from_spec(spec); spec.loader.exec_module(bench)
 
 
 class MetricTests(unittest.TestCase):
+    @unittest.skipUnless(os.name == 'posix', 'POSIX process-group signals')
+    def test_exited_group_eperm_requires_actual_esrch_before_cleanup_succeeds(self):
+        process = Mock(pid=12345); process.poll.return_value = -signal.SIGTERM
+        denied = PermissionError('group may still contain live members')
+        with patch.object(bench.os, 'killpg', side_effect=[None, denied, PermissionError(), ProcessLookupError()]) as kill:
+            bench._stop(process)
+        self.assertEqual([(12345,signal.SIGTERM),(12345,signal.SIGKILL),(12345,0),(12345,0)],
+                         [call.args for call in kill.call_args_list])
+
+    @unittest.skipUnless(os.name == 'posix', 'POSIX process-group signals')
+    def test_permission_denied_live_or_unverifiable_groups_are_never_reported_cleaned(self):
+        for probe in (None, PermissionError('still unobservable')):
+            with self.subTest(probe=probe):
+                process = Mock(pid=12345); process.poll.return_value = -signal.SIGTERM
+                denied = PermissionError('cannot kill live descendants')
+                with patch.object(bench.os, 'killpg', side_effect=[None, denied, probe]), \
+                        patch.object(bench.time, 'monotonic', side_effect=[0,.1,.6]), \
+                        patch.object(bench.time, 'sleep'), self.assertRaises(PermissionError) as error:
+                    bench._stop(process)
+                self.assertIs(denied, error.exception)
+        process = Mock(pid=12345); process.poll.return_value = None
+        with patch.object(bench.os, 'killpg', side_effect=PermissionError()) as kill, self.assertRaises(PermissionError):
+            bench._stop(process)
+        self.assertEqual(1, kill.call_count)
+
     def test_actual_time_formats_normalize_linux_kib_and_macos_bytes(self):
         self.assertEqual(1048576, bench._metrics('WRAPPERGUARD_RSS_KIB=1024\n', 'Linux'))
         self.assertEqual(1048576, bench._metrics(' 1048576  maximum resident set size\n', 'Darwin'))
@@ -70,6 +96,25 @@ class RealMeasurementTests(unittest.TestCase):
             except ProcessLookupError: break
             self.assertLess(time.monotonic(), stop, 'Timed-out benchmark process must terminate')
             time.sleep(.01)
+
+    def test_deadline_kills_actual_term_resistant_descendants_after_the_timed_leader_exits(self):
+        parent_pid = self.user/'parent.pid'; child_pid = self.user/'descendant.pid'
+        child = ('import os,signal,time;from pathlib import Path;signal.signal(signal.SIGTERM,signal.SIG_IGN);'
+                 'Path('+repr(str(child_pid))+').write_text(str(os.getpid()));time.sleep(10)')
+        parent = ('import os,signal,subprocess,time;from pathlib import Path;'
+                  'signal.signal(signal.SIGTERM,signal.SIG_IGN);'
+                  'subprocess.Popen(['+repr(sys.executable)+',"-I","-c",'+repr(child)+']);'
+                  'Path('+repr(str(parent_pid))+').write_text(str(os.getpid()));time.sleep(10)')
+        result, _ = bench.measured_command([sys.executable,'-I','-c',parent], .8)
+        self.assertEqual('CANCELLED', result['processStatus']); self.assertFalse(result['measurementComplete'])
+        self.assertLess(result['elapsedMs'], 3000)
+        for file in (parent_pid, child_pid):
+            pid = int(file.read_text()); deadline = time.monotonic()+2
+            while True:
+                try: os.kill(pid,0)
+                except ProcessLookupError: break
+                self.assertLess(time.monotonic(), deadline, 'TERM-resistant descendant must actually terminate')
+                time.sleep(.01)
 
     def fake_cli(self):
         cli = self.user/'reviewed-cli'

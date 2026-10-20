@@ -50,13 +50,13 @@ Exit2 means active granted blockers, exit1 invalid/incomplete input without a bl
 
 | Check | Verified checkpoint | Scope |
 |---|---|---|
-| JVM | Core 96, rules 45, CLI 8, native 79 tests passed locally |228 tests; final CLI/package rerun records subsequent changes |
-| VS Code |152 tests,5 hardening checks, webview checks,8 actual local host cases | Real installed VS Code1.116; keyboard/AX/four themes/narrow/focus/cancel |
+| JVM | Core 96, rules 45, CLI 8, native 85 tests passed locally |234 tests; minimum-built [a7 CI](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39456452541) also passed before the final bridge adapter |
+| VS Code |156 tests,5 hardening checks, webview checks,8 actual local host cases | Real installed VS Code1.116; keyboard/AX/four themes/narrow/focus/cancel |
 | Python SDK |148 tests locally,9 Windows-only skips | Windows-specific boundaries run in actual Windows CI |
 | Windows / official scanners | [3877542 platform run](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39452049023) passed | Actual five scanners plus Python 3.10/3.12/3.14 boundary matrix |
 | Container isolation | [3877542 Docker run](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39452049100) passed | Real no-network/privilege/resource/root-clock/SDK-kill cleanup acceptance; inert selected entries |
 | VS Code host matrix | All six jobs passed at [5b71265](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39450889378) | Minimum1.95.0 and current 1.142.0, Windows/macOS/Linux;8 real extension-host cases each |
-| IntelliJ | Prior development2025.3 verifier passed; minimum/current matrix underway | Initial matrix jobs exhausted hosted disk; reserved disk before rerun, no fabricated report |
+| IntelliJ | Minimum2025.2 and current2026.2.3 compatible at a7; final adapter/runtime matrix adds2026.2.2 | Minimum:8 deprecated/27 experimental/6 generated internal usages; current:88 deprecated/18 experimental/0 internal. Final matrix invokes the real factory in each runtime |
 | Android Studio | Actual2026.1.1 / AI261 install0.5→0.6/restart/removal, clean/blocked Run/Sync passed | Separate isolated profile, real marker checks and dialogs; new0.7 SDK/automation acceptance also exercised |
 | Device | [Android16/API36 emulator passed](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39450889177) | Launch, UI/screenshot, owned loopback server, SDK secure0 findings/weak3 findings; physical phone not connected |
 | Provider conformance | Installed JVM and actual TS bridge cases passed | Healthy/malformed/partial/deadline/cancel/action/attribution cases and descendant death |
@@ -110,3 +110,5 @@ Run the driver with explicit absolute adb/APK/SDK-Python paths, serial and new o
 ## Remaining distribution gates
 
 Exact final-commit CI and candidate checksums, final installer reinstall, minimum/current verifier reports and signed/chosen public-channel distribution remain separate gates. Human screen-reader/independent usability review, physical hardware when required and robust research/model-quality claims remain explicitly unperformed. [Roadmap](roadmap.md) tracks those limits. GitHub candidate publication does not imply Marketplace/PyPI publication or stable1.0 acceptance.
+
+The final compatibility matrix also runs the minimum-compiled Jewel factory inside each selected IDE runtime, including2026.2.2 whose upstream bridge removed a legacy overload. Reproduce with `:wrapperguard-intellij:testJewelBridgeRuntime -Pwrapperguard.bridgeRuntimeVersion=2026.2.2`. Reflection selects only exact known public signatures; real invocation failures stay visible and are not retried as a different factory. The full script-regression suite now has46 passing tests, including Mac zombie-group cleanup and rejected blank/obscured UI captures.

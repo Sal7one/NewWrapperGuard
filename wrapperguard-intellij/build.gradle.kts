@@ -91,6 +91,36 @@ tasks.test {
     useJUnitPlatform { includeEngines("junit-vintage") }
 }
 
+// Run minimum-compiled bridge tests inside a separate target IDE/runtime and sandbox.
+// Changing this test runtime does not change the release's minimum compilation target.
+val bridgeRuntimeVersion = providers.gradleProperty("wrapperguard.bridgeRuntimeVersion")
+val bridgeRuntimePath = providers.gradleProperty("wrapperguard.bridgeRuntimePath")
+if (bridgeRuntimeVersion.isPresent || bridgeRuntimePath.isPresent) {
+    intellijPlatformTesting.testIde.register("testJewelBridgeRuntime") {
+        if (bridgeRuntimePath.isPresent) localPath.set(file(bridgeRuntimePath.get()))
+        else {
+            type.set(IntelliJPlatformType.IntellijIdeaUltimate)
+            version.set(bridgeRuntimeVersion)
+        }
+        testFramework(TestFrameworkType.Platform)
+        plugins {
+            bundledPlugin("com.intellij.gradle")
+            listOf("intellij.platform.compose", "intellij.libraries.skiko", "intellij.libraries.compose.foundation.desktop",
+                "intellij.platform.jewel.foundation", "intellij.platform.jewel.ui", "intellij.platform.jewel.ideLafBridge").forEach { bundledModule(it) }
+            if (bridgeRuntimeVersion.orNull?.startsWith("2026.") == true) bundledModule("intellij.libraries.compose.runtime.desktop")
+        }
+        task {
+            useJUnitPlatform { includeEngines("junit-vintage") }
+            filter {
+                includeTestsMatching("*JewelPanelCompatibilityTest")
+                includeTestsMatching("*GuardSmokeTest.testDescriptorLoadsBundledComposeWithoutRequiringLaterAggregateAlias")
+                includeTestsMatching("*GuardSmokeTest.testBundledJewelBridgeCreatesAnActualPanelThroughCompatibilityBoundary")
+            }
+            bridgeRuntimeVersion.orNull?.let { systemProperty("wrapperguard.bridge.expectedRuntimeVersion", it) }
+        }
+    }
+}
+
 tasks.runIde {
     // Sandbox-only: auto-open the WrapperGuard tool window so visual checks and
     // screenshots of the dev IDE do not need a manual click.

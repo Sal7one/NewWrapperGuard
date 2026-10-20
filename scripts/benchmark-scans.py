@@ -39,13 +39,34 @@ def _metrics(raw: str, system: str) -> int | None:
     return value if 0 < value < 1024**5 else None
 
 
+def _signal_group(process, signum):
+    try:
+        os.killpg(process.pid, signum)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        # Darwin excludes zombies from group signalling and can return EPERM
+        # while the last exited member is being reaped (XNU kern_sig.c killpg1).
+        # An exited leader alone proves nothing about descendants. Accept only
+        # actual ESRCH from a bounded group probe; live/unknown groups still fail.
+        if process.poll() is None: raise
+        deadline = time.monotonic()+.5
+        while time.monotonic() < deadline:
+            try: os.killpg(process.pid, 0)
+            except ProcessLookupError: return False
+            except PermissionError: pass
+            time.sleep(.01)
+        raise
+
+
 def _stop(process):
-    try: os.killpg(process.pid, signal.SIGTERM)
-    except ProcessLookupError: pass
+    if not _signal_group(process, signal.SIGTERM):
+        process.wait(timeout=2)
+        return
     try: process.wait(timeout=.3)
     except subprocess.TimeoutExpired: pass
-    try: os.killpg(process.pid, signal.SIGKILL)
-    except ProcessLookupError: pass
+    _signal_group(process, signal.SIGKILL)
     process.wait(timeout=2)
 
 

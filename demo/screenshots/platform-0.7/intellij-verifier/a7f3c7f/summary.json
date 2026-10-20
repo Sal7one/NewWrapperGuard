@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "commit": "a7f3c7f793f3a0a5a7a4a921f7105f779041c645",
+  "workflowRunId": 39456452413,
+  "workflowUrl": "https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39456452413",
+  "compiledAgainst": "2025.2",
+  "results": [
+    {
+      "ideVersion": "2025.2",
+      "ideBuild": "IU-252.23892.409",
+      "verdict": "Compatible. 8 usages of deprecated API. 27 usages of experimental API. 6 usages of internal API",
+      "compatible": true,
+      "deprecated": 8,
+      "experimental": 27,
+      "internal": 6,
+      "reportSha256": {
+        "telemetry.txt": "b1b6628606fe66a30b723cb05ef0b75ea9eea20fdef9416c00ba4f062dd44929",
+        "verification-verdict.txt": "597f6c71804f91e4c8f087b3eec3f4ff6d8b25466955b7a88ae64f155c440d77",
+        "internal-api-usages.txt": "e01d97c35fc3077904f47ca1eec8082a70f67b9f8d93542c1dc97f99c49cb15d",
+        "deprecated-usages.txt": "82289e06d3bde945b7401d5d303217b5863e10b639ab5bd57c3e85552d817994",
+        "dependencies.txt": "1d7d262cc10254f46d8d7f48b9387c1fd1092ac85288f4927f7a3111c2e9979a",
+        "experimental-api-usages.txt": "40b81e9277073853783fb162a53c525040b82c547a49cf3359fbbf41344cf182"
+      }
+    },
+    {
+      "ideVersion": "2026.2.3",
+      "ideBuild": "IU-262.10968.63",
+      "verdict": "Compatible. 88 usages of deprecated API. 18 usages of experimental API",
+      "compatible": true,
+      "deprecated": 88,
+      "experimental": 18,
+      "internal": 0,
+      "reportSha256": {
+        "telemetry.txt": "873bdf8d5a0ee151e7c87ce16f1095cc6a8a2ee5d19510f19993aaeba886068b",
+        "verification-verdict.txt": "b1b525e3d6028278a5cc3e25b8127c2dcbc5dd433d2615aeb70a9944ed99ba68",
+        "deprecated-usages.txt": "750909d6a9e0122d9c1b613f6104e2abd9d49aad00eec4b67b752f556d4d6ad8",
+        "dependencies.txt": "5364e8125fd9697cbca9cab4cadaf65beba2f005da474cb4f243ca41d96948b0",
+        "experimental-api-usages.txt": "24c0b4adb85676910c23727f5f2a3f1fc01df24004b13e9deac8db7412cd5dc6"
+      }
+    }
+  ],
+  "scope": "Binary verifier endpoint baseline before the final signature adapter. Intermediate2026.2.2 and real per-runtime bridge invocation are in the next matrix."
+}

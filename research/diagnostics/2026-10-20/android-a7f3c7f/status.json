@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "accepted": false,
+  "status": "REJECTED_SYSTEM_UI_ANR",
+  "productScreenshot": false,
+  "physicalDevice": false,
+  "deviceKind": "Android16API36x86_64emulator",
+  "ciRunId": 39456452454,
+  "ciHeadSha": "a7f3c7f793f3a0a5a7a4a921f7105f779041c645",
+  "url": "https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39456452454",
+  "reason": "Actual frame renders the owned activity behind a System UI not responding dialog; strict owned UI labels and unobscured capture gate rejected it.",
+  "review": "Codex inspected the unmodified PNG through the image viewer. This is diagnostic failure evidence, not accepted device/product evidence.",
+  "filesSha256": {
+    "device-rejected.png": "83476c52a101016f2ee543475f168dda1d1f8dc0cbbac6d127da06d6600f540d",
+    "device-ui.xml": "bc68cef6f106454a7143fda370c841ca696bdaf7f38bcf3eefc19db9bd555e48",
+    "ui-check.json": "56114cfe917eab1349dfd5c400594e303b23c7bd7950c98d25d62ff7dab7c693",
+    "emulator.log": "73e4814191e6324118ea619f8a7fccbd0d98e28d087b79c3794cc274d7384754"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "sourceBaseCommit": "a7f3c7f793f3a0a5a7a4a921f7105f779041c645",
+  "failedWorkflowRun": 39456452413,
+  "failedJob": 118744645498,
+  "url": "https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39456452413/job/118744645498",
+  "observedFailure": "Security inputs or provider permissions changed during evaluation at the missing-tool follow-up scan (host-tests/index.js:15:492). VS Code downloaded, launched and activated successfully.",
+  "artifact": "No failed-host artifact existed; upload annotation confirms no files were found.",
+  "classification": "Harness notification-order race; product correctly rejects an evaluation invalidated while running. Exact event identity was not retained by the old harness.",
+  "changes": [
+    "Wait for actual matching configuration notification rather than assume config.update+100ms drains events.",
+    "Perform deliberate source-mutating gate case last, so its delayed file event cannot race the next independent scan.",
+    "Retain partial or unavailable failed-host evidence while preserving nonzero failure.",
+    "Canonicalize disposable profile/workspace paths."
+  ],
+  "productionGuardChanged": false,
+  "localEditor": "1.116.0 installed macOS app; no editor downloaded",
+  "actualLocalCases": 8,
+  "localPass": true,
+  "focusedHarnessRegressions": 4,
+  "minimumMacCiStillRequired": true,
+  "sourceSha256": {
+    "vscode-extension/host-tests/index.js": "fbab2e68a4cf0b5842ca4a0e899221d8a2830b9affd7cd501751b7f2143faeaa",
+    "vscode-extension/scripts/test-host.js": "35eef0fa0c6962beae61ff82c23532221fce5a390ad1774835be336fe9c1819f",
+    "vscode-extension/tests/hostHarness.test.js": "cd78b626f984939ec9db5ae462f8d8d4332bb9a89bfe3f4454a8de7eac925d7d"
+  }
+}

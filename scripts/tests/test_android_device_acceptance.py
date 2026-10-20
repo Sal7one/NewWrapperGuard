@@ -106,6 +106,22 @@ class ScreenshotBoundaryTests(unittest.TestCase):
         other=device.owned_ui_status('<hierarchy><node package="other" text="Device acceptance Ready on 127.0.0.1:8765"/></hierarchy>')
         self.assertFalse(other['titlePresent'] or other['readyPresent'])
 
+    def test_system_anr_modal_is_rejected_even_if_underlying_owned_labels_are_present(self):
+        xml='<hierarchy><node package="com.wrapperguard.acceptance" text="Device acceptance Ready on 127.0.0.1:8765"/><node package="android" resource-id="android:id/alertTitle" text="System UI isn&apos;t responding"/></hierarchy>'
+        status=device.owned_ui_status(xml)
+        self.assertTrue(status['titlePresent'] and status['readyPresent'] and status['blockingSystemDialog'])
+        png=image(content)
+        def adb(*args,**kwargs):
+            if args[0]=='exec-out':return png
+            if args[1]=='cat':return xml
+            if args[1:4]==('dumpsys','activity','activities'):
+                return 'topResumedActivity=ActivityRecord{com.wrapperguard.acceptance/.MainActivity}'
+            return ''
+        with tempfile.TemporaryDirectory() as temporary:
+            output=Path(temporary)
+            with self.assertRaises(RuntimeError): device.capture_owned_ui(adb,output,attempts=1)
+            self.assertFalse((output/'device.png').exists())
+
     def test_ui_capture_retains_tree_and_image_diagnostics_before_rejecting_missing_labels(self):
         png=image(content)
         def adb(*args,**kwargs):

@@ -56,6 +56,23 @@ class GuardSmokeTest : HeavyPlatformTestCase() {
         assertNotNull(javaClass.getResource("/META-INF/${alias.getAttribute("config-file")}"))
     }
 
+    fun testBundledJewelBridgeCreatesAnActualPanelThroughCompatibilityBoundary() {
+        System.getProperty("wrapperguard.bridge.expectedRuntimeVersion")?.let { expected ->
+            val actual = com.intellij.openapi.application.ApplicationInfo.getInstance().fullVersion
+            assertTrue("The runtime test must use $expected, not the compilation IDE $actual", actual.startsWith(expected))
+            val factory = javaClass.classLoader.loadClass("org.jetbrains.jewel.bridge.JewelComposePanelWrapperKt")
+            val parameters = com.sal7one.wrapperguard.intellij.ui.JewelPanelCompatibility.resolve(factory).parameterCount
+            val expectedParameters = if (expected == "2026.2.2") 3 else 2
+            assertEquals("The target's actual public bridge shape must be exercised", expectedParameters, parameters)
+        }
+        var panel: JComponent? = null
+        com.intellij.openapi.application.ApplicationManager.getApplication().invokeAndWait {
+            panel = com.sal7one.wrapperguard.intellij.ui.JewelPanelCompatibility.create { }
+        }
+        assertNotNull("The installed platform's public factory must actually create a component", panel)
+        assertTrue("The themed bridge hosts a real Compose component", panel!!.componentCount > 0)
+    }
+
     fun testDescriptorRegistersBeforeRunProviderWithIdeRegistry() {
         val provider = com.intellij.execution.BeforeRunTaskProvider.getProvider(project, WrapperGuardBeforeRunTaskProvider.KEY)
         assertNotNull("The IDE must resolve the attached task through its project extension registry", provider)

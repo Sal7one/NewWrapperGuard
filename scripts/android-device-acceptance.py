@@ -131,7 +131,9 @@ def owned_ui_status(hierarchy: str) -> dict:
     text = '\n'.join(node.attrib.get(key,'') for node in nodes if node.attrib.get('package') == PACKAGE
                      for key in ('text','content-desc'))
     return {'ownedNodeCount':sum(node.attrib.get('package') == PACKAGE for node in nodes),
-            'titlePresent':'Device acceptance' in text,'readyPresent':'Ready on 127.0.0.1:8765' in text}
+            'titlePresent':'Device acceptance' in text,'readyPresent':'Ready on 127.0.0.1:8765' in text,
+            'blockingSystemDialog':any(node.attrib.get('package') == 'android' and node.attrib.get('resource-id')
+                in {'android:id/alertTitle','android:id/aerr_close','android:id/aerr_wait'} for node in nodes)}
 
 
 def capture_owned_ui(adb, output: Path, *, attempts: int = 5) -> dict:
@@ -142,7 +144,7 @@ def capture_owned_ui(adb, output: Path, *, attempts: int = 5) -> dict:
         adb('shell','wm','dismiss-keyguard')
         foreground = owned_activity_foreground(adb('shell','dumpsys','activity','activities'))
         last = {'attempt':attempt+1,'foregroundOwned':foreground,'treeAvailable':False,
-                'titlePresent':False,'readyPresent':False,'nonBlankPassed':False,'accepted':False}
+                'titlePresent':False,'readyPresent':False,'nonBlankPassed':False,'accepted':False,'blockingSystemDialog':False}
         try:
             adb('shell','uiautomator','dump','/data/local/tmp/wrapperguard-acceptance-ui.xml')
             hierarchy = adb('shell','cat','/data/local/tmp/wrapperguard-acceptance-ui.xml')
@@ -157,7 +159,7 @@ def capture_owned_ui(adb, output: Path, *, attempts: int = 5) -> dict:
             last['nonBlankPassed'] = True
         except ValueError:
             pass
-        last['accepted'] = all(last[key] for key in ('foregroundOwned','treeAvailable','titlePresent','readyPresent','nonBlankPassed'))
+        last['accepted'] = not last['blockingSystemDialog'] and all(last[key] for key in ('foregroundOwned','treeAvailable','titlePresent','readyPresent','nonBlankPassed'))
         (output/'ui-check.json').write_text(json.dumps(last,indent=2)+'\n',encoding='utf-8')
         if last['accepted']: return screenshot
         candidate = output/'device.png'
@@ -256,6 +258,8 @@ def main() -> None:
                     "api": adb("shell", "getprop", "ro.build.version.sdk"),
                     "androidRelease": adb("shell", "getprop", "ro.build.version.release"),
                     "abi": adb("shell", "getprop", "ro.product.cpu.abi"),
+                    "displaySize": adb("shell", "wm", "size"),
+                    "displayDensity": adb("shell", "wm", "density"),
                     "apkSha256": hashlib.sha256(args.apk.read_bytes()).hexdigest(),
                     "launchPassed": True, "loopbackHeadersPassed": True, "sdkAudit": sdk_results,
                     "screenshot":screenshot, "visualReview":"PENDING_HUMAN_REVIEW",
