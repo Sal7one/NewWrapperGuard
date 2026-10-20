@@ -7,7 +7,7 @@ plugins {
 
 allprojects {
     group = "com.sal7one.wrapperguard"
-    version = "0.6.0"
+    version = "0.7.0"
 }
 
 subprojects {

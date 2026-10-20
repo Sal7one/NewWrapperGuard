@@ -2,7 +2,7 @@
   "name": "wrapperguard",
   "displayName": "WrapperGuard",
   "description": "Local security vetting with a built-in static scanner and user-authorized providers.",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "publisher": "sal7one",
   "repository": {
     "type": "git",
@@ -265,7 +265,7 @@
     "hardening": "node scripts/hardening.js",
     "test": "npm run compile && node --test tests/*.test.js && npm run check:webview",
     "check:webview": "node scripts/check-webview.js",
-    "package": "npm run build:sdk && npm run compile && vsce package --out wrapperguard-0.6.0.vsix",
+    "package": "npm run build:sdk && npm run compile && vsce package --out wrapperguard-0.7.0.vsix",
     "build:sdk": "python3 ../scripts/build-sdk.py --copy-vscode",
     "test:host": "npm run compile && node scripts/test-host.js"
   },

@@ -53,7 +53,7 @@ jobs:
 
   intellij-compatibility:
     name: IntelliJ binary compatibility ${{ matrix.ide }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     strategy:
       fail-fast: false
@@ -61,6 +61,12 @@ jobs:
         ide: ['2025.2', '2026.2.3']
     steps:
       - uses: actions/checkout@v4
+      - name: Reserve disk for two IDE distributions and verifier
+        # These are unused preinstalled tools on this disposable hosted runner.
+        # Keep the JDK/Gradle and downloaded verifier reports intact.
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+          df -h .
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
