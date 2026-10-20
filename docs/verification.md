@@ -118,10 +118,11 @@ The native matrix runs the minimum-compiled Jewel factory inside each selected I
 
 ```sh
 ./gradlew :wrapperguard-intellij:testJewelBridgeRuntime \
-  -Pwrapperguard.bridgeRuntimeVersion=2026.2.2
+  -Pwrapperguard.bridgeRuntimeVersion=2026.2.2 \
+  -Pwrapperguard.bridgeRuntimeBuild=262.10315.125
 ```
 
-Each target must report six passing tests without skips. Exact public signatures are selected at the compatibility boundary; invocation failures stay visible instead of being retried through another factory. Binary-verifier warnings and actual-runtime results must both be retained.
+Each remote target requires its exact framework build: 2025.2 → 252.23892.409, 2026.2.2 → 262.10315.125, 2026.2.3 → 262.10968.63. The task records and checks resolved test-framework modules before launching. Each target must report six passing tests without skips. Exact public signatures are selected at the compatibility boundary; invocation failures stay visible instead of being retried through another factory. Binary-verifier warnings and actual-runtime results must both be retained.
 
 After building all four packages from the clean final committed source:
 

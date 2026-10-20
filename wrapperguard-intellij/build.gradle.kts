@@ -1,3 +1,4 @@
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 
@@ -95,6 +96,7 @@ tasks.test {
 // Changing this test runtime does not change the release's minimum compilation target.
 val bridgeRuntimeVersion = providers.gradleProperty("wrapperguard.bridgeRuntimeVersion")
 val bridgeRuntimePath = providers.gradleProperty("wrapperguard.bridgeRuntimePath")
+val bridgeRuntimeBuild = providers.gradleProperty("wrapperguard.bridgeRuntimeBuild")
 if (bridgeRuntimeVersion.isPresent || bridgeRuntimePath.isPresent) {
     intellijPlatformTesting.testIde.register("testJewelBridgeRuntime") {
         if (bridgeRuntimePath.isPresent) localPath.set(file(bridgeRuntimePath.get()))
@@ -102,7 +104,18 @@ if (bridgeRuntimeVersion.isPresent || bridgeRuntimePath.isPresent) {
             type.set(IntelliJPlatformType.IntellijIdeaUltimate)
             version.set(bridgeRuntimeVersion)
         }
-        testFramework(TestFrameworkType.Platform)
+        // IPGP 2.11 resolves the default "closest" test-framework against the base
+        // compilation platform, even inside a custom target runtime. A 252 framework
+        // cannot initialize against 262 (Java11Shim moved). Pin the target build;
+        // release compilation and its own tests still use the minimum platform.
+        require(!bridgeRuntimeVersion.isPresent || bridgeRuntimeBuild.isPresent) {
+            "A remote bridge runtime requires wrapperguard.bridgeRuntimeBuild for its matching test framework"
+        }
+        if (bridgeRuntimeBuild.isPresent) {
+            testFramework(TestFrameworkType.Platform, bridgeRuntimeBuild)
+        } else {
+            testFramework(TestFrameworkType.Platform)
+        }
         plugins {
             bundledPlugin("com.intellij.gradle")
             listOf("intellij.platform.compose", "intellij.libraries.skiko", "intellij.libraries.compose.foundation.desktop",
@@ -117,6 +130,33 @@ if (bridgeRuntimeVersion.isPresent || bridgeRuntimePath.isPresent) {
                 includeTestsMatching("*GuardSmokeTest.testBundledJewelBridgeCreatesAnActualPanelThroughCompatibilityBoundary")
             }
             bridgeRuntimeVersion.orNull?.let { systemProperty("wrapperguard.bridge.expectedRuntimeVersion", it) }
+            val frameworkEvidence = listOf(
+                "intellijPlatformTestDependencies_testJewelBridgeRuntime",
+                "intellijPlatformTestRuntimeClasspath_testJewelBridgeRuntime",
+            ).map { name ->
+                configurations.getByName(name).incoming.artifacts.resolvedArtifacts.map { artifacts ->
+                    artifacts.mapNotNull { it.id.componentIdentifier as? ModuleComponentIdentifier }
+                        .filter { it.group == "com.jetbrains.intellij.platform" && it.module.startsWith("test-framework") }
+                        .distinctBy { "${it.group}:${it.module}:${it.version}" }.sortedBy { it.module }
+                        .map { "$name: ${it.group}:${it.module}:${it.version}" }
+                }
+            }.reduce { dependencies, runtime -> dependencies.zip(runtime) { first, second -> first + second } }
+            val frameworkEvidenceFile = layout.buildDirectory.file("reports/jewel-bridge-runtime/test-framework.txt").get().asFile
+            val expectedFrameworkBuild = bridgeRuntimeBuild.orNull
+            inputs.property("wrapperguard.bridge.testFramework", frameworkEvidence)
+            doFirst {
+                @Suppress("UNCHECKED_CAST")
+                val resolvedFramework = inputs.properties.getValue("wrapperguard.bridge.testFramework") as List<String>
+                frameworkEvidenceFile.parentFile.mkdirs()
+                frameworkEvidenceFile.writeText(resolvedFramework.joinToString("\n", postfix = "\n"))
+                logger.lifecycle("Jewel bridge target test framework: {}", resolvedFramework)
+                if (expectedFrameworkBuild != null) {
+                    check(resolvedFramework.any { it.contains(":test-framework:") }) { "Target test framework was not resolved" }
+                    check(resolvedFramework.all { it.substringAfterLast(':') == expectedFrameworkBuild }) {
+                        "Target test framework must match $expectedFrameworkBuild; resolved: $resolvedFramework"
+                    }
+                }
+            }
         }
     }
 }

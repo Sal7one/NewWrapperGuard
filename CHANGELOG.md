@@ -12,6 +12,7 @@
 - Add pinned 77-source static research acquisition, honest missed-signal reporting, two real local-model diagnostic evaluations, resource budgets and runtime dependency/license inventory.
 - Fix PowerShell module/uppercase extension coverage, shell assignment false positives, canceled setup execution, UI focus recovery and SCAN-only managed-provider gate applicability.
 - Compile native releases against the minimum IntelliJ 2025.2 platform; handle the exact released Jewel factory signatures and exercise the real factory on minimum/intermediate/current runtimes.
+- Pin target-matched native test frameworks, validate their resolved versions, and exercise/checksum the acceptance bundle in CI; use exact-commit monorepo links in packaged VS Code documentation.
 - Retain actual six-job VS Code host results and inspected Android emulator UI/HTTP evidence, including separately labeled rejected earlier captures. Final candidate packaging and publication remain pending.
 
 ## 0.6.0 — Release candidate 1 (2026-10-20)

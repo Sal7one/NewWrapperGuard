@@ -60,7 +60,13 @@ jobs:
       matrix:
         # Jewel 0.40 in 2026.2.2 removed old bridge overloads restored by 0.41.
         # Keep this intermediate release in addition to the advertised minimum/current.
-        ide: ['2025.2', '2026.2.2', '2026.2.3']
+        include:
+          - ide: '2025.2'
+            build: '252.23892.409'
+          - ide: '2026.2.2'
+            build: '262.10315.125'
+          - ide: '2026.2.3'
+            build: '262.10968.63'
     steps:
       - uses: actions/checkout@v4
       - name: Reserve disk for two IDE distributions and verifier
@@ -80,7 +86,7 @@ jobs:
       - name: Verify the declared minimum or current stable platform
         run: ./gradlew --no-daemon --max-workers=2 :wrapperguard-intellij:verifyPlugin -Pwrapperguard.verifierVersion=${{ matrix.ide }}
       - name: Invoke the public Jewel bridge in the actual target runtime
-        run: ./gradlew --no-daemon --max-workers=2 :wrapperguard-intellij:testJewelBridgeRuntime -Pwrapperguard.bridgeRuntimeVersion=${{ matrix.ide }}
+        run: ./gradlew --no-daemon --max-workers=2 :wrapperguard-intellij:testJewelBridgeRuntime -Pwrapperguard.bridgeRuntimeVersion=${{ matrix.ide }} -Pwrapperguard.bridgeRuntimeBuild=${{ matrix.build }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -90,4 +96,6 @@ jobs:
         if: always()
         with:
           name: intellij-bridge-runtime-${{ matrix.ide }}
-          path: wrapperguard-intellij/build/test-results/testJewelBridgeRuntime/*.xml
+          path: |
+            wrapperguard-intellij/build/test-results/testJewelBridgeRuntime/*.xml
+            wrapperguard-intellij/build/reports/jewel-bridge-runtime/test-framework.txt
