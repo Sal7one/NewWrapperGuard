@@ -19,7 +19,7 @@ The packaged test bundle includes installers, CLI, wheel, docs, inert source fix
 2. Open **Tools → Built-in** and scan. Six independent static groups default on. Check provider status, selected scope and findings/navigation. Build-input checks alone do not establish Kotlin/Java source-SAST coverage.
 3. Install the bundled SDK using trusted Python 3.10+. Choose separately whether to download pinned Semgrep 1.181.0 / Bandit 1.9.4. Connect **SAST → Semgrep** with bundled rules and **Bandit** with its installed executable; keep warning-only SCAN grants and explicitly enable/scan.
 4. Expect `wrapperguard.ktor.unrestricted-cors` and `wrapperguard.kotlin.empty-server-trust-check` in `Application.kt`, `wrapperguard.android.javascript-bridge` and `wrapperguard.android.raw-query-concatenation` in `Browser.java`, plus Bandit `B602` in `app.py` (other Bandit diagnostics may appear). Source suppression comments must not create approvals.
-5. Disable one analyzer: its findings disappear while another remains independent. Re-enable/rescan. Change source: old results must become stale. Grant changes and unknown/incomplete scope must remain visible; research/AI cannot acquire blockers.
+5. Disable one analyzer: its findings disappear while another remains independent. Re-enable/rescan. Change source: old results must become stale. Grant changes and unknown/incomplete scope must remain visible; bundled research/AI methods cannot acquire blockers. Generic custom-provider categories are metadata; their explicit grants remain independently controlled.
 
 ### Setup, automation and maintenance
 
@@ -60,8 +60,8 @@ Exit2 means active granted blockers, exit1 invalid/incomplete input without a bl
 | Android Studio | Actual2026.1.1 / AI261 install0.5→0.6/restart/removal, clean/blocked Run/Sync passed | Separate isolated profile, real marker checks and dialogs; new0.7 SDK/automation acceptance also exercised |
 | Device | [Android16/API36 emulator passed](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39450889177) | Launch, UI/screenshot, owned loopback server, SDK secure0 findings/weak3 findings; physical phone not connected |
 | Provider conformance | Installed JVM and actual TS bridge cases passed | Healthy/malformed/partial/deadline/cancel/action/attribution cases and descendant death |
-| Resource evaluation | Four real-project subsets plus4096 generated files; five caps/cancel checks passed | Latency/RSS/completion recorded; Android subset legitimately incomplete, Python native scope limited |
-| Research |77 pinned sources and two real local model runs | Misses, unsupported inputs, label bias and incorrect/injected model prose retained; no population accuracy claim |
+| Resource evaluation | Four real-project subsets plus4096 generated files; five caps/cancel checks passed; [Linux CI passed](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39454719440) | Latency/RSS/completion recorded; Android subset legitimately incomplete, Python native scope limited |
+| Research |77 pinned sources and two real local model runs; [static corpus](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39454719459) and [real source rules](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39454719789) passed | Misses, unsupported inputs, label bias and incorrect/injected model prose retained; no population accuracy claim |
 | Distribution | Runtime audit/SBOM and embedded wheel/license checks | Current final artifacts must pass after build; live advisory databases are time-sensitive |
 
 Actual captures and machine-readable evidence are in [Android Studio0.6](../demo/screenshots/platform-0.6/android-studio/), [native/VS Code gallery](../demo/screenshots/flexible-provider-platform/) and [Android device](../demo/screenshots/platform-0.7/android-device/evidence.json). Synthetic demo renders remain separately labeled. A CI PR merge commit can differ from its branch head; device JSON records both identities.

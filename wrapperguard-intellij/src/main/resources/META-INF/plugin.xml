@@ -8,10 +8,18 @@
     ]]></description>
     <idea-version since-build="252"/>
     <depends>com.intellij.modules.platform</depends>
-    <!-- Compose + Jewel are exposed to plugin classloaders via the com.intellij.modules.compose
-         module, available from IntelliJ Platform 2025.2 (build 252). Wired by the composeUI()
-         helper in build.gradle.kts. -->
-    <depends>com.intellij.modules.compose</depends>
+    <!-- Original 252 provides these modules but not the later aggregate Compose alias.
+         Keep the minimum-platform dependencies explicit, as in JetBrains' 252 template. -->
+    <dependencies>
+        <module name="intellij.libraries.skiko"/>
+        <module name="intellij.libraries.compose.foundation.desktop"/>
+        <module name="intellij.platform.jewel.foundation"/>
+        <module name="intellij.platform.jewel.ui"/>
+        <module name="intellij.platform.jewel.ideLafBridge"/>
+    </dependencies>
+    <!-- Later platforms split additional Compose runtime modules behind this alias.
+         Its presence augments the classloader; its absence must not disable the plugin. -->
+    <depends optional="true" config-file="wrapperguard-compose-aggregate.xml">com.intellij.modules.compose</depends>
     <depends>com.intellij.gradle</depends>
 
     <extensionPoints>

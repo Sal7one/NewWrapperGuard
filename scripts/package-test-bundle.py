@@ -2,6 +2,7 @@
 """Assemble a reviewable acceptance bundle from current built artifacts and clean source."""
 import argparse
 import hashlib
+import json
 from pathlib import Path
 import re
 import shutil
@@ -32,6 +33,12 @@ def main():
              ROOT / f'build/sdk/wrapperguard_sdk-{sdk}-py3-none-any.whl']
     if not all(file.is_file() for file in files):
         parser.error('Build both IDE packages, the CLI distribution and SDK first')
+    audit = ROOT / 'build/distribution-audit'
+    if not all((audit / name).is_file() for name in ('runtime.cdx.json', 'distribution-audit.json')):
+        parser.error('Run scripts/distribution-audit.py with an absolute build/distribution-audit output first')
+    audited_hashes = json.loads((audit / 'distribution-audit.json').read_text()).get('artifactSha256', {})
+    if any(audited_hashes.get(file.name) != hashlib.sha256(file.read_bytes()).hexdigest() for file in files):
+        parser.error('Re-run the distribution audit: an artifact changed after review')
     args.output.mkdir(parents=True)
     for file in files: shutil.copy2(file, args.output / file.name)
     shutil.copytree(ROOT / 'wrapperguard-cli/build/install/wrapperguard-cli', args.output / 'cli')
@@ -44,9 +51,6 @@ def main():
     for gallery in ('platform-0.6', 'platform-0.7', 'flexible-provider-platform'):
         screenshots = ROOT / 'demo/screenshots' / gallery
         if screenshots.is_dir(): shutil.copytree(screenshots, args.output / 'screenshots' / gallery)
-    audit = ROOT / 'build/distribution-audit'
-    if not all((audit / name).is_file() for name in ('runtime.cdx.json', 'distribution-audit.json')):
-        parser.error('Run scripts/distribution-audit.py --output build/distribution-audit (absolute) first')
     shutil.copytree(audit, args.output / 'distribution-audit')
     smoke = (ROOT / 'scripts/provider-smoke.py').read_text()
     smoke = smoke.replace('Path(__file__).resolve().parents[1]', 'Path(__file__).resolve().parent')

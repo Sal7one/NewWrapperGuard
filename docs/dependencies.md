@@ -9,7 +9,7 @@ python3 scripts/distribution-audit.py --output /absolute/new/audit --query-osv
 npm --prefix vscode-extension audit --omit=dev
 ```
 
-The audit inventories actual packaged JARs, first-party wheel and Node runtime, rejects unknown runtime additions, verifies embedded wheel identity/licenses and emits CycloneDX1.6 plus artifact hashes. The optional OSV query sends only five dependency names/versions to the official service; it fails on reported advisories. The npm runtime audit returned zero known advisories on 2026-10-20. Database results are time-sensitive and are not proof of no vulnerabilities.
+The audit inventories actual packaged JARs, first-party wheel and Node runtime, rejects unknown runtime additions, verifies embedded wheel identity/licenses and emits CycloneDX1.6 plus artifact hashes. The optional OSV query sends only five dependency names/versions to the official service; it fails on reported advisories. The npm runtime audit and the five-dependency live OSV query both returned zero known advisories on 2026-10-20. Database results are time-sensitive and are not proof of no vulnerabilities.
 
 Build/development dependencies remain in Gradle configuration and package-lock.json and are outside this runtime SBOM. IDE/Java/Python/Node runtimes, optional analyzer packages/databases, model weights and container images are separately installed components with separate licenses, trust and update requirements. The product neither bundles nor relicenses them. Research source licenses/label caveats are pinned in the acquisition lock and payloads are not redistributed.
 

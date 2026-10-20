@@ -25,7 +25,7 @@ internal class ScanAutomationDialog(private val project: Project) : DialogWrappe
     private val interval = JSpinner(SpinnerNumberModel(saved.intervalMinutes, 0, 1440, 5))
     private val providers = runCatching { IntellijVettingProviders.registrations(project, Path.of(requireNotNull(project.basePath))) }.getOrDefault(emptyList())
     private val providerIds = (providers.map { it.provider.descriptor.id } + saved.providers.keys).distinct().take(33)
-    private val model = object : DefaultTableModel(arrayOf<Any>("Select", "Provider", "Network", "Cost", "Reviewed", "Current state"), 0) {
+    private val model = object : DefaultTableModel(arrayOf<Any>("Use", "Provider", "Network", "Cost", "Reviewed", "Current state"), 0) {
         override fun getColumnClass(column: Int): Class<*> = if (column in setOf(0, 4)) java.lang.Boolean::class.java else String::class.java
         override fun isCellEditable(row: Int, column: Int) = column in setOf(0, 2, 3, 4)
     }
@@ -38,8 +38,9 @@ internal class ScanAutomationDialog(private val project: Project) : DialogWrappe
         accessibleContext.accessibleName = "Automatic SCAN provider selection, network, cost and acknowledgement"
         setDefaultRenderer(String::class.java, javax.swing.table.DefaultTableCellRenderer().apply { putClientProperty("html.disable", true) })
         putClientProperty("terminateEditOnFocusLost", true)
-        listOf(52, 335, 90, 90, 75, 215).forEachIndexed { index, width -> columnModel.getColumn(index).preferredWidth = width }
-        columnModel.getColumn(0).maxWidth = 60; columnModel.getColumn(4).maxWidth = 80
+        listOf(52, 335, 90, 90, 90, 215).forEachIndexed { index, width -> columnModel.getColumn(index).preferredWidth = width }
+        columnModel.getColumn(0).maxWidth = 60
+        columnModel.getColumn(4).minWidth = 90; columnModel.getColumn(4).maxWidth = 100
         columnModel.getColumn(2).cellEditor = DefaultCellEditor(JComboBox(arrayOf("NONE", "LOCAL", "REMOTE", "UNKNOWN")))
         columnModel.getColumn(3).cellEditor = DefaultCellEditor(JComboBox(arrayOf("LOW", "METERED", "UNKNOWN")))
     }

@@ -31,9 +31,9 @@ dependencies {
 
         bundledPlugin("com.intellij.gradle")
 
-        // Officially-supported way to depend on the bundled Compose UI framework. Adds the
-        // com.intellij.modules.compose dependency and wires Compose/Jewel/Skiko into the plugin
-        // classloader. See https://github.com/JetBrains/intellij-platform-compose-plugin-template
+        // Resolve the bundled Compose/Jewel/Skiko compile modules for this platform version.
+        // Runtime module/classloader dependencies are declared explicitly in plugin.xml.
+        // See https://github.com/JetBrains/intellij-platform-compose-plugin-template
         @Suppress("UnstableApiUsage")
         composeUI()
 

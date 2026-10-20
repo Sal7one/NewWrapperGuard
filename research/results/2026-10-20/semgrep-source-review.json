@@ -1,0 +1,356 @@
+{
+  "schemaVersion": 1,
+  "sdkVersion": "0.4.0",
+  "rulePackSha256": {
+    "legacy-android-ktor": "12850bd096cc9cd88a64d019f9a3e0996ec89353d440e73c18291b087b3382eb",
+    "android-manifest": "ec04fb9f22832934307a3bfc136a1d134a0db3ca0a0878002199cba5d3cf8fb1",
+    "android-webview": "a4a58df7fadd8984e478547e934eb229531fb89a8a44e28acb13a7d29e960e08",
+    "jvm-crypto": "e7e4a7b2100602893199b1eb7b151f66055b91afad93ce5273d77ae6c649d27a",
+    "ktor-runtime": "0893eadfd6b7742082eeed47c4db3d99ad784bf8fa0ac6ade1ae05967c34e025"
+  },
+  "semgrepVersion": "1.181.0",
+  "inventorySha256": "c68608e723948ac291a853405f8aca515466d7a4e7cd80180c7a7796cfcd996f",
+  "projectCodeExecuted": false,
+  "allConfiguredScansComplete": true,
+  "sources": [
+    {
+      "sourceId": "now-in-android",
+      "rulePack": "legacy-android-ktor",
+      "inventoryFileCount": 434,
+      "candidateFileCount": 350,
+      "candidateSetSha256": "d5c81d468eb0169f295f120b058c23a8e9148cb924e3298fe7b2527d50cf5749",
+      "complete": true,
+      "findingCount": 0,
+      "ruleCounts": {},
+      "noticeCodes": [],
+      "findings": [],
+      "status": "COMPLETE",
+      "elapsedMs": 2388.45
+    },
+    {
+      "sourceId": "now-in-android",
+      "rulePack": "android-manifest",
+      "inventoryFileCount": 434,
+      "candidateFileCount": 26,
+      "candidateSetSha256": "8a83f619bedd648d0e19e99151254f5797dc7e7446cbad15a562a6f4ce8e5136",
+      "complete": true,
+      "findingCount": 2,
+      "ruleCounts": {
+        "wrapperguard.android.manifest-backup": 2
+      },
+      "noticeCodes": [],
+      "findings": [
+        {
+          "ruleId": "wrapperguard.android.manifest-backup",
+          "severity": "WARN",
+          "path": "app-nia-catalog/src/main/AndroidManifest.xml",
+          "line": 19,
+          "column": 5
+        },
+        {
+          "ruleId": "wrapperguard.android.manifest-backup",
+          "severity": "WARN",
+          "path": "app/src/main/AndroidManifest.xml",
+          "line": 31,
+          "column": 5
+        }
+      ],
+      "status": "COMPLETE",
+      "elapsedMs": 2051.499
+    },
+    {
+      "sourceId": "now-in-android",
+      "rulePack": "android-webview",
+      "inventoryFileCount": 434,
+      "candidateFileCount": 310,
+      "candidateSetSha256": "d269bbfb70de319f3fde465c8443884e6361adedced548bd7265dced088b4624",
+      "complete": true,
+      "findingCount": 0,
+      "ruleCounts": {},
+      "noticeCodes": [],
+      "findings": [],
+      "status": "COMPLETE",
+      "elapsedMs": 2324.892
+    },
+    {
+      "sourceId": "now-in-android",
+      "rulePack": "jvm-crypto",
+      "inventoryFileCount": 434,
+      "candidateFileCount": 350,
+      "candidateSetSha256": "d5c81d468eb0169f295f120b058c23a8e9148cb924e3298fe7b2527d50cf5749",
+      "complete": true,
+      "findingCount": 0,
+      "ruleCounts": {},
+      "noticeCodes": [],
+      "findings": [],
+      "status": "COMPLETE",
+      "elapsedMs": 2486.293
+    },
+    {
+      "sourceId": "now-in-android",
+      "rulePack": "ktor-runtime",
+      "inventoryFileCount": 434,
+      "candidateFileCount": 350,
+      "candidateSetSha256": "d5c81d468eb0169f295f120b058c23a8e9148cb924e3298fe7b2527d50cf5749",
+      "complete": true,
+      "findingCount": 0,
+      "ruleCounts": {},
+      "noticeCodes": [],
+      "findings": [],
+      "status": "COMPLETE",
+      "elapsedMs": 2412.544
+    },
+    {
+      "sourceId": "ktor-samples",
+      "rulePack": "legacy-android-ktor",
+      "inventoryFileCount": 375,
+      "candidateFileCount": 204,
+      "candidateSetSha256": "bcd61f3f98c180b6de0f31cbba01738684003f9ac43f82c1086e073c4b6f77f3",
+      "complete": true,
+      "findingCount": 1,
+      "ruleCounts": {
+        "wrapperguard.ktor.unrestricted-cors": 1
+      },
+      "noticeCodes": [],
+      "findings": [
+        {
+          "ruleId": "wrapperguard.ktor.unrestricted-cors",
+          "severity": "WARN",
+          "path": "httpbin/src/main/kotlin/io/ktor/samples/httpbin/Server.kt",
+          "line": 44,
+          "column": 9
+        }
+      ],
+      "status": "COMPLETE",
+      "elapsedMs": 2248.334
+    },
+    {
+      "sourceId": "ktor-samples",
+      "rulePack": "android-manifest",
+      "inventoryFileCount": 375,
+      "candidateFileCount": 2,
+      "candidateSetSha256": "aa0cc81a1511d0d3c3d24708ae328c0bbfe9dfe4b2f1d3e4760f86d51da4eeda",
+      "complete": true,
+      "findingCount": 1,
+      "ruleCounts": {
+        "wrapperguard.android.manifest-backup": 1
+      },
+      "noticeCodes": [],
+      "findings": [
+        {
+          "ruleId": "wrapperguard.android.manifest-backup",
+          "severity": "WARN",
+          "path": "client-mpp/androidApp/src/main/AndroidManifest.xml",
+          "line": 7,
+          "column": 5
+        }
+      ],
+      "status": "COMPLETE",
+      "elapsedMs": 1998.516
+    },
+    {
+      "sourceId": "ktor-samples",
+      "rulePack": "android-webview",
+      "inventoryFileCount": 375,
+      "candidateFileCount": 151,
+      "candidateSetSha256": "9a0561bfe2568bbb00cb0034c58b4a7947189acb656e2cf6965c2ee8b4595885",
+      "complete": true,
+      "findingCount": 0,
+      "ruleCounts": {},
+      "noticeCodes": [],
+      "findings": [],
+      "status": "COMPLETE",
+      "elapsedMs": 2147.928
+    },
+    {
+      "sourceId": "ktor-samples",
+      "rulePack": "jvm-crypto",
+      "inventoryFileCount": 375,
+      "candidateFileCount": 204,
+      "candidateSetSha256": "bcd61f3f98c180b6de0f31cbba01738684003f9ac43f82c1086e073c4b6f77f3",
+      "complete": true,
+      "findingCount": 0,
+      "ruleCounts": {},
+      "noticeCodes": [],
+      "findings": [],
+      "status": "COMPLETE",
+      "elapsedMs": 2295.962
+    },
+    {
+      "sourceId": "ktor-samples",
+      "rulePack": "ktor-runtime",
+      "inventoryFileCount": 375,
+      "candidateFileCount": 204,
+      "candidateSetSha256": "bcd61f3f98c180b6de0f31cbba01738684003f9ac43f82c1086e073c4b6f77f3",
+      "complete": true,
+      "findingCount": 1,
+      "ruleCounts": {
+        "wrapperguard.ktor.credentialed-unrestricted-cors": 1
+      },
+      "noticeCodes": [],
+      "findings": [
+        {
+          "ruleId": "wrapperguard.ktor.credentialed-unrestricted-cors",
+          "severity": "ERROR",
+          "path": "httpbin/src/main/kotlin/io/ktor/samples/httpbin/Server.kt",
+          "line": 43,
+          "column": 5
+        }
+      ],
+      "status": "COMPLETE",
+      "elapsedMs": 2310.644
+    }
+  ],
+  "contextualReviewPerformed": true,
+  "precisionMeasured": false,
+  "provenance": "Input digests are checked against the acquired inventory before and after each run. The acquisition job separately verifies pinned upstream archive digests.",
+  "limitations": [
+    "Pinned benign source subsets, not full upstream projects or a representative security benchmark.",
+    "Finding counts are review signals, not false positives, malicious intent, precision or recall.",
+    "Only one bundled pack is selected per run; configured scope completion is not universal app security.",
+    "Candidate counts describe selected source inputs; processed file counts are not supplied by provider API1.",
+    "No project wrapper, build, dependency installer or application is executed.",
+    "Installed SDK/scanner and the host OS are trusted; fixed source snapshot is not an OS sandbox."
+  ],
+  "ci": {
+    "runId": 39454719789,
+    "headSha": "808dff1085386679129e8b691339f739ae1ecece",
+    "conclusion": "success",
+    "url": "https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39454719789",
+    "originalArtifactSha256": "c1f67a96792e39f7183fa16a34648742ca33201162c1e72012676657eb4bdd3a"
+  },
+  "contextualReview": {
+    "type": "Agent static inspection of all emitted findings against pinned acquired source",
+    "reviewDate": "2026-10-20",
+    "reviewedFindingCount": 5,
+    "independentExpertGroundTruth": false,
+    "precisionMeasured": false,
+    "classificationCounts": {
+      "backupPolicyReview": 3,
+      "overlappingDemonstrationCorsSignals": 2
+    },
+    "records": [
+      {
+        "ruleId": "wrapperguard.android.manifest-backup",
+        "severity": "WARN",
+        "path": "app-nia-catalog/src/main/AndroidManifest.xml",
+        "line": 19,
+        "column": 5,
+        "sourceId": "now-in-android",
+        "rulePack": "android-manifest",
+        "sourceSha256": "f49c4545efa11204044f0ee87c057f3f58116255e1ee00e66610912fca0d57ce",
+        "pinnedSourceUrl": "https://github.com/android/nowinandroid/blob/a49ed253d75e61a2b6ab80a8da677b57437b08eb/app-nia-catalog/src/main/AndroidManifest.xml#L19",
+        "syntaxMatchVerified": true,
+        "vulnerabilityConfirmed": false,
+        "falsePositiveJudgment": "NOT_ASSIGNED",
+        "judgmentLimit": "Agent static context review; no owner policy decision, release build, browser exploit or backup-content test.",
+        "classification": "BACKUP_POLICY_REVIEW_DATA_SENSITIVITY_UNASSESSED",
+        "context": "The selected source manifest explicitly opts into backup. This is an accurate configuration match, not proof of sensitive-data exposure.",
+        "remainingReview": "Inspect the merged release manifest, backup/data-extraction rules, stored data sensitivity and applicable platform/device behavior.",
+        "officialReference": "https://developer.android.com/guide/topics/manifest/application-element#allowbackup"
+      },
+      {
+        "ruleId": "wrapperguard.android.manifest-backup",
+        "severity": "WARN",
+        "path": "app/src/main/AndroidManifest.xml",
+        "line": 31,
+        "column": 5,
+        "sourceId": "now-in-android",
+        "rulePack": "android-manifest",
+        "sourceSha256": "cd604e4458e33407f6731c08d37095d703300cfcb1ac10d8229feb171e801e40",
+        "pinnedSourceUrl": "https://github.com/android/nowinandroid/blob/a49ed253d75e61a2b6ab80a8da677b57437b08eb/app/src/main/AndroidManifest.xml#L31",
+        "syntaxMatchVerified": true,
+        "vulnerabilityConfirmed": false,
+        "falsePositiveJudgment": "NOT_ASSIGNED",
+        "judgmentLimit": "Agent static context review; no owner policy decision, release build, browser exploit or backup-content test.",
+        "classification": "BACKUP_POLICY_REVIEW_DATA_SENSITIVITY_UNASSESSED",
+        "context": "The selected source manifest explicitly opts into backup. This is an accurate configuration match, not proof of sensitive-data exposure.",
+        "remainingReview": "Inspect the merged release manifest, backup/data-extraction rules, stored data sensitivity and applicable platform/device behavior.",
+        "officialReference": "https://developer.android.com/guide/topics/manifest/application-element#allowbackup"
+      },
+      {
+        "ruleId": "wrapperguard.ktor.unrestricted-cors",
+        "severity": "WARN",
+        "path": "httpbin/src/main/kotlin/io/ktor/samples/httpbin/Server.kt",
+        "line": 44,
+        "column": 9,
+        "sourceId": "ktor-samples",
+        "rulePack": "legacy-android-ktor",
+        "sourceSha256": "0d06f75cd0bb555cb12a5dd2be93e9c4b3db1d65fc98d4f6786a03a743778cd8",
+        "pinnedSourceUrl": "https://github.com/ktorio/ktor-samples/blob/1c9df7cf102d638eadaf545fcce4c0ec5ccad334/httpbin/src/main/kotlin/io/ktor/samples/httpbin/Server.kt#L44",
+        "syntaxMatchVerified": true,
+        "vulnerabilityConfirmed": false,
+        "falsePositiveJudgment": "NOT_ASSIGNED",
+        "judgmentLimit": "Agent static context review; no owner policy decision, release build, browser exploit or backup-content test.",
+        "classification": "DEMONSTRATION_CORS_BEHAVIOR_DEPLOYMENT_CONTEXT_REQUIRED",
+        "context": "The httpbin demonstration server combines unrestricted origins and credentialed CORS. The generic and combined rules report the same configuration block.",
+        "overlapGroup": "ktor-httpbin-cors",
+        "remainingReview": "Assess the actual deployed endpoints, origins, credentials and framework response behavior. Demonstration intent does not establish safety for a production deployment.",
+        "officialReference": "https://ktor.io/docs/server-cors.html"
+      },
+      {
+        "ruleId": "wrapperguard.android.manifest-backup",
+        "severity": "WARN",
+        "path": "client-mpp/androidApp/src/main/AndroidManifest.xml",
+        "line": 7,
+        "column": 5,
+        "sourceId": "ktor-samples",
+        "rulePack": "android-manifest",
+        "sourceSha256": "7447b6b8f567d6498b0aadfbc0a3b669cf4b4831e5753464c8070e499cd5802e",
+        "pinnedSourceUrl": "https://github.com/ktorio/ktor-samples/blob/1c9df7cf102d638eadaf545fcce4c0ec5ccad334/client-mpp/androidApp/src/main/AndroidManifest.xml#L7",
+        "syntaxMatchVerified": true,
+        "vulnerabilityConfirmed": false,
+        "falsePositiveJudgment": "NOT_ASSIGNED",
+        "judgmentLimit": "Agent static context review; no owner policy decision, release build, browser exploit or backup-content test.",
+        "classification": "BACKUP_POLICY_REVIEW_DATA_SENSITIVITY_UNASSESSED",
+        "context": "The selected source manifest explicitly opts into backup. This is an accurate configuration match, not proof of sensitive-data exposure.",
+        "remainingReview": "Inspect the merged release manifest, backup/data-extraction rules, stored data sensitivity and applicable platform/device behavior.",
+        "officialReference": "https://developer.android.com/guide/topics/manifest/application-element#allowbackup"
+      },
+      {
+        "ruleId": "wrapperguard.ktor.credentialed-unrestricted-cors",
+        "severity": "ERROR",
+        "path": "httpbin/src/main/kotlin/io/ktor/samples/httpbin/Server.kt",
+        "line": 43,
+        "column": 5,
+        "sourceId": "ktor-samples",
+        "rulePack": "ktor-runtime",
+        "sourceSha256": "0d06f75cd0bb555cb12a5dd2be93e9c4b3db1d65fc98d4f6786a03a743778cd8",
+        "pinnedSourceUrl": "https://github.com/ktorio/ktor-samples/blob/1c9df7cf102d638eadaf545fcce4c0ec5ccad334/httpbin/src/main/kotlin/io/ktor/samples/httpbin/Server.kt#L43",
+        "syntaxMatchVerified": true,
+        "vulnerabilityConfirmed": false,
+        "falsePositiveJudgment": "NOT_ASSIGNED",
+        "judgmentLimit": "Agent static context review; no owner policy decision, release build, browser exploit or backup-content test.",
+        "classification": "DEMONSTRATION_CORS_BEHAVIOR_DEPLOYMENT_CONTEXT_REQUIRED",
+        "context": "The httpbin demonstration server combines unrestricted origins and credentialed CORS. The generic and combined rules report the same configuration block.",
+        "overlapGroup": "ktor-httpbin-cors",
+        "remainingReview": "Assess the actual deployed endpoints, origins, credentials and framework response behavior. Demonstration intent does not establish safety for a production deployment.",
+        "officialReference": "https://ktor.io/docs/server-cors.html"
+      }
+    ],
+    "sourceRevisions": {
+      "ktor-samples": "1c9df7cf102d638eadaf545fcce4c0ec5ccad334",
+      "now-in-android": "a49ed253d75e61a2b6ab80a8da677b57437b08eb"
+    },
+    "candidateSetsMatchedLocalVerifiedInventory": true,
+    "unreportedExamples": [
+      {
+        "sourceId": "ktor-samples",
+        "path": "httpbin/src/main/kotlin/io/ktor/samples/httpbin/Server.kt",
+        "line": 154,
+        "relatedLine": 156,
+        "sourceSha256": "0d06f75cd0bb555cb12a5dd2be93e9c4b3db1d65fc98d4f6786a03a743778cd8",
+        "pinnedSourceUrl": "https://github.com/ktorio/ktor-samples/blob/1c9df7cf102d638eadaf545fcce4c0ec5ccad334/httpbin/src/main/kotlin/io/ktor/samples/httpbin/Server.kt#L154",
+        "classification": "VARIABLE_ALGORITHM_COVERAGE_LIMIT_NOT_CONFIRMED_VULNERABILITY",
+        "observation": "The algorithm comes from a request parameter with an MD5 fallback, then is passed as a variable to MessageDigest.getInstance. The selected weak-digest rule matches fixed algorithm literals and emitted no finding for this path.",
+        "limitation": "No general JVM value-flow or runtime behavior claim is supported by this literal rule pack; this demonstration code was not executed."
+      }
+    ],
+    "limitations": [
+      "Five emitted patterns were inspected; no exhaustive absence-of-vulnerability review was performed.",
+      "Three backup flags cannot be labeled vulnerabilities without data and release-policy context.",
+      "Two CORS findings overlap one demonstration configuration; counts are not independent confirmed vulnerabilities.",
+      "No false-positive or precision percentage is assigned from source-reputation labels or this agent review."
+    ]
+  }
+}

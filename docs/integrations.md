@@ -57,7 +57,7 @@ Windows direct runners use tested handle-based snapshots, bounded pipes and a jo
 | AI · Local review | Selected finding metadata sent to an explicit loopback model server | Off |
 
 The SDK recognizes **twelve format identifiers**: eight passive report imports (`sarif`,
-`bandit`, `psscriptanalyzer`, `trivy`, `osv`, `zap`, `cyclonedx`, `sonar`) and two controlled advisory outputs
+`bandit`, `psscriptanalyzer`, `trivy`, `osv`, `zap`, `cyclonedx`, `sonar`) and four controlled formats (three advisory methods plus the bounded HTTP audit)
 (`script-semantics`, `ai-review`, `http-audit`, `container-python`). Semgrep uses the existing SARIF adapter.
 
 The six included static groups can be disabled separately. Intentional exclusions produce

@@ -1,0 +1,253 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-20T16:10:40.006662+00:00",
+  "platform": {
+    "system": "Linux",
+    "release": "7.0.0-1017-azure",
+    "machine": "x86_64",
+    "logicalCpus": 2
+  },
+  "tool": {
+    "version": "WrapperGuard 0.7.0",
+    "launcherSha256": "e0019cc87e01d4780991dd762730cea2e9a673fd6ce37f7707efb08e69282142",
+    "libraries": [
+      {
+        "name": "annotations-13.0.jar",
+        "sha256": "ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478"
+      },
+      {
+        "name": "kotlin-stdlib-2.2.20.jar",
+        "sha256": "8836ccffd3585fadda9901244b20d42901d2f3cd581058d8434e2ffabcf3a3e7"
+      },
+      {
+        "name": "kotlinx-serialization-core-jvm-1.8.0.jar",
+        "sha256": "d3c94e9d829bba6e0c4cd3ae478a40846dd49d5475d6707877be853976afe416"
+      },
+      {
+        "name": "kotlinx-serialization-json-jvm-1.8.0.jar",
+        "sha256": "7b7c445880cef94dc464f4733da1b33b94bee78805041ea08ae06e8507e4620e"
+      },
+      {
+        "name": "wrapperguard-cli-0.7.0.jar",
+        "sha256": "19291ee8690fd164073002148420df0775c0565218b8b52249f172c8d94b5871"
+      },
+      {
+        "name": "wrapperguard-core-0.7.0.jar",
+        "sha256": "c094b0ea9c711cdcf6c75b9f6489e3a6772346cec34f33bab9de37250414b464"
+      },
+      {
+        "name": "wrapperguard-rules-0.7.0.jar",
+        "sha256": "4a6935a79dfb0b10d4a98c76ed922cdc199e6ddfba0d66fba5e7357af7119a3e"
+      }
+    ]
+  },
+  "scope": "native-builtins-only",
+  "configuration": {
+    "providersSha256": null,
+    "methodsSha256": null
+  },
+  "measurement": {
+    "clock": "monotonic wall time including process/JVM startup",
+    "rss": "OS time maximum resident set size normalized to bytes; not summed concurrent-process memory",
+    "warmups": "Separate process runs warm OS caches, not a persistent JVM",
+    "projectCodeExecutedByHarness": false,
+    "sourceSastCoverage": "Native builtins cover wrapper/build/script configuration. Python/Kotlin/Java application coverage requires explicitly configured providers."
+  },
+  "cases": [
+    {
+      "label": "clean",
+      "aggregate": {
+        "measuredRuns": 3,
+        "completeRuns": 3,
+        "incompleteRuns": 0,
+        "cancelledRuns": 0,
+        "p50ElapsedMs": 287.547,
+        "p95ElapsedMs": 296.321,
+        "maxPeakRssBytes": 62652416
+      },
+      "runs": [
+        {
+          "iteration": 1,
+          "warmup": true,
+          "elapsedMs": 288.923,
+          "peakRssBytes": 63090688,
+          "exitCode": 0,
+          "processStatus": "FINISHED",
+          "measurementComplete": true,
+          "complete": true,
+          "stale": false,
+          "verdict": "CLEAN",
+          "scannedFiles": 1,
+          "findingCount": 0,
+          "noticeCodes": [],
+          "providerStatuses": [
+            "COMPLETED"
+          ],
+          "reportStatus": "VALID_REPORT"
+        },
+        {
+          "iteration": 2,
+          "warmup": false,
+          "elapsedMs": 296.321,
+          "peakRssBytes": 62361600,
+          "exitCode": 0,
+          "processStatus": "FINISHED",
+          "measurementComplete": true,
+          "complete": true,
+          "stale": false,
+          "verdict": "CLEAN",
+          "scannedFiles": 1,
+          "findingCount": 0,
+          "noticeCodes": [],
+          "providerStatuses": [
+            "COMPLETED"
+          ],
+          "reportStatus": "VALID_REPORT"
+        },
+        {
+          "iteration": 3,
+          "warmup": false,
+          "elapsedMs": 262.81,
+          "peakRssBytes": 62316544,
+          "exitCode": 0,
+          "processStatus": "FINISHED",
+          "measurementComplete": true,
+          "complete": true,
+          "stale": false,
+          "verdict": "CLEAN",
+          "scannedFiles": 1,
+          "findingCount": 0,
+          "noticeCodes": [],
+          "providerStatuses": [
+            "COMPLETED"
+          ],
+          "reportStatus": "VALID_REPORT"
+        },
+        {
+          "iteration": 4,
+          "warmup": false,
+          "elapsedMs": 287.547,
+          "peakRssBytes": 62652416,
+          "exitCode": 0,
+          "processStatus": "FINISHED",
+          "measurementComplete": true,
+          "complete": true,
+          "stale": false,
+          "verdict": "CLEAN",
+          "scannedFiles": 1,
+          "findingCount": 0,
+          "noticeCodes": [],
+          "providerStatuses": [
+            "COMPLETED"
+          ],
+          "reportStatus": "VALID_REPORT"
+        }
+      ]
+    }
+  ],
+  "acceptance": [
+    {
+      "case": "generated-regular-4096",
+      "expected": "complete",
+      "passed": true,
+      "elapsedMs": 2581.7,
+      "peakRssBytes": 276930560,
+      "exitCode": 0,
+      "processStatus": "FINISHED",
+      "measurementComplete": true,
+      "complete": true,
+      "stale": false,
+      "verdict": "CLEAN",
+      "scannedFiles": 4096,
+      "findingCount": 1,
+      "noticeCodes": [],
+      "providerStatuses": [
+        "COMPLETED"
+      ],
+      "reportStatus": "VALID_REPORT"
+    },
+    {
+      "case": "generated-byte-cap",
+      "expected": "incomplete-size-notice",
+      "passed": true,
+      "elapsedMs": 346.126,
+      "peakRssBytes": 65462272,
+      "exitCode": 1,
+      "processStatus": "FINISHED",
+      "measurementComplete": true,
+      "complete": false,
+      "stale": false,
+      "verdict": "INCOMPLETE",
+      "scannedFiles": 1,
+      "findingCount": 1,
+      "noticeCodes": [
+        "WG-FILE-SKIPPED",
+        "WG-PROVIDER-INCOMPLETE"
+      ],
+      "providerStatuses": [
+        "COMPLETED"
+      ],
+      "reportStatus": "VALID_REPORT"
+    },
+    {
+      "case": "generated-file-seal-cap",
+      "expected": "incomplete-or-invalid-never-clean",
+      "passed": true,
+      "elapsedMs": 1062.234,
+      "peakRssBytes": 175620096,
+      "exitCode": 1,
+      "processStatus": "FINISHED",
+      "measurementComplete": true,
+      "complete": false,
+      "stale": false,
+      "verdict": "UNAVAILABLE",
+      "scannedFiles": null,
+      "findingCount": null,
+      "noticeCodes": [],
+      "providerStatuses": [],
+      "reportStatus": "INVALID_REPORT"
+    },
+    {
+      "case": "generated-depth-cap",
+      "expected": "incomplete-or-invalid-never-clean",
+      "passed": true,
+      "elapsedMs": 467.495,
+      "peakRssBytes": 143491072,
+      "exitCode": 1,
+      "processStatus": "FINISHED",
+      "measurementComplete": true,
+      "complete": false,
+      "stale": false,
+      "verdict": "UNAVAILABLE",
+      "scannedFiles": null,
+      "findingCount": null,
+      "noticeCodes": [],
+      "providerStatuses": [],
+      "reportStatus": "INVALID_REPORT"
+    },
+    {
+      "case": "generated-cancellation",
+      "expected": "cancelled-incomplete",
+      "passed": true,
+      "elapsedMs": 12.569,
+      "peakRssBytes": null,
+      "exitCode": -15,
+      "processStatus": "CANCELLED",
+      "measurementComplete": false,
+      "complete": false,
+      "stale": false,
+      "verdict": "UNAVAILABLE",
+      "scannedFiles": null,
+      "findingCount": null,
+      "noticeCodes": [],
+      "providerStatuses": [],
+      "reportStatus": "CANCELLED"
+    }
+  ],
+  "violations": [],
+  "passed": true,
+  "passMeaning": "Resource measurement/acceptance only. Partial scan coverage stays incomplete and is never security approval.",
+  "allProjectScansComplete": true,
+  "validationRun": "https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39454719440",
+  "headCommit": "808dff1085386679129e8b691339f739ae1ecece"
+}

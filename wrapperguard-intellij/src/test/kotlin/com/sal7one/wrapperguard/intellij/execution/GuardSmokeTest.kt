@@ -36,6 +36,26 @@ import com.sal7one.wrapperguard.intellij.demo.WrapperGuardDemo
  */
 class GuardSmokeTest : HeavyPlatformTestCase() {
 
+    fun testDescriptorLoadsBundledComposeWithoutRequiringLaterAggregateAlias() {
+        val descriptor = com.intellij.ide.plugins.PluginManagerCore.getPlugin(
+            com.intellij.openapi.extensions.PluginId.getId("com.sal7one.wrapperguard.next"))
+        assertNotNull("The plugin must load on the minimum platform, not silently lose services and guards", descriptor)
+        assertTrue(descriptor!!.isEnabled)
+        val loader = requireNotNull(descriptor.pluginClassLoader) { "The enabled plugin must have its own classloader" }
+        listOf("androidx.compose.runtime.Composer", "org.jetbrains.jewel.foundation.theme.JewelTheme",
+            "org.jetbrains.jewel.ui.component.TextKt", "org.jetbrains.jewel.bridge.JewelComposePanelWrapperKt").forEach {
+            assertNotNull("Bundled Compose/Jewel must resolve through the installed plugin classloader: $it", loader.loadClass(it))
+        }
+        val xml = javaClass.getResourceAsStream("/META-INF/plugin.xml")!!.use {
+            javax.xml.parsers.DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(it)
+        }
+        val dependencies = xml.getElementsByTagName("depends")
+        val alias = (0 until dependencies.length).map { dependencies.item(it) as org.w3c.dom.Element }
+            .single { it.textContent.trim() == "com.intellij.modules.compose" }
+        assertEquals("The aggregate alias is absent in original 252 and must be optional", "true", alias.getAttribute("optional"))
+        assertNotNull(javaClass.getResource("/META-INF/${alias.getAttribute("config-file")}"))
+    }
+
     fun testDescriptorRegistersBeforeRunProviderWithIdeRegistry() {
         val provider = com.intellij.execution.BeforeRunTaskProvider.getProvider(project, WrapperGuardBeforeRunTaskProvider.KEY)
         assertNotNull("The IDE must resolve the attached task through its project extension registry", provider)

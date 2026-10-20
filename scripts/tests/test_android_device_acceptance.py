@@ -100,5 +100,46 @@ class ScreenshotBoundaryTests(unittest.TestCase):
         self.assertFalse(device.owned_activity_foreground('Hist #2 ActivityRecord{com.wrapperguard.acceptance/.MainActivity}\nmResumedActivity: ActivityRecord{other/.MainActivity}'))
         self.assertFalse(device.owned_activity_foreground('topResumedActivity=ActivityRecord{com.wrapperguard.acceptance.evil/.MainActivity}'))
 
+    def test_xml_entities_are_decoded_and_required_labels_must_belong_to_owned_package(self):
+        status=device.owned_ui_status('<hierarchy><node package="com.wrapperguard.acceptance" text="WrapperGuard&#10;Device acceptance"/><node package="com.wrapperguard.acceptance" text="Ready on 127.0.0.1:8765 &#183; 2 requests"/></hierarchy>')
+        self.assertTrue(status['titlePresent'] and status['readyPresent'])
+        other=device.owned_ui_status('<hierarchy><node package="other" text="Device acceptance Ready on 127.0.0.1:8765"/></hierarchy>')
+        self.assertFalse(other['titlePresent'] or other['readyPresent'])
+
+    def test_ui_capture_retains_tree_and_image_diagnostics_before_rejecting_missing_labels(self):
+        png=image(content)
+        def adb(*args,**kwargs):
+            if args[0]=='exec-out': return png
+            if args[1:4]==('dumpsys','activity','activities'):
+                return 'topResumedActivity=ActivityRecord{com.wrapperguard.acceptance/.MainActivity}'
+            if args[1]=='cat': return '<hierarchy><node package="com.wrapperguard.acceptance" text="Only partially ready"/></hierarchy>'
+            return ''
+        with tempfile.TemporaryDirectory() as temporary:
+            output=Path(temporary)
+            with self.assertRaises(RuntimeError): device.capture_owned_ui(adb,output,attempts=1)
+            self.assertTrue((output/'device-ui.xml').exists())
+            self.assertTrue((output/'device-rejected.png').exists())
+            self.assertFalse((output/'device.png').exists())
+            import json
+            self.assertFalse(json.loads((output/'ui-check.json').read_text())['accepted'])
+
+    def test_ui_capture_settles_without_weakening_title_ready_or_rendered_frame_checks(self):
+        png=image(content);calls=[]
+        def adb(*args,**kwargs):
+            calls.append(args)
+            if args[0]=='exec-out': return png
+            if args[1:4]==('dumpsys','activity','activities'):
+                return 'topResumedActivity=ActivityRecord{com.wrapperguard.acceptance/.MainActivity}'
+            if args[1]=='cat':
+                if sum(a[1:2]==('cat',) for a in calls)==1: return '<hierarchy/>'
+                return '<hierarchy><node package="com.wrapperguard.acceptance" text="Device acceptance"/><node package="com.wrapperguard.acceptance" text="Ready on 127.0.0.1:8765"/></hierarchy>'
+            return ''
+        with tempfile.TemporaryDirectory() as temporary,patch.object(device.time,'sleep'):
+            output=Path(temporary)
+            result=device.capture_owned_ui(adb,output,attempts=2)
+            self.assertTrue(result['nonBlankPassed'])
+            self.assertTrue((output/'device.png').exists())
+            self.assertFalse((output/'device-rejected.png').exists())
+
 
 if __name__ == '__main__': unittest.main()

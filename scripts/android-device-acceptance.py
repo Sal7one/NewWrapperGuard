@@ -17,6 +17,7 @@ import subprocess
 import tempfile
 import time
 import urllib.request
+import xml.etree.ElementTree as ET
 import zlib
 
 PACKAGE = "com.wrapperguard.acceptance"
@@ -120,6 +121,51 @@ def capture_rendered_screenshot(adb, output: Path, *, attempts: int = 5) -> dict
     raise ValueError('No device screenshot was captured')
 
 
+def owned_ui_status(hierarchy: str) -> dict:
+    if len(hierarchy.encode('utf-8')) > 1024*1024:
+        raise ValueError('Device accessibility tree exceeds limit')
+    root = ET.fromstring(hierarchy)
+    nodes = list(root.iter())
+    if len(nodes) > 10000: raise ValueError('Device accessibility node limit exceeded')
+    # Decode XML entities/newlines, and do not accept matching notification or launcher text.
+    text = '\n'.join(node.attrib.get(key,'') for node in nodes if node.attrib.get('package') == PACKAGE
+                     for key in ('text','content-desc'))
+    return {'ownedNodeCount':sum(node.attrib.get('package') == PACKAGE for node in nodes),
+            'titlePresent':'Device acceptance' in text,'readyPresent':'Ready on 127.0.0.1:8765' in text}
+
+
+def capture_owned_ui(adb, output: Path, *, attempts: int = 5) -> dict:
+    """Persist failure evidence before enforcing all UI/rendering checks, then settle boundedly."""
+    last = {}
+    for attempt in range(attempts):
+        adb('shell','input','keyevent','KEYCODE_WAKEUP')
+        adb('shell','wm','dismiss-keyguard')
+        foreground = owned_activity_foreground(adb('shell','dumpsys','activity','activities'))
+        last = {'attempt':attempt+1,'foregroundOwned':foreground,'treeAvailable':False,
+                'titlePresent':False,'readyPresent':False,'nonBlankPassed':False,'accepted':False}
+        try:
+            adb('shell','uiautomator','dump','/data/local/tmp/wrapperguard-acceptance-ui.xml')
+            hierarchy = adb('shell','cat','/data/local/tmp/wrapperguard-acceptance-ui.xml')
+            # Save the exact tree even if its text is missing; absence must remain diagnosable.
+            (output/'device-ui.xml').write_text(hierarchy,encoding='utf-8')
+            last.update(owned_ui_status(hierarchy)); last['treeAvailable'] = True
+        except (ET.ParseError,ValueError,subprocess.CalledProcessError,subprocess.TimeoutExpired):
+            pass
+        screenshot = None
+        try:
+            screenshot = capture_rendered_screenshot(adb,output,attempts=1)
+            last['nonBlankPassed'] = True
+        except ValueError:
+            pass
+        last['accepted'] = all(last[key] for key in ('foregroundOwned','treeAvailable','titlePresent','readyPresent','nonBlankPassed'))
+        (output/'ui-check.json').write_text(json.dumps(last,indent=2)+'\n',encoding='utf-8')
+        if last['accepted']: return screenshot
+        candidate = output/'device.png'
+        if candidate.exists(): candidate.replace(output/'device-rejected.png')
+        if attempt+1 < attempts: time.sleep(1)
+    raise RuntimeError('Owned Android UI/rendering acceptance did not pass; inspect device-ui.xml, ui-check.json and device-rejected.png')
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--adb", required=True, type=Path)
@@ -204,15 +250,7 @@ def main() -> None:
                                           "ruleIds": sorted({finding["ruleId"] for finding in report["findings"]})}
                 assert sdk_results["weak"]["findingCount"] > sdk_results["secure"]["findingCount"]
 
-        adb("shell", "input", "keyevent", "KEYCODE_WAKEUP")
-        adb("shell", "wm", "dismiss-keyguard")
-        if not owned_activity_foreground(adb("shell", "dumpsys", "activity", "activities")):
-            raise RuntimeError("The owned acceptance activity is not the resumed foreground activity")
-        adb("shell", "uiautomator", "dump", "/data/local/tmp/wrapperguard-acceptance-ui.xml")
-        hierarchy = adb("shell", "cat", "/data/local/tmp/wrapperguard-acceptance-ui.xml")
-        assert "Device acceptance" in hierarchy and "Ready on 127.0.0.1:8765" in hierarchy
-        (args.output / "device-ui.xml").write_text(hierarchy, encoding="utf-8")
-        screenshot = capture_rendered_screenshot(adb,args.output)
+        screenshot = capture_owned_ui(adb,args.output)
         evidence = {"schemaVersion": 1, "package": PACKAGE, "serial": args.serial,
                     "deviceKind": "emulator" if args.serial.startswith("emulator-") else "physical",
                     "api": adb("shell", "getprop", "ro.build.version.sdk"),

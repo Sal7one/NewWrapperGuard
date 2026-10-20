@@ -16,10 +16,14 @@ concurrency:
 jobs:
   gradle:
     name: Gradle build + tests + parity
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - name: Reserve disk for minimum build SDK and verifier
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+          df -h .
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
