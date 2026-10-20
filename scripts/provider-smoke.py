@@ -3,6 +3,7 @@
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -24,7 +25,8 @@ def invoke(project, configuration=None, operation="BUILD", expected=0):
 def main():
     assert CLI.is_file(), "Build :wrapperguard-cli:installDist first"
     version = subprocess.run([str(CLI), "--version"], text=True, capture_output=True, timeout=15)
-    assert version.returncode == 0 and "0.4.0" in version.stdout, "Installed JVM entrypoint failed"
+    expected_version = re.search(r'^\s*version\s*=\s*"([^"]+)"', (REPOSITORY / "build.gradle.kts").read_text(), re.MULTILINE).group(1)
+    assert version.returncode == 0 and expected_version in version.stdout, "Installed JVM entrypoint failed"
     with tempfile.TemporaryDirectory(prefix="wg-protocol-smoke-") as temporary:
         user = Path(temporary)
         project = user / "project"

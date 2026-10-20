@@ -31,6 +31,9 @@ const context = {
 vm.createContext(context);
 vm.runInContext(script,context,{timeout:2000});
 assert.match(elements.get('panel-overview').innerHTML,/No scan yet/);
+const methods=require('../dist/methods/catalog').SECURITY_METHODS.map(m=>({...m,enabled:m.defaultEnabled,configured:m.category==='BUILT_IN',status:m.category==='BUILT_IN'?'Ready locally':'Setup needed'}));
+listeners.message({data:{type:'state',state:{kind:'not-scanned',methods}}});
+assert.match(elements.get('panel-tools').innerHTML,/Supply chain/);assert.match(elements.get('panel-tools').innerHTML,/PowerShell/);assert.match(elements.get('panel-tools').innerHTML,/Enable Wrapper integrity/);assert.match(elements.get('panel-research').innerHTML,/Experimental/);assert.match(elements.get('panel-research').innerHTML,/No trained model is bundled|no trained model is bundled/);
 const report = {
   findings:[],edges:[],complete:true,stale:false,verdict:'CLEAN',policyName:'Test',scannedFiles:1,durationMs:2,notices:[],
   providerRuns:[{descriptor:{id:'wrapperguard',displayName:'Built-in',version:'0.4.0',apiVersion:1},permissions:{enabled:true,required:true,actions:['WARNING'],timeoutMs:30000},status:'COMPLETED',durationMs:2,findingCount:0}]

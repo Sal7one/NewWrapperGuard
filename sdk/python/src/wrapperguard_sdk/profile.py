@@ -17,7 +17,7 @@ MAX_PROFILE_BYTES = 65_536
 MAX_REPORT_BYTES = 16 * 1024 * 1024
 MAX_OUTPUT_BYTES = 4 * 1024 * 1024
 OPERATIONS = frozenset({"SCAN", "BUILD", "SYNC"})
-FORMATS = frozenset({"sarif", "bandit", "psscriptanalyzer", "trivy", "osv", "zap"})
+FORMATS = frozenset({"sarif", "bandit", "psscriptanalyzer", "trivy", "osv", "zap", "script-semantics", "ai-review"})
 
 
 def _keys(value: object, allowed: set[str], required: set[str] = frozenset()) -> dict:
@@ -140,9 +140,15 @@ class TargetScope:
 @dataclass(frozen=True)
 class RunnerConfig:
     tool: str
-    executable: Path
+    executable: Path | None = None
     timeout_ms: int = 30_000
     max_output_bytes: int = MAX_REPORT_BYTES
+    module_path: Path | None = None
+    endpoint: str | None = None
+    model: str | None = None
+    input_report_path: Path | None = None
+    cache_path: Path | None = None
+    rules_path: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -174,10 +180,11 @@ def load_profile(path: Path, project_root: Path) -> IntegrationProfile:
         raise ValueError("Invalid profile identity")
     display_name, version = _text(value["displayName"], 160), _text(value["version"], 80)
     kind, format_name = value["analysisKind"], value["format"]
-    if not isinstance(kind, str) or kind not in {"SAST", "SCA", "DAST"} or not isinstance(format_name, str) or format_name not in FORMATS:
+    if not isinstance(kind, str) or kind not in {"SAST", "SCA", "DAST", "AI"} or not isinstance(format_name, str) or format_name not in FORMATS:
         raise ValueError("Invalid profile classification")
     kinds = {"sarif": {"SAST", "SCA"}, "bandit": {"SAST"}, "psscriptanalyzer": {"SAST"},
-             "trivy": {"SCA"}, "osv": {"SCA"}, "zap": {"DAST"}}
+             "trivy": {"SCA"}, "osv": {"SCA"}, "zap": {"DAST"},
+             "script-semantics": {"SAST"}, "ai-review": {"AI"}}
     if kind not in kinds[format_name]:
         raise ValueError("Tool format does not match analysis kind")
     if ("reportPath" in value) == ("runner" in value):
@@ -193,25 +200,91 @@ def load_profile(path: Path, project_root: Path) -> IntegrationProfile:
         raise ValueError("DAST requires an explicit target scope")
     report, runner = None, None
     if "reportPath" in value:
+        if format_name in {"script-semantics", "ai-review"}:
+            raise ValueError("This method requires its controlled runner")
         if not isinstance(value["reportPath"], str) or not value["reportPath"] or "\x00" in value["reportPath"]:
             raise ValueError("Invalid report path")
         report = Path(value["reportPath"])
         if not report.is_absolute():
             raise ValueError("Report path must be absolute")
     else:
-        config = _keys(value["runner"], {"tool", "executable", "timeoutMs", "maxOutputBytes"}, {"tool", "executable"})
-        if config["tool"] != "bandit" or format_name != "bandit" or kind != "SAST":
-            raise ValueError("Only the fixed Bandit runner is supported")
-        if not isinstance(config["executable"], str) or not Path(config["executable"]).is_absolute():
-            raise ValueError("An absolute tool executable is required")
-        executable = Path(config["executable"]).resolve(strict=True)
-        if executable.is_relative_to(root) or not executable.is_file() or not os.access(executable, os.X_OK):
-            raise ValueError("Tool executable must be installed outside the project")
-        timeout, maximum = config.get("timeoutMs", 30_000), config.get("maxOutputBytes", MAX_REPORT_BYTES)
+        config = _keys(value["runner"], {"tool", "executable", "timeoutMs", "maxOutputBytes", "modulePath",
+                                         "endpoint", "model", "inputReportPath", "cachePath", "rulesPath"}, {"tool"})
+        tool = config["tool"]
+        formats = {"bandit": "bandit", "psscriptanalyzer": "psscriptanalyzer", "trivy": "trivy",
+                   "osv": "osv", "script-semantics": "script-semantics", "local-ai": "ai-review", "semgrep": "sarif"}
+        if not isinstance(tool, str) or formats.get(tool) != format_name:
+            raise ValueError("Unsupported runner or format mismatch")
+        allowed = {"tool", "timeoutMs", "maxOutputBytes"}
+        executable, module, endpoint, model, input_report, cache, rules = None, None, None, None, None, None, None
+        if tool in {"bandit", "psscriptanalyzer", "trivy", "osv", "semgrep"}:
+            allowed.add("executable")
+            if not isinstance(config.get("executable"), str) or not Path(config["executable"]).is_absolute():
+                raise ValueError("An absolute tool executable is required")
+            executable = Path(config["executable"]).resolve(strict=True)
+            if executable.is_relative_to(root) or not executable.is_file() or not os.access(executable, os.X_OK):
+                raise ValueError("Tool executable must be installed outside the project")
+        if tool == "psscriptanalyzer":
+            allowed.add("modulePath")
+            if not isinstance(config.get("modulePath"), str) or not Path(config["modulePath"]).is_absolute():
+                raise ValueError("An absolute trusted PSScriptAnalyzer module is required")
+            module = Path(config["modulePath"]).resolve(strict=True)
+            if module.is_relative_to(root) or not module.exists():
+                raise ValueError("Analyzer module must be installed outside the project")
+        if tool == "local-ai":
+            allowed.update({"endpoint", "model", "inputReportPath"})
+            endpoint, model = config.get("endpoint"), config.get("model")
+            validate_local_endpoint(endpoint)
+            if not isinstance(model, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,159}", model):
+                raise ValueError("A local model name is required")
+            if not isinstance(config.get("inputReportPath"), str) or not Path(config["inputReportPath"]).is_absolute():
+                raise ValueError("An absolute reviewed finding report is required")
+            input_report = Path(config["inputReportPath"]).resolve()
+            if input_report.is_relative_to(root):
+                raise ValueError("AI input report must be outside the project")
+        if tool == "trivy":
+            allowed.add("cachePath")
+            if "cachePath" in config:
+                if not isinstance(config["cachePath"], str) or not Path(config["cachePath"]).is_absolute():
+                    raise ValueError("Trivy cache must use an absolute user path")
+                cache = Path(config["cachePath"]).resolve()
+                if cache.is_relative_to(root):
+                    raise ValueError("Trivy cache must be outside the project")
+        if tool == "semgrep":
+            allowed.add("rulesPath")
+            if "rulesPath" in config:
+                if not isinstance(config["rulesPath"], str) or not Path(config["rulesPath"]).is_absolute():
+                    raise ValueError("Semgrep rules require an absolute trusted path")
+                rules = Path(config["rulesPath"]).resolve(strict=True)
+                if rules.is_relative_to(root) or not rules.is_file():
+                    raise ValueError("Semgrep rules must be a file outside the project")
+        if set(config) - allowed:
+            raise ValueError("Runner does not accept these fields")
+        timeout, maximum = config.get("timeoutMs", 120_000 if tool in {"trivy", "osv"} else 30_000), config.get("maxOutputBytes", MAX_REPORT_BYTES)
         if type(timeout) is not int or not 100 <= timeout <= 300_000:
             raise ValueError("Invalid tool timeout")
         if type(maximum) is not int or not 1 <= maximum <= MAX_REPORT_BYTES:
             raise ValueError("Invalid tool output limit")
-        runner = RunnerConfig("bandit", executable, timeout, maximum)
+        runner = RunnerConfig(tool, executable, timeout, maximum, module, endpoint, model, input_report, cache, rules)
     return IntegrationProfile(value["id"], display_name, version, kind, format_name, report, runner,
                               tuple(operations), tuple(actions), scope)
+
+
+def validate_local_endpoint(endpoint: object) -> str:
+    """Only literal loopback addresses; credentials, proxies and remote redirects are unsupported."""
+    if not isinstance(endpoint, str) or len(endpoint) > 512:
+        raise ValueError("A local model endpoint is required")
+    parsed = urlsplit(endpoint)
+    if "%" in (parsed.hostname or ""):
+        raise ValueError("IPv6 zone identifiers are not supported")
+    try:
+        address = ipaddress.ip_address(parsed.hostname or "")
+        port = parsed.port
+    except ValueError:
+        raise ValueError("The model endpoint must use a numeric loopback address") from None
+    if (not address.is_loopback or parsed.scheme != "http" or parsed.username is not None
+            or parsed.password is not None or parsed.query or parsed.fragment
+            or parsed.path.rstrip("/") != "/v1" or port is None or not 1 <= port <= 65535
+            or any(c.isspace() or ord(c) < 32 for c in endpoint)):
+        raise ValueError("Only an explicit local HTTP /v1 model endpoint is supported")
+    return endpoint.rstrip("/")

@@ -20,21 +20,35 @@ object ProjectStructureAnalyzer {
     fun analyze(
         projectRoot: Path,
         relativeRoot: String,
-        trustedWrapperChecksums: Map<String, String> = emptyMap()
+        trustedWrapperChecksums: Map<String, String> = emptyMap(),
+        notices: MutableList<ScanNotice> = mutableListOf(),
+        maxFileBytes: Long = 1_000_000
     ): List<Finding> {
+        fun present(relative: String): Boolean {
+            val path = projectRoot.resolve(relative)
+            val status = ProjectFileAccess.status(projectRoot, path)
+            if (status == ProjectFileAccess.Status.REJECTED) {
+                val notice = ScanNotice(RuleIds.SCAN_FILE_SKIPPED, "File is not a readable regular input inside the project.", SourceLocation(relative))
+                if (notice !in notices) notices += notice
+            }
+            return status == ProjectFileAccess.Status.REGULAR
+        }
         val wrapperDir = projectRoot.resolve("gradle/wrapper")
-        val hasWrapperProperties = Files.exists(wrapperDir.resolve("gradle-wrapper.properties"))
+        val hasWrapperProperties = present("gradle/wrapper/gradle-wrapper.properties")
         val wrapperJar = wrapperDir.resolve("gradle-wrapper.jar")
-        val hasWrapperJar = Files.exists(wrapperJar)
-        val hasUnixWrapper = Files.exists(projectRoot.resolve("gradlew"))
-        val hasWindowsWrapper = Files.exists(projectRoot.resolve("gradlew.bat"))
-        val hasSettingsFile = Files.exists(projectRoot.resolve("settings.gradle")) ||
-            Files.exists(projectRoot.resolve("settings.gradle.kts"))
+        val hasWrapperJar = present("gradle/wrapper/gradle-wrapper.jar")
+        val hasUnixWrapper = present("gradlew")
+        val hasWindowsWrapper = present("gradlew.bat")
+        val hasSettingsFile = present("settings.gradle") ||
+            present("settings.gradle.kts")
 
         val findings = mutableListOf<Finding>()
 
         if (hasWrapperJar) {
-            val sha = sha256(wrapperJar)
+            val sha = runCatching { sha256(ProjectFileAccess.read(projectRoot, wrapperJar, maxFileBytes)) }.getOrElse {
+                notices += ScanNotice(RuleIds.SCAN_FILE_SKIPPED, "File is not a readable regular input inside the project.", SourceLocation("gradle/wrapper/gradle-wrapper.jar"))
+                return findings
+            }
             val expected = trustedWrapperChecksums["gradle-wrapper.jar"]
             if (trustedWrapperChecksums.isNotEmpty() && expected != sha) {
                 // Escalation: a known-good list is configured and this JAR is not on it.
@@ -94,7 +108,7 @@ object ProjectStructureAnalyzer {
         evidence = evidence?.let { Evidence(it) }, remediation = remediation
     )
 
-    private fun sha256(path: Path): String =
-        MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(path))
+    private fun sha256(bytes: ByteArray): String =
+        MessageDigest.getInstance("SHA-256").digest(bytes)
             .joinToString("") { "%02x".format(it) }
 }

@@ -15,6 +15,7 @@ if (!fs.existsSync(rendererPath)) throw new Error('Compile the extension first: 
 const report=JSON.parse(fs.readFileSync(reportPath,'utf8'));
 if (!Array.isArray(report.findings) || !Array.isArray(report.providerRuns)) throw new Error('Expected a ScanReport with findings and providerRuns.');
 const settings=JSON.parse(fs.readFileSync(settingsPath,'utf8'));
+const methods=JSON.parse(fs.readFileSync(path.join(repoRoot,'catalog/security-methods.json'),'utf8')).methods;
 const original=Module._load;
 let WrapperGuardWebviewProvider;
 try {
@@ -24,7 +25,7 @@ try {
 let html=new WrapperGuardWebviewProvider().buildHtml();
 const nonce=html.match(/script-src 'nonce-([^']+)'/)[1];
 const safeJson=value=>JSON.stringify(value).replace(/</g,'\\u003c').replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029');
-const bootstrap=`window.__WRAPPERGUARD_DEMO_DATA__=${safeJson({report,settings})};`;
+const bootstrap=`window.__WRAPPERGUARD_DEMO_DATA__=${safeJson({report,settings,methods})};`;
 const bridge=fs.readFileSync(path.join(__dirname,'demo-bridge.js'),'utf8');
 const check=spawnSync(process.execPath,['--check'],{input:bootstrap+'\n'+bridge,encoding:'utf8'});
 if (check.status!==0) throw new Error(check.stderr);
@@ -40,6 +41,7 @@ html=html.replace('</head>',`<style>
 #demo-dialog { max-width:min(560px,calc(100vw - 32px));max-height:85vh;overflow:auto;color:var(--text);background:var(--surface);border:1px solid var(--border-strong);border-radius:8px;padding:20px;font:13px/1.5 var(--vscode-font-family); }
 #demo-dialog::backdrop { background:#0008; }
 #demo-dialog h2 { margin-top:0;font-size:17px; } #demo-dialog label { display:flex;gap:10px;align-items:center;padding:7px 0; }
+#demo-dialog .demo-field { display:block;font-size:11px;color:var(--text-dim);margin-top:9px; } #demo-dialog .demo-field input,#demo-dialog .demo-field select { display:block;width:100%;margin-top:5px;padding:7px 8px;color:var(--text);background:var(--surface-lowest);border:1px solid var(--border-strong);border-radius:3px;font-size:12px; } #demo-dialog .demo-summary { border-left:2px solid var(--primary);padding:9px 12px;background:var(--surface-low);font-size:11px;line-height:1.8;margin-top:14px; }
 #demo-dialog pre { white-space:pre-wrap;font:12px/1.6 var(--vscode-editor-font-family);background:var(--mono-bg);padding:12px;max-height:45vh;overflow:auto; }
 #demo-dialog .demo-dialog-actions { display:flex;justify-content:flex-end;gap:8px;margin-top:16px; }
 @media(max-width:540px) { #demo-banner { gap:8px;padding:0 12px; } #demo-banner .demo-copy { display:none; } #demo-banner strong { margin-right:auto; } }

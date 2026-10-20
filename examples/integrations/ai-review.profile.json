@@ -1,0 +1,17 @@
+{
+  "id": "ai.external-model",
+  "displayName": "Local AI review",
+  "version": "0.2.0",
+  "analysisKind": "AI",
+  "format": "ai-review",
+  "runner": {
+    "tool": "local-ai",
+    "endpoint": "http://127.0.0.1:1234/v1",
+    "model": "your-loaded-model",
+    "inputReportPath": "/absolute/user-reports/wrapperguard.json"
+  },
+  "allowedOperations": [
+    "SCAN"
+  ],
+  "requestedActions": []
+}

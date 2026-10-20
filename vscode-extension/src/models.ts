@@ -86,6 +86,8 @@ export interface ScanPolicy {
 }
 
 export interface ScanSettings {
+  /** User-owned optional analysis switches. Missing built-in flags retain their catalog defaults. */
+  methodFlags?: Record<string, boolean>;
   allowedHosts: string[];
   allowedUrlPatterns: string[];
   blockedCommands: string[];

@@ -10,26 +10,33 @@ import { analyzeWrapperProperties } from './wrapperPropertiesRules';
 import { analyzeVersionCatalog } from './versionCatalogRules';
 import { analyzeProjectStructure } from './projectStructure';
 import { findCalledScripts } from './calledScripts';
-import { resolveScriptPath } from './safePath';
+import { checkedProjectDirectory, checkedProjectFile, readProjectFile, resolveScriptPath } from './safePath';
 import { findingFingerprint } from './fingerprints';
+import { BUILTIN_METHOD_IDS, methodEnabled } from '../methods/catalog';
+import { analyzeMavenPom, supportedMavenPom } from './mavenPomRules';
 
 const EXCLUDED_DIRS = new Set(['.git', '.gradle', '.idea', 'build', 'out', '.intellijPlatform', '.kotlin', 'node_modules']);
 
-function walkFiles(root: string, out: string[], depth: number, maxDepth: number): void {
-  if (depth > maxDepth) return;
+function walkFiles(root: string, out: string[], depth: number, maxDepth: number,projectRoot:string,notices:ScanNotice[]): boolean {
+  let limited=false;
   let entries: fs.Dirent[];
   try {
+    if (!checkedProjectDirectory(projectRoot,root)) throw new Error('Missing project directory.');
     entries = fs.readdirSync(root, { withFileTypes: true });
   } catch {
-    return;
+    notices.push({code:RuleIds.SCAN_FILE_READ,message:'Could not inspect a project directory; the scan is incomplete.',location:{path:path.relative(projectRoot,root).replace(/\\/g,'/') || '.'}});
+    return false;
   }
+  if (depth === maxDepth) return entries.some(entry=>!EXCLUDED_DIRS.has(entry.name));
   for (const e of entries) {
     if (EXCLUDED_DIRS.has(e.name)) continue;
     const p = path.join(root, e.name);
+    if (e.isSymbolicLink()) {unsafeFileNotice(projectRoot,p,notices);continue;}
     // Directory symlinks are never followed (matches Files.walk) — no symlink loops.
-    if (e.isDirectory()) walkFiles(p, out, depth + 1, maxDepth);
+    if (e.isDirectory()) limited=walkFiles(p, out, depth + 1, maxDepth,projectRoot,notices) || limited;
     else if (e.isFile()) out.push(p);
   }
+  return limited;
 }
 
 function relativize(root: string, file: string): string {
@@ -69,10 +76,14 @@ export function scanProject(
     );
   }
 
-  const normalizedRoot = path.resolve(projectRoot);
+  const normalizedRoot = fs.realpathSync(projectRoot);
   const relativeRoot = path.basename(normalizedRoot) || normalizedRoot;
 
-  findings.push(...analyzeProjectStructure(normalizedRoot, relativeRoot, settings.trustedWrapperChecksums));
+  for (const id of BUILTIN_METHOD_IDS) if (!methodEnabled(settings.methodFlags,id)) {
+    notices.push({code:'WG-METHOD-DISABLED',message:'Security method disabled: ' + id + '. Coverage is reduced.'});
+  }
+  if (BUILTIN_METHOD_IDS.every(id=>!methodEnabled(settings.methodFlags,id))) notices.push({code:'WG-METHOD-NONE',message:'No built-in security methods are enabled.'});
+  if (methodEnabled(settings.methodFlags,'builtin.wrapper-integrity')) findings.push(...analyzeProjectStructure(normalizedRoot, relativeRoot, settings.trustedWrapperChecksums,notices,settings.maxFileBytes));
 
   const completed = new Set<string>();
   const active = new Set<string>();
@@ -94,7 +105,7 @@ export function scanProject(
       : withPolicy.map((f) => (baselineSet.has(f.fingerprint) ? { ...f, status: 'SUPPRESSED' as const } : f));
 
   const durationMs = Date.now() - started;
-  const complete = !notices.some((n) => n.code === RuleIds.SCAN_FILE_SKIPPED || n.code === RuleIds.SCAN_FILE_READ);
+  const complete = !notices.some((n) => [RuleIds.SCAN_FILE_SKIPPED,RuleIds.SCAN_FILE_READ,'WG-METHOD-NONE','WG-MAVEN-UNSUPPORTED','WG-SCAN-LIMIT'].includes(n.code));
   let verdict: ScanReport['verdict'];
   if (!complete) verdict = 'INCOMPLETE';
   else if (finalFindings.some((f) => f.policyAction === 'BLOCK' && f.status === 'ACTIVE')) verdict = 'EXECUTION_BLOCKED';
@@ -119,24 +130,31 @@ function scanFile(
 ): void {
   const normalized = path.resolve(file);
   const relative = relativize(root, normalized);
+  try {if (!checkedProjectFile(root,normalized)) {unsafeFileNotice(root,normalized,notices);return;}}
+  catch {unsafeFileNotice(root,normalized,notices);return;}
+  const graphEnabled = settings.enableRecursiveScanning && methodEnabled(settings.methodFlags,'builtin.script-graph');
+  const methodsForFile=rulesFor(path.basename(file)).some(key=>methodEnabled(settings.methodFlags,methodForKey(key)));
+  if (!methodsForFile && !graphEnabled) return;
 
   if (active.has(normalized)) {
     findings.push(circularFinding(relative, callChain ?? []));
     return;
   }
   if (completed.has(normalized)) return;
+  if (scannedFiles.size >= settings.maxFilesPerScan) {fileLimitNotice(settings,notices);return;}
 
   active.add(normalized);
   scannedFiles.add(normalized);
 
-  analyze(normalized, relative, settings, findings, callChain ?? [], notices);
+  analyze(root,normalized, relative, settings, findings, callChain ?? [], notices);
 
-  if (settings.enableRecursiveScanning && depth < settings.maxScriptDepth) {
+  if (graphEnabled && depth < settings.maxScriptDepth) {
     let content: string | null = null;
     try {
-      content = fs.readFileSync(normalized, 'utf8');
+      content = readProjectFile(root,normalized,settings.maxFileBytes).toString('utf8');
     } catch {
       content = null;
+      unsafeFileNotice(root,normalized,notices);
     }
     if (content !== null) {
       const called = findCalledScripts(path.basename(normalized), content);
@@ -145,6 +163,7 @@ function scanFile(
         const targetRelative = resolved !== null ? relativize(root, path.resolve(resolved)) : null;
         if (resolved === null || targetRelative === null) {
           findings.push(unresolvedFinding(relative, c));
+          notices.push({code:RuleIds.SCAN_FILE_SKIPPED,message:'A referenced script could not be inspected safely.',location:{path:relative,line:c.lineNumber}});
           continue;
         }
         edges.push({
@@ -159,7 +178,7 @@ function scanFile(
         scanFile(root, resolved, settings, depth + 1, nextChain, findings, edges, notices, scannedFiles, completed, active);
       }
     }
-  } else if (settings.enableRecursiveScanning && depth >= settings.maxScriptDepth) {
+  } else if (graphEnabled && depth >= settings.maxScriptDepth) {
     findings.push({
       fingerprint: findingFingerprint(RuleIds.SCAN_DEPTH_LIMIT, relative, String(depth)),
       ruleId: RuleIds.SCAN_DEPTH_LIMIT,
@@ -184,6 +203,7 @@ function scanFile(
 }
 
 function analyze(
+  root:string,
   file: string,
   relative: string,
   settings: ScanSettings,
@@ -209,11 +229,11 @@ function analyze(
   }
   let content: string;
   try {
-    content = readTextSmart(file);
+    content = readTextSmart(root,file,settings.maxFileBytes);
   } catch (e) {
     notices.push({
       code: RuleIds.SCAN_FILE_READ,
-      message: 'Could not read file: ' + (e instanceof Error ? e.message : String(e)),
+      message: 'Could not read a project input safely.',
       location: { path: relative }
     });
     return;
@@ -246,6 +266,8 @@ function analyze(
   const source = { relativePath: relative, content };
 
   for (const key of keys) {
+    const method = methodForKey(key);
+    if (!methodEnabled(settings.methodFlags,method)) continue;
     let produced: Finding[] = [];
     if (key === 'unix') produced = analyzeScript(source, 'UNIX', settings);
     else if (key === 'windows') produced = analyzeScript(source, 'WINDOWS', settings);
@@ -256,6 +278,10 @@ function analyze(
     else if (key === 'groovy') produced = analyzeBuildScript(source, 'Groovy', false, settings);
     else if (key === 'kotlin') produced = analyzeBuildScript(source, 'Kotlin', false, settings);
     else if (key === 'catalog') produced = analyzeVersionCatalog(source);
+    else if (key === 'maven') {
+      if (!supportedMavenPom(source)) notices.push({code:'WG-MAVEN-UNSUPPORTED',message:'Maven POM could not be analyzed safely; dependency resolution and external entities are never executed.',location:{path:relative}});
+      else produced=analyzeMavenPom(source,settings);
+    }
     else if (key === 'generic') produced = analyzeBuildScript(source, 'Gradle', false, settings);
     for (const f of produced) {
       findings.push(callChain && callChain.length > 0 ? { ...f, callChain } : f);
@@ -264,7 +290,8 @@ function analyze(
 }
 
 function findScanRoots(root: string, settings: ScanSettings, notices: ScanNotice[]): string[] {
-  const seeds = [
+  if (!Number.isInteger(settings.maxFilesPerScan) || settings.maxFilesPerScan < 1 || !Number.isInteger(settings.maxDirectoryDepth) || settings.maxDirectoryDepth < 0) throw new Error('Invalid scan limits.');
+  const canonical = [
     'gradlew',
     'gradlew.bat',
     'gradle/wrapper/gradle-wrapper.properties',
@@ -274,18 +301,21 @@ function findScanRoots(root: string, settings: ScanSettings, notices: ScanNotice
     'build.gradle.kts',
     'gradle/libs.versions.toml',
     'init.gradle',
-    'init.gradle.kts'
+    'init.gradle.kts',
+    'pom.xml'
   ]
     .map((s) => path.join(root, s))
-    .filter((p) => fs.existsSync(p) && fs.statSync(p).isFile());
+    .filter((p) => {try{return !!checkedProjectFile(root,p);}catch{unsafeFileNotice(root,p,notices);return false;}})
+    .filter(p=>path.relative(root,p).split(path.sep).length <= settings.maxDirectoryDepth);
+  const seeds=canonical.slice(0,settings.maxFilesPerScan);
 
   const all: string[] = [];
-  walkFiles(root, all, 0, settings.maxDirectoryDepth);
+  if (walkFiles(root, all, 0, settings.maxDirectoryDepth,root,notices)) notices.push({code:'WG-SCAN-LIMIT',message:'Directory depth limit reached ('+settings.maxDirectoryDepth+'); the scan is incomplete.'});
   const extra = all
     .filter((p) => !seeds.includes(p) && isScannable(path.basename(p)) && rulesFor(path.basename(p)).length > 0)
     .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
   const limited: string[] = [];
-  let capped = false;
+  let capped = canonical.length > settings.maxFilesPerScan;
   for (const p of extra) {
     if (seeds.length + limited.length >= settings.maxFilesPerScan) {
       capped = true;
@@ -294,17 +324,25 @@ function findScanRoots(root: string, settings: ScanSettings, notices: ScanNotice
     limited.push(p);
   }
   if (capped) {
-    notices.push({
-      code: RuleIds.SCAN_ROOT,
-      message: 'File count limit reached (' + settings.maxFilesPerScan + '); the scan may be incomplete.'
-    });
+    fileLimitNotice(settings,notices);
   }
   return Array.from(new Set([...seeds, ...limited]));
 }
+function methodForKey(key:string):string {
+  return ['unix','windows','powershell'].includes(key) ? 'builtin.script-rules' : key === 'wrapper-props' ? 'builtin.wrapper-integrity' : key === 'catalog' ? 'builtin.catalog-rules' : key === 'maven' ? 'builtin.maven-rules' : 'builtin.build-rules';
+}
+function unsafeFileNotice(root:string,file:string,notices:ScanNotice[]):void {
+  const relative=path.relative(root,file).replace(/\\/g,'/');
+  if (!notices.some(notice=>notice.code === RuleIds.SCAN_FILE_SKIPPED && notice.location?.path === relative && notice.message === 'File is not a readable regular input inside the project.')) notices.push({code:RuleIds.SCAN_FILE_SKIPPED,message:'File is not a readable regular input inside the project.',location:{path:relative}});
+}
+function fileLimitNotice(settings:ScanSettings,notices:ScanNotice[]):void {
+  const message='File count limit reached ('+settings.maxFilesPerScan+'); the scan is incomplete.';
+  if (!notices.some(notice=>notice.code === 'WG-SCAN-LIMIT' && notice.message === message)) notices.push({code:'WG-SCAN-LIMIT',message});
+}
 
 /** Reads text honoring UTF-8 BOM and UTF-16 LE/BE encodings (hostile-input hardening). */
-function readTextSmart(file: string): string {
-  const bytes = fs.readFileSync(file);
+function readTextSmart(root:string,file: string,maximum:number): string {
+  const bytes = readProjectFile(root,file,maximum);
   if (bytes.length >= 2 && bytes[0] === 0xfe && bytes[1] === 0xff) {
     return Buffer.from(bytes.subarray(2)).swap16().toString('utf16le');
   }

@@ -2,6 +2,7 @@ package com.sal7one.wrapperguard.core.vetting
 
 import com.sal7one.wrapperguard.core.export.SarifExporter
 import com.sal7one.wrapperguard.core.model.*
+import com.sal7one.wrapperguard.core.methods.SecurityMethodCatalog
 import com.sal7one.wrapperguard.core.policy.EnforcementMode
 import com.sal7one.wrapperguard.core.policy.ScanPolicy
 import com.sal7one.wrapperguard.core.policy.ScanSettings
@@ -40,6 +41,69 @@ class VettingCoordinatorTest {
         operation: VettingOperation = VettingOperation.SCAN,
         baseline: List<BaselineEntry> = emptyList()
     ) = VettingCoordinator(providers).scan(root, policy, ScanSettings(), baseline, operation)
+
+    @Test
+    fun allBuiltInMethodsCanBeReplacedByAnEnabledAnalysisProvider() {
+        val flags = SecurityMethodCatalog.builtInMethods.associate { it.id to false }
+        val engine = object : ScannerEngine {
+            override fun scan(projectRoot: Path, policy: ScanPolicy, settings: ScanSettings, baseline: List<BaselineEntry>): ScanReport =
+                error("Disabled built-in detectors must not execute when an analysis provider replaces them")
+        }
+        val builtIn = ProviderRegistration(BuiltInVettingProvider(engine), BuiltInVettingProvider.DEFAULT_PERMISSIONS)
+        for (id in listOf("python.bandit", "thirdparty.scanner")) {
+            val replacement = ProviderRegistration(provider(id) { ProviderResult(scannedFiles = 1) }, all)
+            val output = VettingCoordinator(listOf(builtIn, replacement)).scan(root, enforce, ScanSettings(methodFlags = flags))
+            assertEquals(ScanVerdict.CLEAN, output.verdict)
+            assertTrue(output.complete)
+            assertEquals(ProviderRunStatus.DISABLED, output.providerRuns.first().status)
+            assertTrue(output.notices.any { it.code == "WG-METHOD-REPLACED" })
+            assertFalse(output.findings.any { it.ruleId == "WG-PROVIDER-UNAVAILABLE" })
+        }
+        val blocking = ProviderRegistration(provider("thirdparty.scanner"), all)
+        assertTrue(VettingCoordinator(listOf(builtIn, blocking)).scan(root, enforce, ScanSettings(methodFlags = flags)).blockers.isNotEmpty())
+    }
+
+    @Test
+    fun advisoryOnlyOrAbsentProvidersCannotReplaceDisabledDetectors() {
+        val flags = SecurityMethodCatalog.builtInMethods.associate { it.id to false }
+        val engine = object : ScannerEngine {
+            override fun scan(projectRoot: Path, policy: ScanPolicy, settings: ScanSettings, baseline: List<BaselineEntry>) =
+                ScanReport(projectPath = projectRoot.toString(), verdict = ScanVerdict.INCOMPLETE, policyName = policy.name,
+                    findings = emptyList(), scannedFiles = 0, durationMs = 0, complete = false)
+        }
+        val builtIn = ProviderRegistration(BuiltInVettingProvider(engine), BuiltInVettingProvider.DEFAULT_PERMISSIONS)
+        for (id in listOf("research.script-semantics", "ai.external-model")) {
+            val advisory = ProviderRegistration(provider(id) { ProviderResult() }, all)
+            val output = VettingCoordinator(listOf(builtIn, advisory)).scan(root, enforce, ScanSettings(methodFlags = flags))
+            assertFalse(output.complete)
+            assertTrue(output.notices.any { it.code == "WG-NO-ANALYSIS-PROVIDERS" })
+            assertTrue(output.blockers.any { it.ruleId == "WG-PROVIDER-UNAVAILABLE" })
+            val advisoryOnly = VettingCoordinator(listOf(advisory)).scan(root, enforce, ScanSettings())
+            assertEquals(ScanVerdict.INCOMPLETE, advisoryOnly.verdict)
+            assertFalse(advisoryOnly.complete)
+        }
+        assertFalse(VettingCoordinator(emptyList()).scan(root, enforce, ScanSettings(methodFlags = flags)).complete)
+    }
+
+    @Test
+    fun methodFlagsOnlyDisableTheirMappedSdkAndNeverAutoEnableProviders() {
+        val mapped = ProviderRegistration(provider("python.bandit"), all)
+        val other = ProviderRegistration(provider("other"), all)
+        assertEquals(2, VettingCoordinator(listOf(mapped, other)).scan(root, enforce, ScanSettings()).findings.size)
+        val off = VettingCoordinator(listOf(mapped, other)).scan(root, enforce,
+            ScanSettings(methodFlags = mapOf("sast.bandit" to false)))
+        assertEquals(ProviderRunStatus.DISABLED, off.providerRuns.first().status)
+        assertEquals("other", off.findings.single().providerId)
+        assertTrue(off.blockers.isNotEmpty())
+        val missing = VettingCoordinator(listOf(other)).scan(root, enforce,
+            ScanSettings(methodFlags = mapOf("sast.bandit" to true)))
+        assertFalse(missing.complete)
+        assertTrue(missing.notices.any { it.code == "WG-METHOD-NOT-CONNECTED" })
+        assertEquals(listOf("other"), missing.providerRuns.map { it.descriptor.id })
+        val denied = VettingCoordinator(listOf(mapped.copy(permissions = all.copy(enabled = false)))).scan(root, enforce,
+            ScanSettings(methodFlags = mapOf("sast.bandit" to true)))
+        assertEquals(ProviderRunStatus.DISABLED, denied.providerRuns.single().status)
+    }
 
     @Test
     fun runsProvidersConcurrentlyAndPublishesInRegistrationOrder() {

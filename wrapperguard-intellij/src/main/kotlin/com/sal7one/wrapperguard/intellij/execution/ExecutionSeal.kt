@@ -11,7 +11,12 @@ import java.nio.file.SimpleFileVisitor
 import java.nio.file.attribute.BasicFileAttributes
 import java.security.MessageDigest
 
-/** Bounded, streaming hashes for the guard's documented build/script input scope. */
+/**
+ * Bounded streaming hashes for the same build, source and dependency predicate used
+ * by VFS staleness tracking. Existing directory/depth/file/byte limits apply to the
+ * expanded inputs; exceeding them fails the seal instead of returning partial coverage.
+ * This does not seal arbitrary inputs of a third-party SDK or excluded directory trees.
+ */
 internal fun watchedFileHashes(root: Path, settings: ScanSettings, checkCancelled: () -> Unit = {}): Map<String, String> {
     val canonicalRoot = root.toRealPath()
     if (!Files.isDirectory(canonicalRoot)) throw IOException("Execution seal requires a project directory.")

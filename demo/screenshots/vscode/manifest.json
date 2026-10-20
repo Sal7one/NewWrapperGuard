@@ -1,99 +1,156 @@
 {
-  "browser" : "macOS WKWebView",
-  "capture" : "WKWebView.takeSnapshot of generated HTML only; no desktop capture",
-  "checks" : [
+  "demo": true,
+  "project": "Atlas Payments",
+  "source": "vscode-extension/src/webviewUi.ts",
+  "report": "demo/report.json",
+  "browser": "chrome-headless-shell",
+  "checks": [
     "active blocker counts agree with report",
     "tabs and finding selection",
-    "baseline restore\/approval stay in browser",
+    "baseline restore and approval stay in browser",
     "permission dialog opens",
+    "method flags update coverage",
+    "method setup, disable and disconnect stay in browser",
+    "AI simulation receives no action grants",
+    "narrow tools panel has no horizontal overflow",
     "search and reset",
-    "no webview script errors"
+    "no page or webview script errors"
   ],
-  "demo" : true,
-  "project" : "Atlas Payments",
-  "report" : "demo\/report.json",
-  "screenshots" : [
+  "screenshots": [
     {
-      "description" : "Fictional blocked project overview with active counts and incomplete coverage.",
-      "file" : "01-overview-dark.png",
-      "theme" : "dark",
-      "viewport" : {
-        "height" : 960,
-        "width" : 1440
-      }
+      "file": "01-overview-dark.png",
+      "description": "Blocked project overview with active counts and incomplete provider coverage.",
+      "viewport": {
+        "width": 1440,
+        "height": 960
+      },
+      "theme": "dark"
     },
     {
-      "description" : "Real finding list, evidence inspector, provenance and effective actions.",
-      "file" : "02-findings-dark.png",
-      "theme" : "dark",
-      "viewport" : {
-        "height" : 960,
-        "width" : 1440
-      }
+      "file": "02-findings-dark.png",
+      "description": "Real findings list and evidence inspector with provider provenance and granted actions.",
+      "viewport": {
+        "width": 1440,
+        "height": 960
+      },
+      "theme": "dark"
     },
     {
-      "description" : "Static execution graph and active blocker paths.",
-      "file" : "03-execution-dark.png",
-      "theme" : "dark",
-      "viewport" : {
-        "height" : 960,
-        "width" : 1440
-      }
+      "file": "03-execution-dark.png",
+      "description": "Statically discovered script graph and active risky paths.",
+      "viewport": {
+        "width": 1440,
+        "height": 960
+      },
+      "theme": "dark"
     },
     {
-      "description" : "Expanded workspace showing the graph, detached files and risky-path inspector.",
-      "file" : "09-execution-expanded.png",
-      "theme" : "dark",
-      "viewport" : {
-        "height" : 1000,
-        "width" : 1600
-      }
+      "file": "09-execution-expanded.png",
+      "description": "Expanded workspace showing graph, detached files and risky-path inspector.",
+      "viewport": {
+        "width": 1600,
+        "height": 1000
+      },
+      "theme": "dark"
     },
     {
-      "description" : "Provider grants, completion, timeout, failure and disabled states.",
-      "file" : "04-policy-dark.png",
-      "theme" : "dark",
-      "viewport" : {
-        "height" : 1023,
-        "width" : 1440
-      }
+      "file": "04-policy-dark.png",
+      "description": "Provider permissions, required/optional coverage, and timeout/failure/disabled states.",
+      "viewport": {
+        "width": 1440,
+        "height": 1023
+      },
+      "theme": "dark"
     },
     {
-      "description" : "Light theme with the same real renderer and fictional report.",
-      "file" : "05-findings-light.png",
-      "theme" : "light",
-      "viewport" : {
-        "height" : 960,
-        "width" : 1440
-      }
+      "file": "05-findings-light.png",
+      "description": "Light theme using the same renderer and report.",
+      "viewport": {
+        "width": 1440,
+        "height": 960
+      },
+      "theme": "light"
     },
     {
-      "description" : "Narrow detail route and Back navigation.",
-      "file" : "06-findings-narrow.png",
-      "theme" : "dark",
-      "viewport" : {
-        "height" : 1000,
-        "width" : 430
-      }
+      "file": "06-findings-narrow.png",
+      "description": "Narrow findings detail and Back navigation.",
+      "viewport": {
+        "width": 430,
+        "height": 1000
+      },
+      "theme": "dark"
     },
     {
-      "description" : "Approved baseline evidence stays visible without blocking execution.",
-      "file" : "07-approved-baseline.png",
-      "theme" : "dark",
-      "viewport" : {
-        "height" : 960,
-        "width" : 1440
-      }
+      "file": "07-approved-baseline.png",
+      "description": "Approved baseline finding remains visible and does not count as an active blocker.",
+      "viewport": {
+        "width": 1440,
+        "height": 960
+      },
+      "theme": "dark"
     },
     {
-      "description" : "Clearly labelled browser-only permission controls.",
-      "file" : "08-demo-permission-controls.png",
-      "theme" : "dark",
-      "viewport" : {
-        "height" : 960,
-        "width" : 1440
-      }
+      "file": "08-demo-permission-controls.png",
+      "description": "Demo-only permission controls; no real provider configuration is changed.",
+      "viewport": {
+        "width": 1440,
+        "height": 960
+      },
+      "theme": "dark"
+    },
+    {
+      "file": "10-tools-dark.png",
+      "description": "Fifteen optional methods in categorized Tools and Research tabs; real renderer, fictional demo data.",
+      "viewport": {
+        "width": 1440,
+        "height": 960
+      },
+      "theme": "dark"
+    },
+    {
+      "file": "12-demo-method-setup.png",
+      "description": "GUI setup simulation with managed SDK, optional Semgrep runner and bundled Android/Ktor rules; no software is installed.",
+      "viewport": {
+        "width": 1440,
+        "height": 960
+      },
+      "theme": "dark"
+    },
+    {
+      "file": "13-demo-method-permissions.png",
+      "description": "New method permissions in the simulated GUI; starts with warning-only grants.",
+      "viewport": {
+        "width": 1440,
+        "height": 960
+      },
+      "theme": "dark"
+    },
+    {
+      "file": "11-research-dark.png",
+      "description": "Research method and local AI review are independent, optional connections with explicit limits.",
+      "viewport": {
+        "width": 1440,
+        "height": 960
+      },
+      "theme": "dark"
+    },
+    {
+      "file": "15-demo-local-ai-setup.png",
+      "description": "Local AI setup simulation: loopback endpoint, model ID and minimized report summaries; no model is contacted.",
+      "viewport": {
+        "width": 1440,
+        "height": 960
+      },
+      "theme": "dark"
+    },
+    {
+      "file": "14-tools-narrow.png",
+      "description": "Categorized optional methods in a narrow sidebar with accessible switches and setup controls.",
+      "viewport": {
+        "width": 430,
+        "height": 1000
+      },
+      "theme": "dark"
     }
-  ],
-  "source" : "vscode-extension\/src\/webviewUi.ts"
+  ]
 }

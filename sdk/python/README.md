@@ -1,51 +1,44 @@
-# WrapperGuard Python integration SDK
+# WrapperGuard Python SDK
 
-`wrapperguard-sdk` **0.1.0** is an optional Python **3.10+** adapter for WrapperGuard's
-existing command-provider API 1. It uses the standard library at runtime.
+`wrapperguard-sdk` **0.2.0** connects optional analysis methods to provider **API 1**.
+It requires **Python 3.10+**, uses only the standard library at runtime, and ships as a
+wheel in both IDE packages. Vendor scanners and local model servers are separate tools.
 
-Supported imports are SARIF 2.1.0, Bandit JSON, PSScriptAnalyzer JSON, Trivy JSON,
-OSV-Scanner JSON, and target-scoped ZAP traditional JSON. The fixed Bandit runner is the only
-direct scanner runner and currently requires POSIX no-follow file access. Windows can
-use report imports. No active DAST scanning or application backend execution exists.
-The package neither installs vendor scanners nor replaces WrapperGuard's built-in rules.
+- Six report importers: SARIF, Bandit, PSScriptAnalyzer, Trivy, OSV-Scanner and scoped ZAP.
+- Five fixed external runners: Bandit, Semgrep, PSScriptAnalyzer, Trivy and OSV-Scanner.
+- Local advisory script behavior analysis and loopback-only AI finding explanations.
+- Explicit outside-project profiles, operation limits, bounded inputs/output and host-owned grants.
 
-From the repository root, install into a trusted environment outside scanned projects:
+Use **Tools → Install SDK… / Connect** in the IDE for guided setup. The bundled SDK installs
+offline into a dedicated environment. Optional pinned Bandit/Semgrep installation is an
+explicit network download. POSIX is required for direct snapshot runners; Windows supports
+existing-report imports and local model report review.
+
+From a trusted repository checkout, manual installation is:
 
 ```sh
 python3 -m venv "$HOME/.local/share/wrapperguard/sdk-venv"
 "$HOME/.local/share/wrapperguard/sdk-venv/bin/python" -m pip install ./sdk/python
 ```
 
-Copy a [profile template](../../examples/integrations/README.md) into user configuration
-outside the project and replace its absolute paths. Review the plan first:
+Copy a [profile template](../../examples/integrations/README.md) outside the project and
+replace the paths. Review without report access or execution:
 
 ```sh
 "$HOME/.local/share/wrapperguard/sdk-venv/bin/python" -I -m wrapperguard_sdk \
-  --profile /absolute/user-config/bandit-report.profile.json \
+  --profile /absolute/user-config/semgrep-runner.profile.json \
   --plan --project /absolute/project
 ```
 
-`wrapperguard-sdk` is the equivalent installed console entry point. Normal operation reads
-one host request from stdin and writes one API 1 result to stdout; configure the host to
-invoke the installed module rather than running it interactively without a request.
-Profiles default to SCAN and WARNING, and the host separately caps all requested actions.
-Invalid/disallowed operations fail visibly. Report imports do not prove input freshness.
+Normal operation receives one host request on stdin and returns one API 1 result on stdout.
+The host should use the installed absolute Python with `-I -m wrapperguard_sdk`; project
+files must not supply the SDK module or user configuration. Profiles request actions;
+the host caps them. Every optional method starts disabled until the user connects/enables it.
 
-The [integration guide](../../docs/integrations.md) explains host configuration, SAST/SCA/DAST
-coverage, report limits, target scopes, the Bandit runner, and trusted-code boundaries.
-Host permissions are not an OS sandbox. The inactive research ML seam remains inactive.
+Research output and local AI explanations are advisory and cannot block. No trained model
+is bundled or reproduced. Report imports do not establish source freshness. Snapshotting
+and action grants do not sandbox trusted scanner code. ZAP is report-only and sends no
+active target requests.
 
-From the repository root:
-
-```sh
-"$HOME/.local/share/wrapperguard/sdk-venv/bin/python" -m unittest discover -s sdk/python/tests -v
-"$HOME/.local/share/wrapperguard/sdk-venv/bin/python" scripts/sdk-smoke.py \
-  --sdk-python "$HOME/.local/share/wrapperguard/sdk-venv/bin/python"
-```
-
-The host smoke requires the installed JVM CLI and uses synthetic reports. It does not
-execute project sources, run vendor scanners, or contact any DAST target.
-The [full verification instructions](../../docs/integrations.md#limits-and-verification)
-also cover schema validation, the installed SDK through the TypeScript host, and the
-separate real Bandit 1.9.4 check on inert generated sources. The latter requires POSIX;
-Bandit and jsonschema are optional test tools rather than SDK runtime dependencies.
+[Setup and coverage](../../docs/integrations.md) · [Provider API](../../docs/providers.md) ·
+[Research rationale](../../docs/research.md) · [Verification](../../docs/verification.md)

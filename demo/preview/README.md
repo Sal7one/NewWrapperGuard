@@ -1,35 +1,59 @@
-# VS Code webview demo
+# VS Code renderer demo
 
-This is the actual compiled `vscode-extension/src/webviewUi.ts` renderer running in a standalone browser. The surrounding **SIMULATED DEMO** ribbon and host bridge are demo utilities. Providers, findings, timings and permission changes are fictional. Scripts and SDKs never run. No production UI styling is replaced.
+This harness runs the actual compiled `vscode-extension/src/webviewUi.ts` renderer in a
+standalone browser. The **SIMULATED DEMO** ribbon and host bridge are demo utilities.
+Findings, providers, setup, permissions and model responses are fictional; no SDK, scanner,
+source program or real model server runs.
 
 From the repository root:
 
 ```sh
-cd vscode-extension
-npm run compile
-cd ..
+npm --prefix vscode-extension run compile
 node demo/preview/build-vscode-preview.js
 node demo/preview/serve.js
 ```
 
-Open `http://127.0.0.1:4173`. The generated `vscode.html` also opens directly as a local file. `?theme=light&tab=findings` selects a theme and tab. Choose findings, search, inspect the execution graph, simulate baseline approval/restore, change demo permissions, export fictional JSON, or reset the demo. All changes stay in the current browser page.
+Open `http://127.0.0.1:4173`, or open generated `vscode.html` directly. Query parameters
+such as `?theme=light&tab=tools` choose a theme/tab. The renderer includes Tools and
+Research & AI alongside the existing report, graph and policy views.
 
-To share the demo on your LAN, pass a port and this computer's LAN IP as positional arguments. For example, `node demo/preview/serve.js 4173 192.168.1.20` serves the interactive demo at `http://192.168.1.20:4173` and the gallery at `/index.html`. Open that address from another device on the same network. The default remains loopback-only; the demo file allowlist also applies to LAN serving.
+Use the preview to inspect findings, search, navigate call paths, simulate baseline
+approval/restore, change method switches, open setup/permissions, disconnect demo tools,
+export fictional reports and reset state. Every change stays in the current browser page.
+The simulated setup never downloads an analyzer or writes production connection files.
 
-`http://127.0.0.1:4173/index.html` opens the screenshot gallery when `demo/index.html` has been generated. Gallery screenshot links and the demo/preview README links are served by the same server. Only the explicit demo pages, README files and PNG screenshot paths are served; repository files outside this allowlist remain inaccessible.
+To expose the allowlisted demo to devices on the same LAN, pass this computer's network IP:
 
-To regenerate screenshots:
+```sh
+node demo/preview/serve.js 4173 192.168.1.20
+```
+
+The default is loopback-only. `/index.html` opens the generated screenshot gallery.
+Only the explicit demo pages, README files, screenshot manifest and PNG paths are served;
+repository files outside that allowlist remain inaccessible.
+
+## Capture and verify
 
 ```sh
 node demo/preview/capture-vscode.js
+python3 scripts/build-demo-gallery.py
 ```
 
-On macOS this compiles a small Swift helper and uses the system's isolated `WKWebView.takeSnapshot` API. It captures the generated demo view only, without capturing the desktop or other windows. No browser download or extra package is needed. Swift/Xcode command line tools must already be installed.
+The capture harness checks report counts, tab navigation, finding selection/search,
+simulated baseline and permission actions, method setup/disable/disconnect, advisory AI
+state, narrow layouts and emitted-script errors. Image files and a capture manifest go
+under `demo/screenshots/vscode/`; the gallery combines them with native IDE captures.
+These are browser renderer captures, not screenshots of an installed VS Code application.
 
-`--engine chromium` uses an existing Playwright package and cached Chrome/Chromium instead. If necessary set `PLAYWRIGHT_MODULE_PATH` to an installed Playwright module and `DEMO_BROWSER_EXECUTABLE` to an existing browser executable. The Codex bundled Playwright runtime and Puppeteer browser cache are discovered automatically. Cached Chrome121 crashes on this macOS26 machine, so WebKit is the working default. Other platforms default to the Chromium path.
+On macOS the default engine compiles a small Swift helper and uses isolated
+`WKWebView.takeSnapshot`. Swift/Xcode command-line tools must already be installed.
+It does not capture the desktop or other applications and does not download a browser.
 
-`build-vscode-preview.js` and `capture-vscode.js` accept `--report <ScanReport.json>` and `--settings <ScanSettings.json>`. The default report and settings come from `demo/report.json` and `demo/settings.json`. Capture writes PNGs and a validation manifest under `demo/screenshots/vscode/`; `--out <directory>` selects another screenshot destination.
+`--engine chromium` uses an existing Playwright installation and browser. Set
+`PLAYWRIGHT_MODULE_PATH` and `DEMO_BROWSER_EXECUTABLE` when automatic discovery cannot find
+them. Other platforms use that Chromium path; install/select the browser separately.
 
-The screenshot capture validates active counts, tabs, selection, search, browser-only baseline changes and permission dialogs, and fails if browser/webview script errors occur. Screenshots are browser captures of the generated demo, not desktop captures or screenshots of an installed VS Code host.
-
-The nine captures cover Overview, Findings, Execution, the complete provider Policy list, light theme, narrow detail, the approved baseline, demo permission controls, and an expanded execution graph with its risky-path inspector. The desktop captures use a 1440×960 viewport; the expanded graph uses 1600×1000. The capture checks every finding status is represented, detached files stay inside the graph inspector, and narrow details can scroll to the last action without horizontal overflow.
+Both build and capture scripts accept `--report <ScanReport.json>` and
+`--settings <ScanSettings.json>`. Defaults are `demo/report.json` and `demo/settings.json`.
+Capture accepts `--out <directory>`. Regenerate source data after moving the checkout,
+and regenerate captures/manifests after UI changes; see [the demo guide](../README.md).

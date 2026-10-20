@@ -106,5 +106,5 @@ internal object WrapperGuardDemo {
         } catch (_: Exception) { /* Optional screenshot metadata; no execution authority. */ }
     }
 
-    private val TABS = setOf("summary", "overview", "findings", "execution", "graph", "policy")
+    private val TABS = setOf("summary", "overview", "findings", "execution", "graph", "policy", "tools", "research")
 }

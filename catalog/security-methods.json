@@ -1,0 +1,185 @@
+{
+  "schemaVersion": 1,
+  "methods": [
+    {
+      "id": "builtin.wrapper-integrity",
+      "title": "Wrapper integrity",
+      "summary": "Inspect Gradle wrapper files, distribution URLs and configured checksums before build or sync.",
+      "category": "BUILT_IN",
+      "defaultEnabled": true,
+      "providerId": "wrapperguard",
+      "availability": "BUILT_IN",
+      "maturity": "STABLE"
+    },
+    {
+      "id": "builtin.script-rules",
+      "title": "Script safety",
+      "summary": "Inspect shell, batch and PowerShell source for risky download, execution and credential patterns.",
+      "category": "BUILT_IN",
+      "defaultEnabled": true,
+      "providerId": "wrapperguard",
+      "availability": "BUILT_IN",
+      "maturity": "STABLE"
+    },
+    {
+      "id": "builtin.build-rules",
+      "title": "Gradle build configuration",
+      "summary": "Review Gradle plugins, repositories and execution-related configuration without running Gradle.",
+      "category": "BUILT_IN",
+      "defaultEnabled": true,
+      "providerId": "wrapperguard",
+      "availability": "BUILT_IN",
+      "maturity": "STABLE"
+    },
+    {
+      "id": "builtin.catalog-rules",
+      "title": "Version catalog policy",
+      "summary": "Review Gradle version catalogs for dynamic dependency versions and configuration risks.",
+      "category": "BUILT_IN",
+      "defaultEnabled": true,
+      "providerId": "wrapperguard",
+      "availability": "BUILT_IN",
+      "maturity": "STABLE"
+    },
+    {
+      "id": "builtin.script-graph",
+      "title": "Script call graph",
+      "summary": "Trace statically identifiable script calls and display their execution paths.",
+      "category": "BUILT_IN",
+      "defaultEnabled": true,
+      "providerId": "wrapperguard",
+      "availability": "BUILT_IN",
+      "maturity": "STABLE"
+    },
+    {
+      "id": "builtin.maven-rules",
+      "title": "Maven configuration",
+      "summary": "Review local POM repository URLs and unpinned dependency versions without running Maven.",
+      "category": "BUILT_IN",
+      "defaultEnabled": true,
+      "providerId": "wrapperguard",
+      "availability": "BUILT_IN",
+      "maturity": "STABLE"
+    },
+    {
+      "id": "sast.semgrep",
+      "title": "Android / Ktor \u00b7 Semgrep",
+      "summary": "Inspect Kotlin and Java source with curated Android/Ktor review rules or an explicitly selected rule file. No build is executed.",
+      "category": "SAST",
+      "defaultEnabled": false,
+      "providerId": "sast.semgrep",
+      "availability": "OPTIONAL_TOOL",
+      "maturity": "STABLE",
+      "format": "sarif",
+      "runner": "semgrep",
+      "docsUrl": "https://semgrep.dev/docs/"
+    },
+    {
+      "id": "sast.bandit",
+      "title": "Python \u00b7 Bandit",
+      "summary": "Analyze Python with an installed Bandit scanner, or import its JSON report.",
+      "category": "SAST",
+      "defaultEnabled": false,
+      "providerId": "python.bandit",
+      "availability": "OPTIONAL_TOOL",
+      "maturity": "STABLE",
+      "format": "bandit",
+      "runner": "bandit",
+      "docsUrl": "https://bandit.readthedocs.io/en/latest/"
+    },
+    {
+      "id": "sast.powershell",
+      "title": "PowerShell \u00b7 PSScriptAnalyzer",
+      "summary": "Analyze a source snapshot with an installed PowerShell analyzer, or import its JSON report.",
+      "category": "SAST",
+      "defaultEnabled": false,
+      "providerId": "powershell.psscriptanalyzer",
+      "availability": "OPTIONAL_TOOL",
+      "maturity": "STABLE",
+      "format": "psscriptanalyzer",
+      "runner": "psscriptanalyzer",
+      "docsUrl": "https://learn.microsoft.com/en-us/powershell/utility-modules/psscriptanalyzer/overview"
+    },
+    {
+      "id": "sast.sarif",
+      "title": "SAST \u00b7 SARIF",
+      "summary": "Connect findings from a SARIF 2.1.0 producer, including organization-specific tools.",
+      "category": "SAST",
+      "defaultEnabled": false,
+      "providerId": "sast.sarif",
+      "availability": "REPORT_IMPORT",
+      "maturity": "STABLE",
+      "format": "sarif",
+      "docsUrl": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html"
+    },
+    {
+      "id": "sca.trivy",
+      "title": "Dependencies \u00b7 Trivy",
+      "summary": "Scan supported local dependency inputs using an installed Trivy, or import its vulnerability report.",
+      "category": "SUPPLY_CHAIN",
+      "defaultEnabled": false,
+      "providerId": "sca.trivy",
+      "availability": "OPTIONAL_TOOL",
+      "maturity": "STABLE",
+      "format": "trivy",
+      "runner": "trivy",
+      "docsUrl": "https://trivy.dev/docs/latest/"
+    },
+    {
+      "id": "sca.osv",
+      "title": "Dependencies \u00b7 OSV-Scanner",
+      "summary": "Check resolved dependency inputs using an installed OSV-Scanner, or import its JSON report.",
+      "category": "SUPPLY_CHAIN",
+      "defaultEnabled": false,
+      "providerId": "sca.osv",
+      "availability": "OPTIONAL_TOOL",
+      "maturity": "STABLE",
+      "format": "osv",
+      "runner": "osv",
+      "docsUrl": "https://google.github.io/osv-scanner/"
+    },
+    {
+      "id": "dast.zap",
+      "title": "Web application \u00b7 ZAP",
+      "summary": "Import a ZAP report for an explicitly scoped application target. Requires a target origin; sends no requests.",
+      "category": "DAST",
+      "defaultEnabled": false,
+      "providerId": "dast.zap",
+      "availability": "REPORT_IMPORT",
+      "maturity": "STABLE",
+      "format": "zap",
+      "docsUrl": "https://www.zaproxy.org/docs/"
+    },
+    {
+      "id": "research.script-semantics",
+      "title": "Script behavior signals",
+      "summary": "Inspect bounded literal decoding and linked behavior signals in Python and PowerShell without running source code. Advisory research method.",
+      "category": "RESEARCH",
+      "defaultEnabled": false,
+      "providerId": "research.script-semantics",
+      "availability": "BUILT_IN",
+      "maturity": "EXPERIMENTAL",
+      "format": "script-semantics",
+      "runner": "script-semantics",
+      "research": [
+        "PowerPeeler (CCS 2024)",
+        "DONAPI (USENIX Security 2024)",
+        "PyGuard (USENIX Security 2026)"
+      ],
+      "docsUrl": "https://www.usenix.org/conference/usenixsecurity26/presentation/guo-wenbo"
+    },
+    {
+      "id": "ai.external-model",
+      "title": "Local AI review",
+      "summary": "Ask a configured local model to explain selected findings. Advisory only; no source files are sent and no model is bundled.",
+      "category": "AI",
+      "defaultEnabled": false,
+      "providerId": "ai.external-model",
+      "availability": "EXTERNAL_MODEL",
+      "maturity": "EXTERNAL",
+      "format": "ai-review",
+      "runner": "local-ai",
+      "docsUrl": "https://lmstudio.ai/docs/developer/openai-compat"
+    }
+  ]
+}

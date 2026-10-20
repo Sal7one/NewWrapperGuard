@@ -2,7 +2,7 @@
   "name": "wrapperguard",
   "displayName": "WrapperGuard",
   "description": "Local security vetting with a built-in static scanner and user-authorized providers.",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "publisher": "sal7one",
   "repository": {
     "type": "git",
@@ -155,18 +155,28 @@
           "scope": "application",
           "default": "",
           "description": "Absolute JSON provider configuration file outside the workspace. Command providers require Workspace Trust and execute only the explicitly configured command."
+        },
+        "wrapperGuard.methodFlags": {
+          "type": "object",
+          "scope": "application",
+          "default": {},
+          "additionalProperties": {
+            "type": "boolean"
+          },
+          "description": "Optional security methods from the Tools and Research tabs. User Settings only; changing a flag invalidates previous results. Disabling built-in methods reduces coverage."
         }
       }
     }
   },
   "scripts": {
-    "compile": "tsc -p ./",
+    "compile": "tsc -p ./ && node scripts/copy-method-catalog.js",
     "watch": "tsc -watch -p ./",
     "parity": "node scripts/parity.js",
     "hardening": "node scripts/hardening.js",
     "test": "npm run compile && node --test tests/*.test.js && npm run check:webview",
     "check:webview": "node scripts/check-webview.js",
-    "package": "npm run compile && vsce package --out wrapperguard-0.4.0.vsix"
+    "package": "npm run build:sdk && npm run compile && vsce package --out wrapperguard-0.5.0.vsix",
+    "build:sdk": "python3 ../scripts/build-sdk.py --copy-vscode"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
@@ -180,5 +190,8 @@
       "description": "Built-in static analysis works without trust. Explicit command providers require a trusted workspace."
     }
   },
-  "types": "./dist/extension.d.ts"
+  "types": "./dist/extension.d.ts",
+  "dependencies": {
+    "sax": "1.6.1"
+  }
 }

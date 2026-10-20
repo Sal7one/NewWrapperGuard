@@ -66,7 +66,7 @@ object SarifExporter {
                     put("tool", buildJsonObject {
                         put("driver", buildJsonObject {
                             put("name", "WrapperGuard")
-                            put("version", "0.4.0")
+                            put("version", "0.5.0")
                             put("rules", buildJsonArray { rules.forEach { add(it) } })
                         })
                     })

@@ -4,6 +4,7 @@ import { BaselineEntry, ScanPolicy, ScanReport, ScanSettings } from '../models';
 import { userSetting } from '../providers/userSettings';
 import { scanProject } from './repositoryScanner';
 import { DEFAULT_ENFORCE_POLICY, DEFAULT_SETTINGS } from './defaults';
+import { validateMethodFlags } from '../methods/catalog';
 
 /** Builds the active scan settings from workspace/user configuration, merged over defaults. */
 export function buildSettings(): ScanSettings {
@@ -12,6 +13,7 @@ export function buildSettings(): ScanSettings {
   const extraCommands = userSetting(cfg.inspect<string[]>('blockedCommands'), []);
   return {
     ...DEFAULT_SETTINGS,
+    methodFlags: validateMethodFlags(userSetting(cfg.inspect<Record<string,boolean>>('methodFlags'), {})),
     allowedHosts: Array.from(new Set([...DEFAULT_SETTINGS.allowedHosts, ...extraHosts])),
     blockedCommands: Array.from(new Set([...DEFAULT_SETTINGS.blockedCommands, ...extraCommands])),
     requireDistributionSha256: userSetting(cfg.inspect<boolean>('requireDistributionSha256'), false)

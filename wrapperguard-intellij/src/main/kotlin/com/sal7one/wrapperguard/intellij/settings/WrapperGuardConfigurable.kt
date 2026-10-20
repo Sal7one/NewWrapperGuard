@@ -8,6 +8,7 @@ import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBTextArea
 import com.intellij.ui.components.JBTextField
+import com.sal7one.wrapperguard.core.methods.SecurityMethodCatalog
 import com.sal7one.wrapperguard.core.vetting.BuiltInVettingProvider
 import com.sal7one.wrapperguard.core.vetting.ProviderConfiguration
 import com.sal7one.wrapperguard.core.vetting.ProviderDescriptor
@@ -37,6 +38,8 @@ class WrapperGuardConfigurable : Configurable {
     private val scanOpenCheck = JBCheckBox("Scan when a project is opened")
     private val scanChangeCheck = JBCheckBox("Rescan when wrapper/build/script files change")
     private var rows: List<ProviderControls> = emptyList()
+    private var methodRows: Map<String, JBCheckBox> = emptyMap()
+    private var methodInitial: Map<String, Boolean> = emptyMap()
 
     override fun getDisplayName(): String = "WrapperGuard"
 
@@ -52,6 +55,10 @@ class WrapperGuardConfigurable : Configurable {
         panel.add(scanOpenCheck)
         panel.add(scanChangeCheck)
         panel.add(Box.createVerticalStrut(12))
+        panel.add(JBLabel("Analysis methods (application preferences, never repository policy):"))
+        panel.add(JBLabel("Use the WrapperGuard Tools / Research tabs for SDK installation, connection setup and permissions."))
+        methodRows = SecurityMethodCatalog.methods.associate { method -> method.id to JBCheckBox("${method.title} · ${method.category.name.lowercase().replace('_', ' ')}").also { box -> panel.add(box) } }
+        panel.add(Box.createVerticalStrut(12))
         panel.add(JBLabel("Trusted provider configuration (absolute JSON file path, outside each scanned project):").apply {
             labelFor = configPath
         })
@@ -63,9 +70,12 @@ class WrapperGuardConfigurable : Configurable {
         panel.add(Box.createVerticalStrut(12))
         val untrustedOpen = ProjectManager.getInstance().openProjects.any { !TrustedProjects.isProjectTrusted(it) }
         val descriptors = listOf(BuiltInVettingProvider(RepositoryScanner()).descriptor.copy(displayName = "WrapperGuard (built-in)")) +
-            if (untrustedOpen) emptyList() else IntellijVettingProviders.installedProviders().map { it.descriptor }
+            (if (untrustedOpen) emptyList() else IntellijVettingProviders.installedProviders().map { it.descriptor }) +
+            WrapperGuardSettings.getInstance().state.methodConnections.mapNotNull { connection -> SecurityMethodCatalog.find(connection.methodId)?.let { method ->
+                method.providerId?.let { ProviderDescriptor(it, method.title, "0.2.0") }
+            } }
         if (untrustedOpen) panel.add(JBLabel("SDK settings are paused while an open project is in Safe Mode."))
-        rows = descriptors.map { ProviderControls(it).also { row -> panel.add(row.panel) } }
+        rows = descriptors.distinctBy { it.id }.map { ProviderControls(it).also { row -> panel.add(row.panel) } }
         panel.add(Box.createVerticalGlue())
         reset()
         return JScrollPane(panel).apply { border = BorderFactory.createEmptyBorder() }
@@ -79,7 +89,8 @@ class WrapperGuardConfigurable : Configurable {
             shaCheck.isSelected != s.requireDistributionSha256 ||
             scanOpenCheck.isSelected != s.scanOnOpen ||
             scanChangeCheck.isSelected != s.scanOnFileChange ||
-            rows.any { it.currentState().permissions() != settings.permissions(it.descriptor.id) }
+            rows.any { it.currentState().permissions() != settings.permissions(it.descriptor.id) } ||
+            methodRows.any { (id, box) -> box.isSelected != methodInitial[id] }
     }
 
     override fun apply() {
@@ -102,6 +113,8 @@ class WrapperGuardConfigurable : Configurable {
         s.requireDistributionSha256 = shaCheck.isSelected
         s.scanOnOpen = scanOpenCheck.isSelected
         s.scanOnFileChange = scanChangeCheck.isSelected
+        methodRows.forEach { (id, box) -> if (box.isSelected != methodInitial[id] || s.methodFlags.containsKey(id)) s.methodFlags[id] = box.isSelected }
+        methodInitial = methodRows.mapValues { it.value.isSelected }
         // Retain settings for SDK plugins that are currently uninstalled.
         val visibleIds = rows.map { it.descriptor.id }.toSet()
         s.providers = (s.providers.filterNot { it.id in visibleIds } + rows.map { it.currentState() }).toMutableList()
@@ -119,6 +132,10 @@ class WrapperGuardConfigurable : Configurable {
         scanOpenCheck.isSelected = s.scanOnOpen
         scanChangeCheck.isSelected = s.scanOnFileChange
         rows.forEach { it.reset(settings.permissions(it.descriptor.id)) }
+        methodRows.forEach { (id, box) -> box.isSelected = s.methodFlags[id] ?: SecurityMethodCatalog.find(id)?.let {
+            if (it.providerId == "wrapperguard") it.defaultEnabled else settings.permissions(it.providerId.orEmpty()).enabled
+        } ?: false }
+        methodInitial = methodRows.mapValues { it.value.isSelected }
     }
 
     private class ProviderControls(val descriptor: ProviderDescriptor) {
@@ -131,11 +148,13 @@ class WrapperGuardConfigurable : Configurable {
         private val required = JBCheckBox("Require successful result before permitted build / sync")
         private val actions = VettingAction.entries.associateWith { action -> JBCheckBox(action.displayName()).apply {
             accessibleContext.accessibleName = "${descriptor.displayName}: ${action.displayName()} permission"
+            if (descriptor.id in setOf("ai.external-model", "research.script-semantics") && action in setOf(VettingAction.BLOCK_BUILD, VettingAction.BLOCK_SYNC)) isEnabled = false
         } }
         private val timeout = JSpinner(SpinnerNumberModel(30_000L, 100L, 300_000L, 1_000L))
 
         init {
             enabled.accessibleContext.accessibleName = "Enable ${descriptor.displayName} provider"
+            required.isEnabled = descriptor.id !in setOf("ai.external-model", "research.script-semantics")
             required.accessibleContext.accessibleName = "Require successful ${descriptor.displayName} result before permitted operations"
             timeout.accessibleContext.accessibleName = "${descriptor.displayName} timeout in milliseconds"
             panel.add(enabled)
@@ -158,7 +177,8 @@ class WrapperGuardConfigurable : Configurable {
         fun currentState() = WrapperGuardSettings.ProviderState(
             id = descriptor.id, enabled = enabled.isSelected,
             actions = actions.filterValues { it.isSelected }.keys.map { it.name }.toMutableList(),
-            required = required.isSelected, timeoutMs = (timeout.value as Number).toLong()
+            required = required.isSelected, timeoutMs = (timeout.value as Number).toLong(),
+            overrideConfiguredPermissions = WrapperGuardSettings.getInstance().state.providers.firstOrNull { it.id == descriptor.id }?.overrideConfiguredPermissions ?: false
         )
     }
 }

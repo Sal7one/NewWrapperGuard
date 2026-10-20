@@ -26,7 +26,9 @@ data class ScanSettings(
     /** Hardening limits (see #9 hostile-input hardening). */
     val maxLineLength: Int = 10_000,
     val maxFilesPerScan: Int = 50_000,
-    val maxDirectoryDepth: Int = 64
+    val maxDirectoryDepth: Int = 64,
+    /** Explicit user-level method choices. Repository contents never set these flags. */
+    val methodFlags: Map<String, Boolean> = emptyMap()
 ) {
     companion object {
         val DEFAULT_ALLOWED_HOSTS: Set<String> = setOf(

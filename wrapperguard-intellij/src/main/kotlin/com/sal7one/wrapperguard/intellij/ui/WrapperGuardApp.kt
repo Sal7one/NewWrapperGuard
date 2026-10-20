@@ -2,6 +2,8 @@ package com.sal7one.wrapperguard.intellij.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
@@ -18,6 +20,9 @@ import androidx.compose.ui.unit.sp
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.options.ShowSettingsUtil
 import com.intellij.openapi.project.Project
+import com.intellij.ide.BrowserUtil
+import com.sal7one.wrapperguard.intellij.settings.*
+import com.sal7one.wrapperguard.core.methods.SecurityMethod
 import com.sal7one.wrapperguard.core.model.ScanReport
 import com.sal7one.wrapperguard.core.model.ScanVerdict
 import com.sal7one.wrapperguard.intellij.WrapperGuardProjectService
@@ -32,7 +37,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 private enum class WgTab(val label: String) {
-    OVERVIEW("Summary"), FINDINGS("Findings"), GRAPH("Execution"), POLICY("Policy")
+    OVERVIEW("Summary"), FINDINGS("Findings"), GRAPH("Execution"), POLICY("Policy"), TOOLS("Tools"), RESEARCH("Research")
 }
 
 private data class WorkspaceSnapshot(val report: ScanReport?, val scanning: Boolean, val error: String?)
@@ -41,6 +46,8 @@ private fun requestedDemoTab(value: String?): WgTab = when (value) {
     "findings" -> WgTab.FINDINGS
     "execution", "graph" -> WgTab.GRAPH
     "policy" -> WgTab.POLICY
+    "tools" -> WgTab.TOOLS
+    "research" -> WgTab.RESEARCH
     else -> WgTab.OVERVIEW
 }
 
@@ -54,12 +61,14 @@ fun WrapperGuardApp(service: WrapperGuardProjectService, project: Project) {
     var findingsState by remember { mutableStateOf(FindingsViewState()) }
     fun displaySettings() = (if (service.isDemo) WrapperGuardDemo.loadDisplaySettings() else null) ?: buildScanSettings()
     var settings by remember { mutableStateOf(displaySettings()) }
+    var methodRevision by remember { mutableStateOf(0) }
+    fun refreshMethods() { settings = displaySettings(); methodRevision++ }
     DisposableEffect(service) {
         var disposed = false
         val listener: (ScanReport?) -> Unit = { newReport ->
             val update = snapshot(newReport)
             ApplicationManager.getApplication().invokeLater {
-                if (!disposed && !project.isDisposed) state = update
+                if (!disposed && !project.isDisposed) { state = update; settings = displaySettings() }
             }
         }
         service.addListener(listener)
@@ -88,7 +97,7 @@ fun WrapperGuardApp(service: WrapperGuardProjectService, project: Project) {
     val openSettings: () -> Unit = {
         if (!service.isDemo) {
             ShowSettingsUtil.getInstance().showSettingsDialog(project, "WrapperGuard")
-            settings = buildScanSettings()
+            refreshMethods()
         }
     }
     val showFinding: (com.sal7one.wrapperguard.core.model.Finding) -> Unit = { finding ->
@@ -117,7 +126,7 @@ fun WrapperGuardApp(service: WrapperGuardProjectService, project: Project) {
         }
     }
     val tabs: @Composable () -> Unit = {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
             WgTab.entries.forEach { tab ->
                 WorkspaceTab(tab.label, activeTab == tab, if (tab == WgTab.FINDINGS) report?.findings?.size else null) {
                     activeTab = tab
@@ -143,12 +152,12 @@ fun WrapperGuardApp(service: WrapperGuardProjectService, project: Project) {
     }
     Column(Modifier.fillMaxSize().background(workspaceBackground())) {
         BoxWithConstraints(Modifier.fillMaxWidth().background(cardSurfaceColor())) {
-            if (maxWidth >= 1120.dp) {
+            if (maxWidth >= 1320.dp) {
                 Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 14.dp), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(18.dp)) {
                     Box(Modifier.widthIn(max = 185.dp).padding(vertical = 9.dp)) { identity() }
                     Box(Modifier.width(1.dp).height(22.dp).background(outlineColor()))
-                    tabs()
+                    Box(Modifier.width(520.dp)) { tabs() }
                     Spacer(Modifier.weight(1f))
                     status()
                     actions()
@@ -158,7 +167,7 @@ fun WrapperGuardApp(service: WrapperGuardProjectService, project: Project) {
                     Box(Modifier.weight(1f)) { identity() }; actions()
                 }
                 Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    tabs(); Spacer(Modifier.weight(1f)); Box(Modifier.padding(end = 14.dp)) { status() }
+                    Box(Modifier.weight(1f)) { tabs() }; Box(Modifier.padding(end = 14.dp)) { status() }
                 }
             }
         }
@@ -172,6 +181,28 @@ fun WrapperGuardApp(service: WrapperGuardProjectService, project: Project) {
         Box(Modifier.fillMaxWidth().weight(1f)) {
             when {
                 activeTab == WgTab.POLICY -> PolicyTab(settings, report, openSettings, demo = service.isDemo)
+                activeTab == WgTab.TOOLS || activeTab == WgTab.RESEARCH -> MethodsTab(settings, report, methodRevision,
+                    research = activeTab == WgTab.RESEARCH, demo = service.isDemo,
+                    onSetup = { method ->
+                        if (!service.isDemo) { OptionalMethodSetupDialog(project, method, report).showAndGet(); refreshMethods() }
+                    },
+                    onEnabled = { method, enabled ->
+                        if (!service.isDemo) {
+                            val connection = WrapperGuardSettings.getInstance().state.methodConnections.firstOrNull { it.methodId == method.id }
+                            val existingProvider = report?.providerRuns?.any { it.descriptor.id == method.providerId } == true
+                            val needsSetup = enabled && method.providerId != "wrapperguard" && !existingProvider &&
+                                (connection == null || runCatching { OptionalMethodProfiles.validate(method, connection, OptionalMethodConnections.roots(project)) }.isFailure)
+                            if (!needsSetup || OptionalMethodSetupDialog(project, method, report).showAndGet()) {
+                                runCatching { OptionalMethodConnections.setEnabled(method, enabled) }.onFailure {
+                                    com.intellij.openapi.ui.Messages.showErrorDialog(project, it.message ?: "The method preference could not be saved.", "WrapperGuard")
+                                }
+                            }
+                            refreshMethods()
+                        }
+                    },
+                    onPermissions = { method -> if (!service.isDemo) { OptionalMethodPermissionsDialog(project, method, report).showAndGet(); refreshMethods() } },
+                    onInstallSdk = { if (!service.isDemo) { InstallOptionalSdkDialog(project).showAndGet(); refreshMethods() } },
+                    onGuide = { method -> if (!service.isDemo) BrowserUtil.browse(methodGuide(method.id)) })
                 report == null -> WorkspacePage {
                     WorkspacePanel(if (state.scanning) "Inspecting project files" else "Start with a project scan") {
                         Text("WrapperGuard checks Gradle wrappers, build files and the scripts they call. Findings and execution paths appear here after scanning.", fontSize = 13.sp, color = mutedTextColor(), modifier = Modifier.padding(16.dp))
@@ -187,7 +218,7 @@ fun WrapperGuardApp(service: WrapperGuardProjectService, project: Project) {
                         providerNames = report.providerRuns.associate { it.descriptor.id to it.descriptor.displayName })
                     WgTab.GRAPH -> ExecutionGraphTab(report.edges, report.findings, onOpenFinding = showFinding,
                         onOpenFile = { openFindingInEditor(project, it, report.projectPath) })
-                    WgTab.POLICY -> Unit
+                    WgTab.POLICY, WgTab.TOOLS, WgTab.RESEARCH -> Unit
                 }
             }
         }

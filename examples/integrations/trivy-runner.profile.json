@@ -1,0 +1,19 @@
+{
+  "id": "sca.trivy",
+  "displayName": "Dependency vulnerabilities \u00b7 Trivy",
+  "version": "0.2.0",
+  "analysisKind": "SCA",
+  "format": "trivy",
+  "runner": {
+    "tool": "trivy",
+    "executable": "/absolute/trusted/trivy",
+    "cachePath": "/absolute/user-cache/trivy",
+    "timeoutMs": 120000
+  },
+  "allowedOperations": [
+    "SCAN"
+  ],
+  "requestedActions": [
+    "WARNING"
+  ]
+}

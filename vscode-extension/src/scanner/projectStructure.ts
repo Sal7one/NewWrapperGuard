@@ -1,12 +1,12 @@
-import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { createHash } from 'node:crypto';
-import { Finding } from '../models';
+import { Finding, ScanNotice } from '../models';
 import { RuleIds } from './ruleIds';
 import { findingFingerprint } from './fingerprints';
+import { checkedProjectFile, readProjectFile } from './safePath';
 
-function sha256(file: string): string {
-  return createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+function sha256(root:string,file: string,maximum:number): string {
+  return createHash('sha256').update(readProjectFile(root,file,maximum)).digest('hex');
 }
 
 function struct(
@@ -41,21 +41,30 @@ function struct(
 export function analyzeProjectStructure(
   projectRoot: string,
   relativeRoot: string,
-  trustedWrapperChecksums: Record<string, string>
+  trustedWrapperChecksums: Record<string, string>,
+  notices:ScanNotice[] = [],
+  maximum=1_000_000
 ): Finding[] {
   const wrapperDir = path.join(projectRoot, 'gradle', 'wrapper');
-  const hasWrapperProperties = fs.existsSync(path.join(wrapperDir, 'gradle-wrapper.properties'));
+  const present=(relative:string):boolean=>{
+    try {return !!checkedProjectFile(projectRoot,path.join(projectRoot,relative));}
+    catch {if(!notices.some(notice=>notice.code === RuleIds.SCAN_FILE_SKIPPED && notice.location?.path === relative))notices.push({code:RuleIds.SCAN_FILE_SKIPPED,message:'File is not a readable regular input inside the project.',location:{path:relative}});return false;}
+  };
+  const hasWrapperProperties = present('gradle/wrapper/gradle-wrapper.properties');
   const wrapperJar = path.join(wrapperDir, 'gradle-wrapper.jar');
-  const hasWrapperJar = fs.existsSync(wrapperJar);
-  const hasUnixWrapper = fs.existsSync(path.join(projectRoot, 'gradlew'));
-  const hasWindowsWrapper = fs.existsSync(path.join(projectRoot, 'gradlew.bat'));
+  const hasWrapperJar=present('gradle/wrapper/gradle-wrapper.jar');
+  const hasUnixWrapper = present('gradlew');
+  const hasWindowsWrapper = present('gradlew.bat');
   const hasSettingsFile =
-    fs.existsSync(path.join(projectRoot, 'settings.gradle')) || fs.existsSync(path.join(projectRoot, 'settings.gradle.kts'));
+    present('settings.gradle') || present('settings.gradle.kts');
 
   const findings: Finding[] = [];
 
   if (hasWrapperJar) {
-    const sha = sha256(wrapperJar);
+    let sha:string|undefined;
+    try {sha=sha256(projectRoot,wrapperJar,maximum);}
+    catch {notices.push({code:RuleIds.SCAN_FILE_SKIPPED,message:'File is not a readable regular input inside the project.',location:{path:'gradle/wrapper/gradle-wrapper.jar'}});}
+    if (sha !== undefined) {
     const expected = trustedWrapperChecksums['gradle-wrapper.jar'];
     if (Object.keys(trustedWrapperChecksums).length > 0 && expected !== sha) {
       findings.push({
@@ -94,6 +103,7 @@ export function analyzeProjectStructure(
         policyAction: 'REVIEW',
         status: 'ACTIVE'
       });
+    }
     }
   }
 
