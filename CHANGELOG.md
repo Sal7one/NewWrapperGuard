@@ -15,6 +15,7 @@
 - Preserve offline bundle documentation paths, reject broken local links, and extract the CLI from its audited ZIP bytes with executable modes retained.
 - Pin target-matched native test frameworks, validate their resolved versions, and exercise/checksum the acceptance bundle in CI; use exact-commit monorepo links in packaged VS Code documentation.
 - Update the IntelliJ Platform Gradle plugin to 2.18.1 for target product-module discovery. Inherit platform factory defaults directly through a Java entry point while preserving the public factory ABI and Kotlin UI.
+- Use an application-only IDE fixture for descriptor and real Jewel component checks; preserve all assertions and separate heavy project/build/sync tests.
 - Pin the SDK wheel build backend and verify delivered artifact checksums after upload/download, including referenced hidden workflow files.
 - Retain actual six-job VS Code host results and inspected Android emulator UI/HTTP evidence, including separately labeled rejected earlier captures. Release metadata and the bundle's SOURCE-COMMIT identify the published artifact set.
 

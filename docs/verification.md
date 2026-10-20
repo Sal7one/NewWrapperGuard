@@ -74,7 +74,11 @@ The a97 SDK archive changed only WHEEL/RECORD generator metadata from setuptools
 
 Both 262 targets created actual Jewel components at a97 but could not enable Gradle/WrapperGuard because `smRunner` was unresolved in product-module registration. The follow-up in this source selects IPGP 2.18.1: the [upstream 2.18 TestIdeTask fix](https://github.com/JetBrains/intellij-platform-gradle-plugin/releases/tag/2.18.0) assembles product-info bundled-plugin classpaths and resolves module aliases. A Java factory entry point inherits internal platform JVM defaults directly, avoiding Kotlin-generated forwarding overrides; content/error handling remains in Kotlin. Source-matched green matrix results and released installer evidence determine closure. The [cached 253 local preflight](../demo/screenshots/platform-0.7/intellij-verifier/local-253-ipgp2181/README.md) passed all six cases with zero failures/errors/skips; it is not minimum 252 or 262 proof.
 
-The minimum-compiled artifact must run **six actual cases with zero failures/errors/skips on each target**. Keep enabled-plugin and actual factory assertions; binary compatibility alone is insufficient. Target frameworks are pinned and checked in both custom test configurations:
+The minimum-compiled artifact must run **six actual cases with zero failures/errors/skips on each target**. Keep enabled-plugin and actual factory assertions; binary compatibility alone is insufficient.
+
+The two descriptor/component cases use the official JUnit 4 `ApplicationRule`: they initialize the real IDE application and plugin set without opening an unrelated project. The previous heavy fixture failed in a bundled Ultimate project post-startup extension before either test body ran on 262. Application-only setup preserves all assertions and actual component creation; the heavy project/build/sync tests remain unchanged. These component tests do not establish full project-lifecycle acceptance on every newer IDE.
+
+Target frameworks are pinned and checked in both custom test configurations:
 
 | Runtime | Exact framework build |
 | --- | --- |

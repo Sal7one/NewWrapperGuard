@@ -130,8 +130,8 @@ if (bridgeRuntimeVersion.isPresent || bridgeRuntimePath.isPresent) {
             useJUnitPlatform { includeEngines("junit-vintage") }
             filter {
                 includeTestsMatching("*JewelPanelCompatibilityTest")
-                includeTestsMatching("*GuardSmokeTest.testDescriptorLoadsBundledComposeWithoutRequiringLaterAggregateAlias")
-                includeTestsMatching("*GuardSmokeTest.testBundledJewelBridgeCreatesAnActualPanelThroughCompatibilityBoundary")
+                includeTestsMatching("*JewelPlatformRuntimeTest.testDescriptorLoadsBundledComposeWithoutRequiringLaterAggregateAlias")
+                includeTestsMatching("*JewelPlatformRuntimeTest.testBundledJewelBridgeCreatesAnActualPanelThroughCompatibilityBoundary")
             }
             bridgeRuntimeVersion.orNull?.let { systemProperty("wrapperguard.bridge.expectedRuntimeVersion", it) }
             val frameworkEvidence = listOf(
