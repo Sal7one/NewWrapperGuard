@@ -3,6 +3,7 @@ package com.sal7one.wrapperguard.core.vetting
 import com.sal7one.wrapperguard.core.model.*
 import com.sal7one.wrapperguard.core.policy.ScanPolicy
 import com.sal7one.wrapperguard.core.policy.ScanSettings
+import com.sal7one.wrapperguard.core.inputs.ProviderInputScope
 import java.nio.file.Path
 import kotlinx.serialization.Serializable
 
@@ -19,7 +20,47 @@ data class ProviderDescriptor(
     val displayName: String,
     val version: String,
     val apiVersion: Int = 1
-)
+) {
+    // Keep the API 1 primary constructor/components/copy$default ABI. Metadata lives
+    // in serialized body properties and is copied deliberately by new host code.
+    var category: String? = null
+        private set
+    var summary: String? = null
+        private set
+    var tags: List<String> = emptyList()
+        private set
+    var inputScope: ProviderInputScope? = null
+        private set
+
+    constructor(id: String, displayName: String, version: String, apiVersion: Int = 1,
+        category: String?, summary: String? = null, tags: List<String> = emptyList(), inputScope: ProviderInputScope? = null
+    ) : this(id, displayName, version, apiVersion) {
+        this.category = category
+        this.summary = summary
+        this.tags = tags.toList()
+        this.inputScope = inputScope?.snapshot()
+    }
+
+    fun copyWithMetadata(id: String = this.id, displayName: String = this.displayName, version: String = this.version,
+        apiVersion: Int = this.apiVersion, category: String? = this.category, summary: String? = this.summary,
+        tags: List<String> = this.tags, inputScope: ProviderInputScope? = this.inputScope
+    ) = ProviderDescriptor(id, displayName, version, apiVersion, category, summary, tags, inputScope)
+
+    fun validateMetadata(allowBuiltIn: Boolean = false) {
+        val category = this.category
+        val summary = this.summary
+        require(category == null || (category.matches(Regex("[A-Z][A-Z0-9_]{0,31}")) && (allowBuiltIn || category != "BUILT_IN"))) {
+            "Invalid provider category."
+        }
+        require(summary == null || (summary.isNotBlank() && summary.length <= 512 && summary.none(Char::isISOControl))) {
+            "Invalid provider summary."
+        }
+        require(tags.size <= 16 && tags.distinct().size == tags.size && tags.all { it.matches(Regex("[a-z0-9][a-z0-9._-]{0,63}")) }) {
+            "Invalid provider tags."
+        }
+        inputScope?.validate()
+    }
+}
 
 /**
  * Grants are supplied by the user/host, never by repository or provider output.

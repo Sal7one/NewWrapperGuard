@@ -12,12 +12,13 @@ import stat
 from urllib.parse import unquote, urlsplit
 
 from .models import _text, validate_actions
+from .rule_packs import RULE_PACKS
 
 MAX_PROFILE_BYTES = 65_536
 MAX_REPORT_BYTES = 16 * 1024 * 1024
 MAX_OUTPUT_BYTES = 4 * 1024 * 1024
 OPERATIONS = frozenset({"SCAN", "BUILD", "SYNC"})
-FORMATS = frozenset({"sarif", "bandit", "psscriptanalyzer", "trivy", "osv", "zap", "script-semantics", "ai-review"})
+FORMATS = frozenset({"sarif", "bandit", "psscriptanalyzer", "trivy", "osv", "zap", "script-semantics", "ai-review", "cyclonedx", "sonar"})
 
 
 def _keys(value: object, allowed: set[str], required: set[str] = frozenset()) -> dict:
@@ -149,6 +150,8 @@ class RunnerConfig:
     input_report_path: Path | None = None
     cache_path: Path | None = None
     rules_path: Path | None = None
+    response_format: str = "json_schema"
+    rule_packs: tuple[str, ...] | None = None
 
 
 @dataclass(frozen=True)
@@ -163,6 +166,7 @@ class IntegrationProfile:
     allowed_operations: tuple[str, ...]
     requested_actions: tuple[str, ...]
     target_scope: TargetScope | None
+    project_root: Path | None = None
 
 
 def load_profile(path: Path, project_root: Path) -> IntegrationProfile:
@@ -174,17 +178,24 @@ def load_profile(path: Path, project_root: Path) -> IntegrationProfile:
         raise ValueError("User profile must be outside the project")
     raw = load_json_document(bounded_read(actual, MAX_PROFILE_BYTES))
     value = _keys(raw, {"id", "displayName", "version", "analysisKind", "format", "reportPath", "runner",
-                        "allowedOperations", "requestedActions", "targetScope"},
+                        "allowedOperations", "requestedActions", "targetScope", "projectRoot"},
                   {"id", "displayName", "version", "analysisKind", "format"})
     if not isinstance(value["id"], str) or not re.fullmatch(r"[a-z][a-z0-9._-]{0,79}", value["id"]) or value["id"] == "wrapperguard":
         raise ValueError("Invalid profile identity")
+    binding = None
+    if "projectRoot" in value:
+        if not isinstance(value["projectRoot"], str) or not Path(value["projectRoot"]).is_absolute():
+            raise ValueError("Profile project binding requires an absolute project root")
+        binding = Path(value["projectRoot"]).resolve(strict=True)
+        if binding != root:
+            raise ValueError("This integration profile belongs to another project")
     display_name, version = _text(value["displayName"], 160), _text(value["version"], 80)
     kind, format_name = value["analysisKind"], value["format"]
     if not isinstance(kind, str) or kind not in {"SAST", "SCA", "DAST", "AI"} or not isinstance(format_name, str) or format_name not in FORMATS:
         raise ValueError("Invalid profile classification")
     kinds = {"sarif": {"SAST", "SCA"}, "bandit": {"SAST"}, "psscriptanalyzer": {"SAST"},
              "trivy": {"SCA"}, "osv": {"SCA"}, "zap": {"DAST"},
-             "script-semantics": {"SAST"}, "ai-review": {"AI"}}
+             "script-semantics": {"SAST"}, "ai-review": {"AI"}, "cyclonedx": {"SCA"}, "sonar": {"SAST"}}
     if kind not in kinds[format_name]:
         raise ValueError("Tool format does not match analysis kind")
     if ("reportPath" in value) == ("runner" in value):
@@ -209,7 +220,7 @@ def load_profile(path: Path, project_root: Path) -> IntegrationProfile:
             raise ValueError("Report path must be absolute")
     else:
         config = _keys(value["runner"], {"tool", "executable", "timeoutMs", "maxOutputBytes", "modulePath",
-                                         "endpoint", "model", "inputReportPath", "cachePath", "rulesPath"}, {"tool"})
+                                         "endpoint", "model", "inputReportPath", "cachePath", "rulesPath", "responseFormat", "rulePacks"}, {"tool"})
         tool = config["tool"]
         formats = {"bandit": "bandit", "psscriptanalyzer": "psscriptanalyzer", "trivy": "trivy",
                    "osv": "osv", "script-semantics": "script-semantics", "local-ai": "ai-review", "semgrep": "sarif"}
@@ -217,6 +228,8 @@ def load_profile(path: Path, project_root: Path) -> IntegrationProfile:
             raise ValueError("Unsupported runner or format mismatch")
         allowed = {"tool", "timeoutMs", "maxOutputBytes"}
         executable, module, endpoint, model, input_report, cache, rules = None, None, None, None, None, None, None
+        response_format = "json_schema"
+        rule_packs = None
         if tool in {"bandit", "psscriptanalyzer", "trivy", "osv", "semgrep"}:
             allowed.add("executable")
             if not isinstance(config.get("executable"), str) or not Path(config["executable"]).is_absolute():
@@ -232,7 +245,10 @@ def load_profile(path: Path, project_root: Path) -> IntegrationProfile:
             if module.is_relative_to(root) or not module.exists():
                 raise ValueError("Analyzer module must be installed outside the project")
         if tool == "local-ai":
-            allowed.update({"endpoint", "model", "inputReportPath"})
+            allowed.update({"endpoint", "model", "inputReportPath", "responseFormat"})
+            response_format = config.get("responseFormat", "json_schema")
+            if response_format not in ("json_schema", "json_object"):
+                raise ValueError("Unsupported local model response format")
             endpoint, model = config.get("endpoint"), config.get("model")
             validate_local_endpoint(endpoint)
             if not isinstance(model, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,159}", model):
@@ -251,7 +267,14 @@ def load_profile(path: Path, project_root: Path) -> IntegrationProfile:
                 if cache.is_relative_to(root):
                     raise ValueError("Trivy cache must be outside the project")
         if tool == "semgrep":
-            allowed.add("rulesPath")
+            allowed.update({"rulesPath", "rulePacks"})
+            if "rulePacks" in config:
+                selected = config["rulePacks"]
+                if (not isinstance(selected, list) or not 1 <= len(selected) <= len(RULE_PACKS)
+                        or any(not isinstance(pack, str) or pack not in RULE_PACKS for pack in selected)
+                        or len(set(selected)) != len(selected) or "rulesPath" in config):
+                    raise ValueError("Choose known bundled rule packs or one external rule file")
+                rule_packs = tuple(selected)
             if "rulesPath" in config:
                 if not isinstance(config["rulesPath"], str) or not Path(config["rulesPath"]).is_absolute():
                     raise ValueError("Semgrep rules require an absolute trusted path")
@@ -265,9 +288,9 @@ def load_profile(path: Path, project_root: Path) -> IntegrationProfile:
             raise ValueError("Invalid tool timeout")
         if type(maximum) is not int or not 1 <= maximum <= MAX_REPORT_BYTES:
             raise ValueError("Invalid tool output limit")
-        runner = RunnerConfig(tool, executable, timeout, maximum, module, endpoint, model, input_report, cache, rules)
+        runner = RunnerConfig(tool, executable, timeout, maximum, module, endpoint, model, input_report, cache, rules, response_format, rule_packs)
     return IntegrationProfile(value["id"], display_name, version, kind, format_name, report, runner,
-                              tuple(operations), tuple(actions), scope)
+                              tuple(operations), tuple(actions), scope, binding)
 
 
 def validate_local_endpoint(endpoint: object) -> str:

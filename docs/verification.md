@@ -1,19 +1,19 @@
 # Verification record and release gates
 
-Checkpoint **2026-10-20** for development **0.5.0**, integration SDK **0.2.0**, provider API **1**.
-The source branch is `codex/optional-security-methods`, based on merged `8ed994f`.
-This working-branch record replaces the artifact-specific 0.4.0 readiness document;
-published release history remains in Git and [CHANGELOG.md](../CHANGELOG.md).
+Checkpoint **2026-10-20**, candidate **0.6.0**, SDK **0.3.0**, provider **API 1**.
+Branch: `codex/flexible-provider-platform`, based on `8336a61` (0.5 RC1).
+Candidate builds and test evidence do not imply stable-release acceptance or complete
+security coverage. Prior RC1 assets and its [green CI](https://github.com/Sal7one/NewWrapperGaurd/actions/runs/39416921098)
+remain historical evidence, not validation of this candidate.
 
 ## Install and test the build
 
-The local **0.5.0 test candidate** packages are built. They are not a stable release:
-
-| Host | Package | Installation |
+| Host | Candidate package | Installation |
 |---|---|---|
-| Android Studio / IntelliJ IDEA | `wrapperguard-intellij/build/distributions/wrapperguard-intellij-0.5.0.zip` | Settings → Plugins → gear menu → Install Plugin from Disk; select ZIP and restart the IDE |
-| VS Code | `vscode-extension/wrapperguard-0.5.0.vsix` | Extensions view → … → Install from VSIX; select file and reload VS Code |
-| CLI | `wrapperguard-cli/build/install/wrapperguard-cli/bin/wrapperguard-cli` | Run the installed launcher after `:wrapperguard-cli:installDist` |
+| Android Studio / IntelliJ IDEA | `wrapperguard-intellij/build/distributions/wrapperguard-intellij-0.6.0.zip` | Settings → Plugins → gear → Install Plugin from Disk; restart |
+| VS Code | `vscode-extension/wrapperguard-0.6.0.vsix` | Extensions → … → Install from VSIX; reload |
+| CLI | `wrapperguard-cli/build/install/wrapperguard-cli/bin/wrapperguard-cli` | Run after `:wrapperguard-cli:installDist` |
+| SDK | `build/sdk/wrapperguard_sdk-0.3.0-py3-none-any.whl` | Install offline in a dedicated trusted Python 3.10+ environment |
 
 A useful first manual pass takes about ten minutes after scanner installation:
 
@@ -69,48 +69,48 @@ without blockers, and **0** for completed scope without blockers. The automated 
 smoke below exercises warning-only clipping and independent build/sync actions without
 executing project programs.
 
-## Completed checks
+Additional platform acceptance:
 
-| Area | Recorded result | What it establishes |
+1. **Tools → Add SDK / custom command**: use a copied outside-project sample adapter.
+   Choose a category/tags, literal argv rows and declared source inputs. Save disabled;
+   verify its independent warning-only grants, then explicitly enable/scan. Edit/remove
+   must remain available after its executable is missing. Do not execute source fixtures.
+2. Open two VS Code roots, select each project and scan. A root-bound connection must
+   be disabled on the other project; findings/navigation/history must use the selected root.
+3. Preview a preset. Applying it changes flags only: no downloads, execution, command
+   enablement or grant changes. A newly selected method without a connected provider
+   must remain incomplete. Choose Semgrep packs explicitly and exercise the new cases
+   in [newfirstparty](../test-fixtures/newfirstparty/README.md).
+4. History starts off with no summary writes. Opt in, scan twice, and compare compatible
+   scans. Baseline approval must not count as disappearance. A rule/permission/operation
+   change or incomplete/stale scan must prevent comparison. Pause, change retention and
+   clear owned summaries. Titles/relative paths are stored; source/messages/evidence are not.
+5. Inventory managed storage. Remove only selected unused generated data; referenced or
+   active environments, original reports/configuration and unrelated files must survive.
+6. Edit a declared source, unusual recursively read file, selected external rule/profile
+   or report during analysis. Old results must be stale/incomplete and cannot authorize
+   a supported gate from a mismatched content seal.
+
+## Automated evidence
+
+| Check | Result at this source checkpoint | Meaning |
 |---|---|---|
-| Kotlin core / rules / CLI | **93 tests passed**: 50 core, 39 rules, 4 CLI | Method flags, grants, replacement, Maven, six project-boundary regressions and legacy behavior |
-| Native IDE module | **48 tests passed** | Method setup, disconnect, source/dependency staleness and execution-seal regressions |
-| VS Code | **79 tests passed** | GUI setup, permissions, method flags, AI input and source-change invalidation |
-| Scanner parity | Fixture and whole-checkout fingerprints match | 19/19 fixture findings, 9/9 blockers; 46/46 checkout findings, 19/19 blockers; zero fingerprint differences |
-| Hardening | **5 checks passed** | Bounded hostile-input scanner behavior |
-| Command-provider hosts | JVM and VS Code installed SDK checks passed | Real protocol composition, user-grant clipping and independent operations |
-| CLI distribution | Real provider smoke passed | Version, concurrent providers, BUILD/SYNC action independence, failure and trust boundaries |
-| Python SDK | **81 tests passed** | Six report importers, controlled runners, bounded research signals and local AI boundaries |
-| Real Bandit | Installed scanner check passed | Static generated input, project configuration/suppression isolation, no source execution, symlink coverage |
-| Real Semgrep 1.181.0 | Kotlin/Java smoke passed | Selected Android/Ktor rules, source suppression isolation and mapping snapshot paths to project source |
-| Persistent manual fixture | Real Semgrep and Bandit checks passed | Documented Kotlin/Java rule IDs and Bandit B602/B404/B607 were observed in `test-fixtures/newfirstparty` |
-| Catalog / profile schemas | **15 methods, 13 profiles, 8 formats passed** | Shared metadata and documented example profiles satisfy their contracts |
-| Fixed runner tests | Fake installed PowerShell/Trivy/OSV executables passed | Exact invocation, input snapshots, clean environment, report translation, timeout/overflow/error handling |
-| Local AI | Loopback fake-server tests passed | Minimal payload, advisory-only output, path bounds, redirect/proxy rejection and total deadlines |
+| JVM build and packages | 200 tests: core 87, rules 40, CLI 8, native 65; zero failures/skips | Shared grants, scopes, actual-read seals, legacy descriptor ABI, custom GUI/storage/history |
+| VS Code | 122 tests and emitted-webview checks passed | Multi-root, generic setup, presets, scope seals, history, cleanup and UI message validation |
+| Python installed SDK wheel | 118 tests, 6 real-Windows skips before remote CI | Eight passive formats, runners, research, structured AI and isolated experimental helpers |
+| Downloader | 4 trust/archive regressions passed | Official asset/hash boundaries and bounded no-traversal extraction |
+| Catalog/profile contracts | 17 methods, 15 profiles, 10 format IDs passed | Examples cover every format; host examples remain disabled |
+| Scanner parity | 19/19 fixture findings, 9/9 blockers; 46/46 checkout findings, 19/19 blockers; no fingerprint differences | Existing scanner behavior remains aligned |
+| IntelliJ verifier | Compatible with IDEA 2025.3 / IU-253.28294.334 | Binary compatibility for this target; 8 deprecated / 32 experimental API usages remain |
+| Real Semgrep 1.181.0 | All five selected packs passed generated positive/negative Kotlin/Java/manifest fixtures | Local configs, suppression isolation and source mapping, not accuracy evaluation |
+| Real PSScriptAnalyzer 1.25.0 / PowerShell 7.6.7 | Passed; fixed required runtime-module import | Actual analyzer, fixed script and mapped diagnostics |
+| Real OSV-Scanner 2.7.0 | Passed; vulnerable inert npm lock fixture produced findings | Actual online package-advisory integration; database results can change |
+| Real local model | Ollama + SmolLM2:135m structured schema passed, 1 advisory finding, ~0.7 s | Real protocol compatibility; does not measure explanation quality/detection accuracy |
+| Local Trivy 0.76.0 | Database download could not finish: insufficient local disk | Not a pass; roomier Linux CI runs the real check |
+| Windows source runners | Remain disabled; 6 real Windows handle tests run in CI | Helpers are experimental until platform acceptance; imports/model review remain supported |
 
-The fake executable/server tests do not establish compatibility with every upstream
-scanner release or demonstrate a trained model's quality. PSScriptAnalyzer, Trivy and
-OSV direct integration have automated protocol coverage; a real-tool run is a separate
-check. The Semgrep smoke exercises selected Kotlin/Java rules, not all application risks.
-
-## Final checkpoint
-
-**301 local tests passed:** 141 JVM, 79 Node and 81 installed SDK tests, with no skips
-in the final JVM run. Build and verifier completed on 2026-10-20.
-
-The native binary verifier reports **Compatible** for IDEA **IU-253.28294.334 (2025.3)**,
-with **6 deprecated** and **32 experimental** API usages. This is one verifier target,
-not the complete Android Studio/IDE/OS matrix. The refreshed gallery contains **21**
-labeled synthetic-demo captures: six native and fifteen VS Code renderer states.
-
-Both IDE archives contain SDK 0.2.0 with current runner, semantics, AI modules and the
-curated Android/Ktor rules; the VSIX includes the required SAX runtime. Embedded wheel
-ZIP timestamps can differ while every wheel member is identical. The SDK suite was run
-locally on Python 3.12 against the installed wheel; the 3.10/3.14 matrix belongs to CI.
-
-Stable release gates and the remaining product work are tracked in [the roadmap](roadmap.md).
-A successful build does not establish that every supported host, scanner or platform was
-exercised.
+Normal-host workflow acceptance and candidate CI results are recorded below when complete.
+Do not substitute renderer captures or fake scanner protocol tests for real host/tool evidence.
 
 ## Reproduce the checks
 
@@ -166,41 +166,39 @@ For the optional real source-SAST check, use an explicitly installed Semgrep 1.1
 ```
 
 The Semgrep check runs trusted scanner code on generated source data. No project build
-or application backend is started. Local-AI tests use loopback fake HTTP servers; no
-model weights are downloaded and no cloud model is contacted. Test fixtures and UI demo
+or application backend is started. Automated local-AI regressions use loopback fake servers. A separate real-model smoke
+requires an already installed local server/model and downloads neither. Test fixtures and UI demo
 reports remain synthetic and must be identified as such.
 
-## Test candidate and artifacts
+Additional real tools use explicitly installed executables:
 
-Candidate tag: `v0.5.0-rc.1`. Final candidate files are copied to
-`/Users/salehalanazi/Repos/NewWrapperGaurd/build/releases/0.5.0-rc.1/`.
-`WrapperGuard-0.5.0-rc.1-test-bundle.zip` includes both IDE installers, CLI, SDK wheel,
-`TESTING.md`, inert `fixtures/`, `CHECK-GATES.py`, verification, roadmap and handover.
-`CHECK-GATES.py` runs the packaged CLI against temporary protocol fixtures; JDK 21 and
-Python 3.10+ are required. It does not build or execute project programs.
+```sh
+python scripts/sdk-tool-smoke.py --sdk-python /absolute/sdk/bin/python \
+  --tool psscriptanalyzer --executable /absolute/pwsh \
+  --module /absolute/PSScriptAnalyzer/PSScriptAnalyzer.psd1
+python scripts/sdk-tool-smoke.py --sdk-python /absolute/sdk/bin/python \
+  --tool osv --executable /absolute/osv-scanner
+python scripts/sdk-tool-smoke.py --sdk-python /absolute/sdk/bin/python \
+  --tool trivy --executable /absolute/trivy --cache /absolute/user/trivy-cache
+python scripts/sdk-ai-smoke.py --sdk-python /absolute/sdk/bin/python \
+  --endpoint http://127.0.0.1:11434/v1 --model YOUR_INSTALLED_MODEL
+```
 
-The test-candidate release and pull request remain separate from stable publication.
-CI starts after the branch PR is pushed; check the actual run before stable promotion.
+The optional Linux CI downloader uses pinned official GitHub release assets and SHA-256
+values in `scripts/upstream-tools.lock.json`; it does not install product defaults.
+Trivy requires substantial free space for vulnerability databases. OSV sends fixture package
+metadata to its vulnerability service. The model smoke requires your own already-running
+loopback server; it does not pull weights or contact a cloud model.
 
-Built source outputs include:
+## Candidate acceptance and distribution
 
-- `wrapperguard-intellij/build/distributions/wrapperguard-intellij-0.5.0.zip`
-- `vscode-extension/wrapperguard-0.5.0.vsix`
-- `wrapperguard-cli/build/distributions/wrapperguard-cli-0.5.0.zip` and `.tar`
-- `build/sdk/wrapperguard_sdk-0.2.0-py3-none-any.whl`
+Candidate source/CI, actual host acceptance, artifact hashes and remaining gates are
+updated as evidence is produced. The older
+[0.5 RC1](https://github.com/Sal7one/NewWrapperGaurd/releases/tag/v0.5.0-rc.1)
+remains available separately. Marketplace/PyPI publication, stable release approval,
+broader host/OS accessibility/performance matrices, active DAST and research evaluation
+remain in [the roadmap](roadmap.md).
 
-Final installer checksums (SHA-256):
+## Editor evidence
 
-| Artifact | SHA-256 |
-|---|---|
-| `wrapperguard-intellij-0.5.0.zip` | `dbc3ff251329c01998095fbdbcf8d9f5069390843db2bdea52dd7860257b82af` |
-| `wrapperguard-0.5.0.vsix` | `40501911f65983de413857e8304c919fbe0ba7ec45904981d4da8146d3555378` |
-| `wrapperguard-cli-0.5.0.zip` | `b895fab855e89635c2837081848cc58195cb19cc0314be094b2fe3784b96f160` |
-| `wrapperguard_sdk-0.2.0-py3-none-any.whl` | `761be25591cfb8cd619e1badb92d673f0d402cb855b06ca1456f99ef12b4527d` |
-
-Check the actual packaged host version, catalog, extension SDK declarations and bundled
-wheel against source. The wheel must include the Android/Ktor rule file, current AI and
-semantic modules, license metadata and no generated caches. Close the development IDE
-before packaging or verification tasks that share its sandbox lock.
-
-[Setup and coverage limits](integrations.md) · [Roadmap](roadmap.md) · [Engineering handover](../HANDOVER.md)
+[0.6 screenshots and acceptance evidence](../demo/screenshots/platform-0.6/README.md) distinguish actual isolated VS Code setup/execution/project-binding/history from synthetic rendered examples. Native acceptance and its registration regression are recorded separately; renderer captures do not prove BUILD/SYNC vetoes.

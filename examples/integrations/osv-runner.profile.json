@@ -1,7 +1,7 @@
 {
   "id": "sca.osv",
   "displayName": "Dependency vulnerabilities \u00b7 OSV",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "analysisKind": "SCA",
   "format": "osv",
   "runner": {

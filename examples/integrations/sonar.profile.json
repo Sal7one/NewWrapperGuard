@@ -1,0 +1,15 @@
+{
+  "id": "sast.sonar",
+  "displayName": "Sonar generic issues",
+  "version": "0.3.0",
+  "analysisKind": "SAST",
+  "format": "sonar",
+  "reportPath": "/absolute/user-reports/sonar.json",
+  "projectRoot": "/absolute/project",
+  "allowedOperations": [
+    "SCAN"
+  ],
+  "requestedActions": [
+    "WARNING"
+  ]
+}

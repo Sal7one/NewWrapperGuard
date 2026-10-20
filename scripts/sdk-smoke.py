@@ -48,8 +48,8 @@ def main():
     installed = run([sdk_python, "-I", "-c",
                      "import sys, importlib.metadata; assert sys.version_info >= (3, 10); "
                      "print(importlib.metadata.version('wrapperguard-sdk'))"])
-    check(installed.returncode == 0 and installed.stdout.strip() == "0.2.0",
-          "Install wrapperguard-sdk 0.2.0 into the selected Python 3.10+ environment first")
+    check(installed.returncode == 0 and installed.stdout.strip() == "0.3.0",
+          "Install wrapperguard-sdk 0.3.0 into the selected Python 3.10+ environment first")
     console = options.sdk_python.parent / ("wrapperguard-sdk.exe" if os.name == "nt" else "wrapperguard-sdk")
     check(console.is_file(), "Installed wrapperguard-sdk console entry point is missing")
     check(run([str(console), "--help"]).returncode == 0, "Installed SDK console entry point failed")

@@ -168,9 +168,10 @@ def parse_report(format: str, document: dict | list, project_root: Path,
     Actions are requests only; final authority always belongs to the IDE/CLI host.
     """
     requested_actions = validate_actions(requested_actions)
-    from . import bandit, osv, psscriptanalyzer, sarif, trivy, zap
+    from . import bandit, cyclonedx, osv, psscriptanalyzer, sarif, sonar, trivy, zap
     parsers = {"sarif": sarif.parse, "bandit": bandit.parse, "psscriptanalyzer": psscriptanalyzer.parse,
-               "trivy": trivy.parse, "osv": osv.parse, "zap": zap.parse}
+               "trivy": trivy.parse, "osv": osv.parse, "zap": zap.parse,
+               "cyclonedx": cyclonedx.parse, "sonar": sonar.parse}
     if not isinstance(format, str) or format not in parsers:
         raise ValueError("Unsupported report format.")
     ctx = ImportContext(project_root, requested_actions)

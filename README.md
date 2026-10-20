@@ -4,8 +4,8 @@ A security vetting workspace for **Android Studio, IntelliJ IDEA, VS Code and CI
 Review application source, build inputs and dependency findings together. Choose the
 analyzers you need and control whether each can warn, alert, stop a build or stop Gradle sync.
 
-**Current development version: 0.5.0 · Python integration SDK: 0.2.0 · Provider API: 1.**
-The 0.5.0 stable release is pending acceptance. See [verification](docs/verification.md) for test builds, completed checks
+**Current development version: 0.6.0 · Python integration SDK: 0.3.0 · Provider API: 1.**
+The 0.6.0 candidate is pending release acceptance; 0.5.0 RC1 remains available. See [verification](docs/verification.md) for test builds, completed checks
 and outstanding release work, and [the changelog](CHANGELOG.md) for published history.
 
 ## Start in the IDE
@@ -27,13 +27,13 @@ fictional data for interface review.
 
 ## Choose the methods
 
-The shared [method catalog](catalog/security-methods.json) contains **15 optional methods**:
+The shared [method catalog](catalog/security-methods.json) contains **17 independently controlled methods**:
 
 | Category | Included connections |
 |---|---|
 | Built-in | Wrapper integrity, script rules, Gradle rules, version catalogs, script graph, Maven POM rules |
-| SAST | Semgrep for Kotlin/Java, Bandit for Python, PSScriptAnalyzer for PowerShell, SARIF reports |
-| Supply chain | Trivy and OSV-Scanner dependency findings |
+| SAST | Semgrep for Kotlin/Java, Bandit for Python, PSScriptAnalyzer for PowerShell, SARIF and Sonar reports |
+| Supply chain | Trivy, OSV-Scanner and CycloneDX vulnerability findings |
 | DAST | ZAP reports restricted to explicit application targets |
 | Research | Bounded static Python/PowerShell behavior signals |
 | AI | Advisory explanations from a user-configured local model server |
@@ -41,8 +41,8 @@ The shared [method catalog](catalog/security-methods.json) contains **15 optiona
 Only the six built-in static groups start enabled. Optional tools, models and external
 SDKs require user setup. Every connection can be disabled or replaced independently;
 [organization-specific providers](docs/providers.md) use the same interface and host grants.
-Application analysis is limited to the selected tools, rules and inputs: the bundled
-Semgrep pack contains six Android/Ktor review rules, rather than a complete app audit.
+Application analysis is limited to the selected tools, rules and inputs: five selectable local
+Semgrep packs provide targeted review checks; the original six-rule pack remains the default.
 
 ## What the host controls
 
@@ -50,6 +50,8 @@ Semgrep pack contains six Android/Ktor review rules, rather than a complete app 
 - Warning, major warning, alert, build blocking and sync blocking permissions.
 - Enforcement policy, approved baselines and combined JSON/SARIF reports.
 - Source navigation, execution paths, method settings and connection management.
+- Generic SDK/command setup, declared inputs, multi-root selection and reviewed presets.
+- Opt-in scoped scan history, bounded retention and owned-data cleanup.
 
 Provider requests are capped by user grants and policy. User configuration lives outside
 scanned projects. Imported reports do not prove freshness; optional failures remain visible.
@@ -107,5 +109,7 @@ user files outside the project.
 | `schema/` | Report, provider and integration profile contracts |
 | `test-fixtures/` | Tracked inert regression inputs |
 
-[Provider API](docs/providers.md) · [Research rationale](docs/research.md) ·
+[Product and OSS references](docs/product-inspiration.md) · [Provider API](docs/providers.md) · [Research rationale](docs/research.md) ·
 [Engineering handover](HANDOVER.md) · [Roadmap and remaining work](docs/roadmap.md) · [Apache-2.0 license](LICENSE)
+
+[0.6 platform screenshots and actual editor acceptance](demo/screenshots/platform-0.6/README.md)

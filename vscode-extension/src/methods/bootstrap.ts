@@ -18,7 +18,7 @@ export async function pythonVersion(executable:string,cwd:string,requireSdk=fals
 export async function ensureManagedSdk(context: vscode.ExtensionContext, systemPython: string): Promise<string> {
   const directory=path.join(context.globalStorageUri.fsPath,'sdk-environment');
   const python=path.join(directory,process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
-  const wheel=path.join(context.extensionPath,'resources','sdk','wrapperguard_sdk-0.2.0-py3-none-any.whl');
+  const wheel=path.join(context.extensionPath,'resources','sdk','wrapperguard_sdk-0.3.0-py3-none-any.whl');
   await access(wheel);
   await mkdir(context.globalStorageUri.fsPath,{recursive:true,mode:0o700});
   await vscode.window.withProgress({location:vscode.ProgressLocation.Notification,title:'WrapperGuard: Preparing the managed SDK'},async()=>{

@@ -104,7 +104,7 @@ jobs:
         if: matrix.python == '3.12'
         run: |
           python scripts/build-sdk.py
-          python -m pip install --force-reinstall --no-deps build/sdk/wrapperguard_sdk-0.2.0-py3-none-any.whl
+          python -m pip install --force-reinstall --no-deps build/sdk/wrapperguard_sdk-0.3.0-py3-none-any.whl
       - name: SDK and report adapter regressions
         run: python -m unittest discover -s sdk/python/tests -v
       - name: Integration schemas and documented profiles

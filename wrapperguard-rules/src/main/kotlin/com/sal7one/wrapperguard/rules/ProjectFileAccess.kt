@@ -1,5 +1,6 @@
 package com.sal7one.wrapperguard.rules
 
+import com.sal7one.wrapperguard.core.inputs.ProviderReadTracker
 import java.nio.channels.Channels
 import java.nio.file.*
 import java.nio.file.attribute.BasicFileAttributes
@@ -46,12 +47,12 @@ internal object ProjectFileAccess {
                         opened += parent
                     }
                     parent.newByteChannel(parts.last(), setOf(StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS)).use { channel ->
-                        return bytes(Channels.newInputStream(channel), maximumBytes)
+                        return bytes(Channels.newInputStream(channel), maximumBytes).also { ProviderReadTracker.record(input, it) }
                     }
                 } finally { opened.asReversed().forEach { it.close() } }
             }
             require(status(base, input) == Status.REGULAR)
-            Files.newInputStream(input, LinkOption.NOFOLLOW_LINKS).use { return bytes(it, maximumBytes) }
+            Files.newInputStream(input, LinkOption.NOFOLLOW_LINKS).use { return bytes(it, maximumBytes).also { data -> ProviderReadTracker.record(input, data) } }
         }
     }
 

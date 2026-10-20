@@ -32,7 +32,11 @@ class WrapperGuardSettings : PersistentStateComponent<WrapperGuardSettings.State
         var methodFlags: MutableMap<String, Boolean> = mutableMapOf(),
         var methodConnections: MutableList<MethodConnectionState> = mutableListOf(),
         var managedProviderConfigurationPath: String = "",
-        var managedSdkPython: String = ""
+        var managedSdkPython: String = "",
+        var customProviders: MutableList<CustomProviderState> = mutableListOf(),
+        var managedArtifacts: MutableList<ManagedArtifactState> = mutableListOf(),
+        var historyEnabled: Boolean = false,
+        var historyLimit: Int = 20
     )
 
     /** Application settings live outside the scanned project and are the SDK grant authority. */

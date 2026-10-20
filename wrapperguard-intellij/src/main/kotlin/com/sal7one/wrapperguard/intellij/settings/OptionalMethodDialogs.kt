@@ -67,6 +67,8 @@ internal class OptionalMethodSetupDialog(
     private val runner = JBTextField(previous?.runnerExecutable.orEmpty(), 42)
     private val module = JBTextField(previous?.modulePath.orEmpty(), 42)
     private val rules = JBTextField(previous?.rulesPath.orEmpty(), 42)
+    private val rulePacks = OptionalMethodProfiles.semgrepPacks.mapValues { (id, label) -> JBCheckBox(label, id in (previous?.rulePacks ?: listOf("legacy-android-ktor"))) }
+    private val responseFormat = JComboBox(arrayOf("Structured schema (recommended)", "JSON object (compatibility)")).apply { selectedIndex = if (previous?.responseFormat == "json_object") 1 else 0 }
     private val windows = System.getProperty("os.name").startsWith("Windows")
     private val origin = JBTextField(previous?.targetOrigin.orEmpty(), 42)
     private val pathScope = JBTextField(previous?.targetPath ?: "/", 42)
@@ -106,19 +108,22 @@ internal class OptionalMethodSetupDialog(
         if (method.id == "ai.external-model") {
             reportPanel.add(JButton("Use the current scan report").apply { isEnabled = report != null; addActionListener {
                 val current = report ?: return@addActionListener
-                methodProgress(project, "Preparing advisory report") {
+                methodProgress(project, "Preparing advisory report") { ManagedStorage.withUse {
                     val dir = OptionalMethodConnections.directory(); Files.createDirectories(dir)
                     val destination = dir.resolve("ai-input-${java.util.UUID.randomUUID()}.json")
                     Files.writeString(destination, Json.encodeToString(OptionalMethodProfiles.aiInput(current)))
+                    ManagedStorage.registerCreated(destination, "AI input")
                     destination
-                }.onSuccess { reportFile.text = it.toString() }.onFailure { setErrorText(it.message ?: "Report could not be prepared.") }
+                } }.onSuccess { reportFile.text = it.toString() }.onFailure { setErrorText(it.message ?: "Report could not be prepared.") }
             } })
         }
         add(Box.createVerticalStrut(12)); add(reportPanel)
         if (!directOnly) runnerPanel.add(fieldPanel(if (method.id == "sast.powershell") "Installed PowerShell executable (pwsh)" else "Installed analyzer executable", runner, project))
         if (windows && !directOnly) add(textNote("Report import is available on Windows. Direct source analyzers require a POSIX host."))
         if (method.id == "sast.semgrep") {
-            runnerPanel.add(fieldPanel("Optional trusted rules file (blank uses bundled Android / Ktor review rules)", rules, project))
+            runnerPanel.add(JBLabel("Bundled review rule packs (used when custom rules is blank)"))
+            rulePacks.values.forEach { runnerPanel.add(it) }
+            runnerPanel.add(fieldPanel("Optional trusted rules file (replaces bundled packs)", rules, project))
             runnerPanel.add(textNote("The controlled Semgrep runner inspects a Kotlin/Java source snapshot with bundled curated checks by default. It does not run Gradle, Maven or project source."))
         }
         if (method.id == "sast.powershell") runnerPanel.add(fieldPanel("Installed PSScriptAnalyzer module (.psd1 or module directory)", module, project, directory = true))
@@ -128,6 +133,7 @@ internal class OptionalMethodSetupDialog(
         if (method.id == "ai.external-model") {
             runnerPanel.add(JBLabel("Local OpenAI-compatible endpoint").apply { labelFor = endpoint }); runnerPanel.add(endpoint)
             runnerPanel.add(JBLabel("Model name loaded in your local server").apply { labelFor = model }); runnerPanel.add(model)
+            runnerPanel.add(JBLabel("Model response format").apply { labelFor = responseFormat }); runnerPanel.add(responseFormat)
             runnerPanel.add(Box.createVerticalStrut(8)); runnerPanel.add(textNote("Start your local LM Studio, Ollama or vLLM server and load a model first. Only numeric loopback endpoints are permitted. The selected report is sent to that local service; project source files are not loaded. Model responses are advisory audit evidence and never block a build or sync."))
         }
         add(runnerPanel)
@@ -161,14 +167,16 @@ internal class OptionalMethodSetupDialog(
         val connection = MethodConnectionState(methodId = method.id, pythonExecutable = python.text.trim(),
             mode = if (directOnly || method.id in OptionalMethodProfiles.runnerMethods && mode.selectedIndex == 1) "runner" else "report",
             reportPath = reportFile.text.trim(), runnerExecutable = runner.text.trim(), modulePath = module.text.trim(), rulesPath = rules.text.trim(),
+            rulePacks = rulePacks.filter { it.value.isSelected }.keys.toMutableList(), responseFormat = if (responseFormat.selectedIndex == 1) "json_object" else "json_schema",
             targetOrigin = origin.text.trim(), targetPath = pathScope.text.trim(), endpoint = endpoint.text.trim(), model = model.text.trim(), preferManaged = preferred.isSelected,
+            projectRoot = if (method.id == "ai.external-model" || !directOnly && mode.selectedIndex == 0) Path.of(requireNotNull(project.basePath)).toRealPath().toString() else "",
             allowedOperations = previous?.allowedOperations?.toMutableList() ?: mutableListOf("SCAN"), requestedActions = previous?.requestedActions?.toMutableList() ?: mutableListOf("WARNING"))
         val result = methodProgress(project, "Verifying ${method.title} connection") { OptionalMethodConnections.save(project, method, connection) }
         result.onSuccess { super.doOKAction() }.onFailure { setErrorText(it.message ?: "Connection setup failed.") }
     }
 }
 
-internal class OptionalMethodPermissionsDialog(private val project: Project, private val method: SecurityMethod, report: ScanReport? = null) : DialogWrapper(project) {
+internal class OptionalMethodPermissionsDialog(private val project: Project, private val method: SecurityMethod, report: ScanReport? = null, private val custom: Boolean = false) : DialogWrapper(project) {
     private val settings = WrapperGuardSettings.getInstance()
     private val initial = (report?.providerRuns?.firstOrNull { it.descriptor.id == method.providerId }?.permissions
         ?: settings.permissions(requireNotNull(method.providerId))).let { permissions ->
@@ -190,10 +198,11 @@ internal class OptionalMethodPermissionsDialog(private val project: Project, pri
     override fun createCenterPanel(): JComponent = JPanel().apply {
         layout = BoxLayout(this, BoxLayout.Y_AXIS)
         add(textNote(if (advisory) "This method is advisory. Its output cannot stop a build or sync." else "Permissions cap provider requests. A granted action alone does not enable a method or sandbox its code."))
-        add(Box.createVerticalStrut(10)); actions.values.forEach(::add); add(Box.createVerticalStrut(10)); add(buildOperation); add(syncOperation); add(required)
+        add(Box.createVerticalStrut(10)); actions.values.forEach(::add); add(Box.createVerticalStrut(10)); if (!custom) { add(buildOperation); add(syncOperation) }; add(required)
         add(JPanel(BorderLayout(8, 0)).apply { add(JBLabel("Host timeout (milliseconds)"), BorderLayout.WEST); add(timeout, BorderLayout.CENTER) })
         add(textNote("Saving applies these host grants to this provider ID, including a connection from an existing configuration. Its command definition is preserved."))
-        add(textNote("New profiles start with explicit scans and warnings only. These controls also update the generated profile's requested actions and allowed operations. Imported reports do not establish current source freshness, even when used before a build or sync."))
+        if (custom) add(textNote("Enabled adapters receive the operation in their structured request: scan, build or sync. These host grants cap their requested actions. Input declarations cover only the files explicitly declared; they do not sandbox provider code."))
+        else add(textNote("New profiles start with explicit scans and warnings only. These controls also update the generated profile's requested actions and allowed operations. Imported reports do not establish current source freshness, even when used before a build or sync."))
     }
     override fun doOKAction() {
         val state = settings.state
@@ -201,7 +210,7 @@ internal class OptionalMethodPermissionsDialog(private val project: Project, pri
         val provider = WrapperGuardSettings.ProviderState(requireNotNull(method.providerId), previous?.enabled ?: initial.enabled,
             actions.filterValues { it.isSelected }.keys.map { it.name }.toMutableList(), required.isSelected, (timeout.value as Number).toLong(), overrideConfiguredPermissions = true)
         try {
-            OptionalMethodConnections.updateProfilePermissions(method,
+            if (!custom) OptionalMethodConnections.updateProfilePermissions(method,
                 listOf("SCAN") + (if (buildOperation.isSelected) listOf("BUILD") else emptyList()) + (if (syncOperation.isSelected) listOf("SYNC") else emptyList()), provider.actions)
             state.providers = (state.providers.filterNot { it.id == method.providerId } + provider).toMutableList()
             try { OptionalMethodConnections.refreshGeneratedConfiguration() } finally { OptionalMethodConnections.changed() }

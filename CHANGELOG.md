@@ -1,6 +1,17 @@
 # Changelog
 
-## 0.5.0 — Unreleased
+## 0.6.0 — Unreleased
+
+- Add generic SDK/custom-command GUI setup, literal argv, extensible categories/tags, declared inputs and per-project bindings in both hosts. Preserve API 1 and the compiled Kotlin descriptor ABI.
+- Add VS Code multi-root selection, bounded content seals and actual first-party read tracking across both hosts/CLI. Missing explicitly enabled connections remain incomplete.
+- Add reviewed flag-only presets and opt-in project/operation/scope history with conservative diffs, bounded retention and safe owned-data cleanup.
+- Bundle SDK 0.3.0 with CycloneDX vulnerability and Sonar generic-issue imports, passive capabilities and five independently selected Semgrep packs. Preserve the original six-rule default.
+- Fix real PowerShell module discovery and constrain local AI responses with a strict schema; retain explicit compatibility mode and advisory authority.
+- Add CLI configuration/conformance checks, real upstream analyzer smokes and isolated experimental Windows snapshot/process tests without enabling unverified Windows runners.
+- Correct the native before-run provider extension registration and test actual IDE registry resolution; the previous registration could leave supported builds unguarded.
+- Document product/OSS design references, manual acceptance and remaining platform/research/distribution work.
+
+## 0.5.0 — Release candidate 1 (2026-10-20)
 
 - Add a shared 15-method catalog, independent user feature flags, and Tools / Research UI categories in both IDEs.
 - Add guided connection, permission and dedicated SDK installation dialogs. Bundle integration SDK 0.2.0 offline; make pinned Bandit 1.9.4 and Semgrep 1.181.0 downloads explicit options.

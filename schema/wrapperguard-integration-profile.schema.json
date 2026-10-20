@@ -47,7 +47,9 @@
         "osv",
         "zap",
         "script-semantics",
-        "ai-review"
+        "ai-review",
+        "cyclonedx",
+        "sonar"
       ]
     },
     "reportPath": {
@@ -240,6 +242,14 @@
               "minLength": 1,
               "maxLength": 4096,
               "description": "Absolute user-owned path; runtime enforces containment, symlinks and existence."
+            },
+            "responseFormat": {
+              "enum": [
+                "json_schema",
+                "json_object"
+              ],
+              "default": "json_schema",
+              "description": "Structured JSON schema by default; JSON object mode is an explicit compatibility choice."
             }
           },
           "required": [
@@ -277,7 +287,29 @@
               "type": "integer",
               "minimum": 1,
               "maximum": 16777216
+            },
+            "rulePacks": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 5,
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "legacy-android-ktor",
+                  "android-manifest",
+                  "android-webview",
+                  "jvm-crypto",
+                  "ktor-runtime"
+                ]
+              },
+              "description": "Select bundled local packs. Omission preserves the original Android/Ktor pack."
             }
+          },
+          "not": {
+            "required": [
+              "rulesPath",
+              "rulePacks"
+            ]
           }
         }
       ]
@@ -318,6 +350,12 @@
     },
     "targetScope": {
       "$ref": "#/$defs/targetScope"
+    },
+    "projectRoot": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "description": "Optional absolute project binding. Runtime requires the selected canonical root to match before reading reports or starting tools."
     }
   },
   "oneOf": [
@@ -338,7 +376,9 @@
             "psscriptanalyzer",
             "trivy",
             "osv",
-            "zap"
+            "zap",
+            "cyclonedx",
+            "sonar"
           ]
         }
       }
@@ -678,6 +718,38 @@
         "properties": {
           "format": {
             "const": "sarif"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "format": {
+            "const": "cyclonedx"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "analysisKind": {
+            "const": "SCA"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "format": {
+            "const": "sonar"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "analysisKind": {
+            "const": "SAST"
           }
         }
       }

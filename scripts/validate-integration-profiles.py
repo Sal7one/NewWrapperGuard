@@ -32,7 +32,7 @@ def main():
     host = json.loads((ROOT / "examples/integrations/host-providers.example.json").read_text(encoding="utf-8"))
     Draft202012Validator(host_schema).validate(host)
     assert all(not p["permissions"]["enabled"] for p in host["providers"]), "Examples must require explicit provider enablement."
-    print(f"Integration schemas: {len(methods)} methods, {len(profiles)} profiles, all eight formats, and disabled host registrations passed.")
+    print(f"Integration schemas: {len(methods)} methods, {len(profiles)} profiles, {len(formats)} formats, and disabled host registrations passed.")
 
 
 if __name__ == "__main__":

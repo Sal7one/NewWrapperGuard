@@ -39,7 +39,7 @@ class WrapperGuardGradleSyncGate : ExternalSystemExecutionAware {
             ?: guardFailureReport(project, VettingOperation.SYNC)
         if (project.isDisposed) throw ProcessCanceledException()
         if (!TrustedProjects.isProjectTrusted(project)) report = untrustedProjectReport(project, VettingOperation.SYNC)
-        project.getService(WrapperGuardProjectService::class.java).publishExternalReport(report)
+        project.getService(WrapperGuardProjectService::class.java).publishExternalReport(report, com.sal7one.wrapperguard.core.vetting.VettingOperation.SYNC)
         if (shouldBlockSync(report)) {
             // Only a fixed host message reaches Gradle output; provider evidence may be sensitive.
             throw ExternalSystemException("WrapperGuard stopped Gradle sync. Review blocking findings in the WrapperGuard tool window.")

@@ -89,4 +89,20 @@ class CommandVettingProviderTest {
             }
         }
     }
+
+    @Test fun `project binding is checked independently before any process starts`() {
+        val allowed = Files.createTempDirectory("wg-command-allowed-").toRealPath()
+        try {
+            val adapter = CommandVettingProvider(CommandProviderConfiguration("bound", "Bound", "1",
+                listOf("/bin/sh", "-c", "printf 'launched' > marker; printf '%s' '{\"findings\":[]}'"),
+                ProviderPermissions(enabled = true), projectRoots = listOf(allowed.toString())))
+            assertFailsWith<IllegalArgumentException> { adapter.scan(VettingRequest(root, ScanPolicy(), ScanSettings())) }
+            assertFalse(Files.exists(root.resolve("marker")))
+            val report = VettingCoordinator(listOf(ProviderRegistration(adapter, ProviderPermissions()))).scan(root, ScanPolicy(), ScanSettings())
+            assertEquals(ProviderRunStatus.DISABLED, report.providerRuns.single().status)
+            assertEquals("Not applicable to this project.", report.providerRuns.single().message)
+            adapter.scan(VettingRequest(allowed, ScanPolicy(), ScanSettings()))
+            assertTrue(Files.exists(allowed.resolve("marker")))
+        } finally { allowed.toFile().deleteRecursively() }
+    }
 }

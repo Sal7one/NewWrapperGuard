@@ -1,11 +1,12 @@
 # WrapperGuard Python SDK
 
-`wrapperguard-sdk` **0.2.0** connects optional analysis methods to provider **API 1**.
+`wrapperguard-sdk` **0.3.0** connects optional analysis methods to provider **API 1**.
 It requires **Python 3.10+**, uses only the standard library at runtime, and ships as a
 wheel in both IDE packages. Vendor scanners and local model servers are separate tools.
 
-- Six report importers: SARIF, Bandit, PSScriptAnalyzer, Trivy, OSV-Scanner and scoped ZAP.
+- Eight report importers: SARIF, Bandit, PSScriptAnalyzer, Trivy, OSV-Scanner, scoped ZAP, CycloneDX and Sonar generic issues.
 - Five fixed external runners: Bandit, Semgrep, PSScriptAnalyzer, Trivy and OSV-Scanner.
+- Five selectable local Semgrep packs; legacy six-rule selection remains the default.
 - Local advisory script behavior analysis and loopback-only AI finding explanations.
 - Explicit outside-project profiles, operation limits, bounded inputs/output and host-owned grants.
 
@@ -22,7 +23,8 @@ python3 -m venv "$HOME/.local/share/wrapperguard/sdk-venv"
 ```
 
 Copy a [profile template](../../examples/integrations/README.md) outside the project and
-replace the paths. Review without report access or execution:
+replace the paths. Use `python -I -m wrapperguard_sdk --capabilities` for passive format/pack discovery.
+Review without report access or execution:
 
 ```sh
 "$HOME/.local/share/wrapperguard/sdk-venv/bin/python" -I -m wrapperguard_sdk \

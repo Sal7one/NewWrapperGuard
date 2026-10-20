@@ -1,0 +1,32 @@
+rules:
+  - id: wrapperguard.jvm.weak-cipher
+    languages: [java, kotlin]
+    severity: WARNING
+    message: Review use of DES or an ECB-mode cipher. Prefer a suitable authenticated encryption scheme for security-sensitive data.
+    pattern-either:
+      - pattern: $CIPHER.getInstance("DES")
+      - pattern: $CIPHER.getInstance("DES/ECB/PKCS5Padding")
+      - pattern: $CIPHER.getInstance("AES/ECB/PKCS5Padding")
+      - pattern: $CIPHER.getInstance("AES/ECB/NoPadding")
+    metadata:
+      cwe: CWE-327
+  - id: wrapperguard.jvm.weak-digest
+    languages: [java, kotlin]
+    severity: WARNING
+    message: Review MD5/SHA-1 use in this security context. These digests are unsuitable where collision resistance is required.
+    pattern-either:
+      - pattern: $DIGEST.getInstance("MD5")
+      - pattern: $DIGEST.getInstance("SHA-1")
+    metadata:
+      cwe: CWE-328
+  - id: wrapperguard.jvm.constant-random-seed
+    languages: [java, kotlin]
+    severity: WARNING
+    message: A numeric seed is fixed in source. Check whether this random generator protects secrets or security decisions.
+    patterns:
+      - pattern: $RANDOM.setSeed($SEED)
+      - metavariable-regex:
+          metavariable: $SEED
+          regex: '^[0-9]+[lL]?$'
+    metadata:
+      cwe: CWE-337

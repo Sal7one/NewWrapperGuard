@@ -15,5 +15,5 @@ tasks.test { useJUnitPlatform() }
 
 // Ship the same catalog used by VS Code, the demo and the SDK setup UI.
 tasks.processResources {
-    from(rootProject.file("catalog")) { include("security-methods.json") }
+    from(rootProject.file("catalog")) { include("security-methods.json", "security-presets.json") }
 }

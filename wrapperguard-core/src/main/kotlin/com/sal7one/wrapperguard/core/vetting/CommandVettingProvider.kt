@@ -21,13 +21,20 @@ import java.util.concurrent.TimeoutException
  * terminable after their parent exits. Other hosts use observed descendants as a best-effort
  * fallback. Providers must not detach descendants into independent sessions/process groups.
  */
-class CommandVettingProvider(private val configuration: CommandProviderConfiguration) : VettingProvider {
-    init { configuration.validate() }
+class CommandVettingProvider(configuration: CommandProviderConfiguration) : VettingProvider {
+    private val configuration = configuration.copy(command = configuration.command.toList(),
+        permissions = configuration.permissions.copy(actions = configuration.permissions.actions.toSet()),
+        tags = configuration.tags.toList(), inputScope = configuration.inputScope?.snapshot(), projectRoots = configuration.projectRoots.toList())
+    init { configuration.validate(requireExecutable = false) }
 
-    override val descriptor = ProviderDescriptor(configuration.id, configuration.displayName, configuration.version)
+    override val descriptor = this.configuration.descriptor()
+    fun appliesToProject(projectRoot: Path): Boolean = configuration.appliesToProject(projectRoot)
+    internal fun validateReadiness() = configuration.validate()
 
     override fun scan(request: VettingRequest): ProviderResult {
         val root = request.projectRoot.toRealPath()
+        require(appliesToProject(root)) { "Provider is not enabled for the selected project." }
+        validateReadiness()
         val input = JSON.encodeToString(buildJsonObject {
             put("apiVersion", 1)
             put("projectPath", root.toString())

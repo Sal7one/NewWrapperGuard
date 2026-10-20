@@ -12,9 +12,11 @@ Keep host provider grants separate from these analysis profiles.
 |---|---|
 | [bandit-report.profile.json](bandit-report.profile.json) | Import Python SAST findings |
 | [bandit-runner.profile.json](bandit-runner.profile.json) | Run installed Bandit with fixed arguments |
-| [semgrep-runner.profile.json](semgrep-runner.profile.json) | Analyze Kotlin/Java with curated Android/Ktor rules or a reviewed local rule file |
+| [semgrep-runner.profile.json](semgrep-runner.profile.json) | Select Android/Ktor, manifest, WebView, JVM crypto and Ktor runtime packs, or a reviewed local rule file |
 | [psscriptanalyzer.profile.json](psscriptanalyzer.profile.json) | Import PowerShell diagnostics |
 | [psscriptanalyzer-runner.profile.json](psscriptanalyzer-runner.profile.json) | Use installed PowerShell and a trusted analyzer module |
+| [cyclonedx.profile.json](cyclonedx.profile.json) | Import CycloneDX 1.4–1.7 vulnerability assessments (inventory alone is incomplete) |
+| [sonar.profile.json](sonar.profile.json) | Import current or legacy Sonar generic issues |
 | [sarif.profile.json](sarif.profile.json) | Import SARIF 2.1.0 from a chosen producer |
 | [trivy.profile.json](trivy.profile.json) | Import dependency-vulnerability findings |
 | [trivy-runner.profile.json](trivy-runner.profile.json) | Inspect selected dependency inputs with installed Trivy |
@@ -25,7 +27,7 @@ Keep host provider grants separate from these analysis profiles.
 | [ai-review.profile.json](ai-review.profile.json) | Explain existing findings with a configured loopback model |
 | [host-providers.example.json](host-providers.example.json) | Register two profiles; external providers start disabled |
 
-Profiles default to SCAN and WARNING. Advisory methods request no blocking authority,
+Profiles default to SCAN and WARNING. `projectRoot` optionally binds a profile to one canonical project. GUI-created report and AI connections are project-bound. Bundled Semgrep `rulePacks` and an external `rulesPath` are mutually exclusive. Advisory methods request no blocking authority,
 and the host independently caps every action. Review the plan before enabling a connection:
 
 ```sh

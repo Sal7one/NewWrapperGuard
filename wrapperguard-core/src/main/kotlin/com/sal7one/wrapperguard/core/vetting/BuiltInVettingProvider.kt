@@ -5,7 +5,7 @@ import com.sal7one.wrapperguard.core.spi.ScannerEngine
 
 /** Retains the deterministic scanner and its existing fingerprints/baselines. */
 class BuiltInVettingProvider(private val engine: ScannerEngine) : VettingProvider {
-    override val descriptor = ProviderDescriptor("wrapperguard", "WrapperGuard", "0.5.0")
+    override val descriptor = ProviderDescriptor("wrapperguard", "WrapperGuard", "0.6.0")
 
     override fun scan(request: VettingRequest): ProviderResult {
         val report = engine.scan(request.projectRoot, request.policy, request.settings, request.baseline)

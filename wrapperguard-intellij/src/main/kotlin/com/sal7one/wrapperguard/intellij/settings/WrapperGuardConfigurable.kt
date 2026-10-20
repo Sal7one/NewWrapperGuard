@@ -72,8 +72,8 @@ class WrapperGuardConfigurable : Configurable {
         val descriptors = listOf(BuiltInVettingProvider(RepositoryScanner()).descriptor.copy(displayName = "WrapperGuard (built-in)")) +
             (if (untrustedOpen) emptyList() else IntellijVettingProviders.installedProviders().map { it.descriptor }) +
             WrapperGuardSettings.getInstance().state.methodConnections.mapNotNull { connection -> SecurityMethodCatalog.find(connection.methodId)?.let { method ->
-                method.providerId?.let { ProviderDescriptor(it, method.title, "0.2.0") }
-            } }
+                method.providerId?.let { ProviderDescriptor(it, method.title, "0.3.0") }
+            } } + WrapperGuardSettings.getInstance().state.customProviders.map { it.descriptor() }
         if (untrustedOpen) panel.add(JBLabel("SDK settings are paused while an open project is in Safe Mode."))
         rows = descriptors.distinctBy { it.id }.map { ProviderControls(it).also { row -> panel.add(row.panel) } }
         panel.add(Box.createVerticalGlue())

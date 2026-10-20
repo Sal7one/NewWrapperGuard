@@ -50,7 +50,7 @@ class WrapperGuardBeforeRunTask : BeforeRunTask<WrapperGuardBeforeRunTask>(Wrapp
  * Scope (stated honestly in the UI too): covers IDE Gradle/script run configurations.
  * Does NOT cover external terminals, CLI invocations, or other plugins' processes.
  */
-open class WrapperGuardBeforeRunTaskProvider : BeforeRunTaskProvider<WrapperGuardBeforeRunTask>() {
+open class WrapperGuardBeforeRunTaskProvider : BeforeRunTaskProvider<WrapperGuardBeforeRunTask>(), com.intellij.openapi.project.DumbAware {
 
     companion object {
         val KEY: Key<WrapperGuardBeforeRunTask> = Key.create("WrapperGuard.BeforeRunTask")
@@ -115,11 +115,11 @@ open class WrapperGuardBeforeRunTaskProvider : BeforeRunTaskProvider<WrapperGuar
         if (project.isDisposed) return false
         if (!TrustedProjects.isProjectTrusted(project)) {
             project.getService(WrapperGuardProjectService::class.java)
-                .publishExternalReport(untrustedProjectReport(project, VettingOperation.BUILD))
+                .publishExternalReport(untrustedProjectReport(project, VettingOperation.BUILD), VettingOperation.BUILD)
             return false
         }
 
-        project.getService(WrapperGuardProjectService::class.java).publishExternalReport(result)
+        project.getService(WrapperGuardProjectService::class.java).publishExternalReport(result, VettingOperation.BUILD)
 
         val blockers = result.findings.filter {
             it.status == FindingStatus.ACTIVE && VettingAction.BLOCK_BUILD in it.actions

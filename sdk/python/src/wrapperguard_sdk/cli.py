@@ -11,7 +11,8 @@ import sys
 from . import __version__
 from .models import MAX_FINDINGS, redact_text
 from .profile import (MAX_OUTPUT_BYTES, MAX_PROFILE_BYTES, MAX_REPORT_BYTES, OPERATIONS,
-                      IntegrationProfile, bounded_read, load_json_document, load_profile)
+                      FORMATS, IntegrationProfile, bounded_read, load_json_document, load_profile)
+from .rule_packs import RULE_PACKS
 from .runner import (EXCLUDED_DIRECTORIES, MAX_SOURCE_BYTES, MAX_SOURCE_DEPTH,
                      MAX_SOURCE_FILE_BYTES, MAX_SOURCE_FILES, run_tool, runner_plan)
 
@@ -22,6 +23,8 @@ class _SafeParser(argparse.ArgumentParser):
 
 
 def build_plan(profile: IntegrationProfile, project_root: Path, operation: str = "SCAN") -> dict:
+    if profile.project_root is not None and profile.project_root.resolve(strict=True) != project_root.resolve(strict=True):
+        raise ValueError("This integration profile belongs to another project")
     if operation not in profile.allowed_operations:
         raise ValueError("Operation is not allowed by the user profile")
     active = profile.runner is not None
@@ -43,6 +46,8 @@ def build_plan(profile: IntegrationProfile, project_root: Path, operation: str =
                        "providerOutputBytes": MAX_OUTPUT_BYTES}}
     if profile.report_path is not None:
         plan["reportPath"] = redact_text(str(profile.report_path))
+        plan["reportFreshness"] = "Report import does not verify scanner generation time or source revision."
+    plan["projectBinding"] = "explicit" if profile.project_root is not None else "unbound"
     if profile.target_scope is not None:
         plan["targetScope"] = profile.target_scope.to_dict()
         plan["inputAccess"] = "Existing passive ZAP JSON report; only findings matching explicit target scope are imported."
@@ -53,9 +58,12 @@ def build_plan(profile: IntegrationProfile, project_root: Path, operation: str =
             plan["modulePath"] = redact_text(str(profile.runner.module_path))
         if tool == "local-ai":
             plan.update({"endpoint": profile.runner.endpoint, "model": profile.runner.model,
-                         "inputReportPath": redact_text(str(profile.runner.input_report_path)), "advisoryOnly": True})
+                         "inputReportPath": redact_text(str(profile.runner.input_report_path)), "advisoryOnly": True,
+                         "responseFormat": profile.runner.response_format})
         if tool == "script-semantics":
             plan["advisoryOnly"] = True
+        if tool == "semgrep" and profile.runner.rules_path is None:
+            plan["rulePacks"] = list(profile.runner.rule_packs or ("legacy-android-ktor",))
         plan.update(runner_plan(tool))
         plan["isolation"] = ("Snapshot input and sanitized environment limit accidental repository influence; "
                              "installed scanners and their plugins remain trusted code with OS user privileges. "
@@ -116,11 +124,23 @@ def main(argv: list[str] | None = None) -> int:
     try:
         parser = _SafeParser(description="Explicit WrapperGuard report adapters; provider API 1 on stdin/stdout.")
         parser.add_argument("--version", action="version", version="%(prog)s " + __version__)
-        parser.add_argument("--profile", required=True, help="Absolute user-owned profile outside the project")
+        parser.add_argument("--profile", help="Absolute user-owned profile outside the project")
+        parser.add_argument("--capabilities", action="store_true", help="Describe formats and bundled rule packs without scanning or connecting a tool")
         parser.add_argument("--plan", "--dry-run", action="store_true", help="Print review JSON without reading reports or executing tools")
         parser.add_argument("--project", type=Path, help="Absolute project directory for --plan")
         parser.add_argument("--operation", choices=sorted(OPERATIONS), default="SCAN", help="Operation reviewed by --plan")
         args = parser.parse_args(argv)
+        if args.capabilities:
+            if args.profile or args.plan or args.project or args.operation != "SCAN":
+                raise ValueError("Capability discovery does not use a project or profile")
+            print(json.dumps({"sdkVersion": __version__, "providerApiVersion": 1,
+                              "formats": sorted(FORMATS), "rulePacks": [
+                                  {"id": key, "title": value['title'], "extensions": value['extensions'], "fileNames": value['fileNames']}
+                                  for key, value in RULE_PACKS.items()],
+                              "executesProjectCode": False, "installsTools": False}, separators=(',', ':')))
+            return 0
+        if not args.profile:
+            raise ValueError("An explicit user profile is required")
         if args.plan:
             if args.project is None or not args.project.is_absolute() or not args.project.is_dir():
                 raise ValueError("Plan requires an absolute project directory")

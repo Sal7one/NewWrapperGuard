@@ -2,7 +2,7 @@
   "name": "wrapperguard",
   "displayName": "WrapperGuard",
   "description": "Local security vetting with a built-in static scanner and user-authorized providers.",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "publisher": "sal7one",
   "repository": {
     "type": "git",
@@ -164,6 +164,20 @@
             "type": "boolean"
           },
           "description": "Optional security methods from the Tools and Research tabs. User Settings only; changing a flag invalidates previous results. Disabling built-in methods reduces coverage."
+        },
+        "wrapperGuard.historyEnabled": {
+          "type": "boolean",
+          "scope": "application",
+          "default": false,
+          "description": "Opt in to local per-project scan summaries. No source evidence or messages are stored. History does not change enforcement."
+        },
+        "wrapperGuard.historyLimit": {
+          "type": "integer",
+          "scope": "application",
+          "default": 20,
+          "minimum": 1,
+          "maximum": 100,
+          "description": "Maximum local history summaries retained for each project. Older owned summaries are removed after the next saved scan."
         }
       }
     }
@@ -175,7 +189,7 @@
     "hardening": "node scripts/hardening.js",
     "test": "npm run compile && node --test tests/*.test.js && npm run check:webview",
     "check:webview": "node scripts/check-webview.js",
-    "package": "npm run build:sdk && npm run compile && vsce package --out wrapperguard-0.5.0.vsix",
+    "package": "npm run build:sdk && npm run compile && vsce package --out wrapperguard-0.6.0.vsix",
     "build:sdk": "python3 ../scripts/build-sdk.py --copy-vscode"
   },
   "devDependencies": {

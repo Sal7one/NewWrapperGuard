@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:wrapperguard:history:1",
+  "title": "WrapperGuard local scan history summary",
+  "description": "Bounded local metadata only. History never grants approvals or changes enforcement.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "projectId", "createdAt", "operation", "scopeId", "scopeKnown", "complete", "stale", "truncated", "verdict", "providers", "findings"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "id": {"type": "string", "format": "uuid"},
+    "projectId": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "createdAt": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+    "operation": {"enum": ["SCAN", "BUILD", "SYNC"]},
+    "scopeId": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "scopeKnown": {"type": "boolean"},
+    "complete": {"type": "boolean"},
+    "stale": {"type": "boolean"},
+    "truncated": {"type": "boolean"},
+    "verdict": {"enum": ["NOT_SCANNED", "CLEAN", "REVIEW_REQUIRED", "EXECUTION_BLOCKED", "INCOMPLETE", "STALE", "FAILED"]},
+    "providers": {"type": "array", "maxItems": 33, "items": {"type": "object", "additionalProperties": false, "required": ["id", "version", "status"], "properties": {"id": {"type": "string", "pattern": "^[a-z][a-z0-9._-]{0,79}$"}, "version": {"type": "string", "minLength": 1, "maxLength": 80, "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]+$"}, "status": {"enum": ["COMPLETED", "FAILED", "TIMED_OUT", "DISABLED"]}}}},
+    "findings": {"type": "array", "maxItems": 5000, "items": {"$ref": "#/$defs/finding"}}
+  },
+  "$defs": {
+    "finding": {
+      "type": "object", "additionalProperties": false,
+      "required": ["fingerprint", "providerId", "ruleId", "title", "severity", "status", "path"],
+      "properties": {
+        "fingerprint": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]+$"},
+        "providerId": {"type": "string", "pattern": "^[a-z][a-z0-9._-]{0,79}$"},
+        "ruleId": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,199}$"},
+        "title": {"type": "string", "maxLength": 512, "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$"},
+        "severity": {"enum": ["INFO", "WARN", "ERROR"]},
+        "status": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]+$"},
+        "path": {"type": "string", "minLength": 1, "maxLength": 4096, "pattern": "^(?![A-Za-z]:)(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\\\u0000-\\u001f\\u007f-\\u009f]+$"}
+      }
+    }
+  }
+}

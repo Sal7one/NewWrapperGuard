@@ -1,5 +1,10 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { AsyncLocalStorage } from 'node:async_hooks';
+
+const readObserver=new AsyncLocalStorage<(root:string,file:string,bytes:Buffer)=>void>();
+/** Host-only read tracking includes recursive inputs whose extensions are not known in advance. */
+export function observeProjectReads<T>(observer:(root:string,file:string,bytes:Buffer)=>void,work:()=>T):T{return readObserver.run(observer,work);}
 
 function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^$|(){}\[\]\\]/g, '\\$&');
@@ -113,6 +118,6 @@ export function readProjectFile(projectRoot:string,file:string,maximum:number):B
     while(count<buffer.length){const bytes=fs.readSync(fd,buffer,count,buffer.length-count,null);if(!bytes)break;count+=bytes;}
     const finished=fs.fstatSync(fd);
     if (count>maximum || count!==info.size || finished.size!==info.size || finished.mtimeMs!==info.mtimeMs) throw new Error('Project input changed or exceeds its budget.');
-    return buffer.subarray(0,count);
+    const bytes=buffer.subarray(0,count);readObserver.getStore()?.(fs.realpathSync(projectRoot),checked,bytes);return bytes;
   } finally {fs.closeSync(fd);}
 }

@@ -10,6 +10,7 @@ import tempfile
 import time
 
 from .profile import IntegrationProfile, load_json_document
+from .rule_packs import RULE_PACKS
 
 MAX_SOURCE_FILES = 5_000
 MAX_SOURCE_FILE_BYTES = 1024 * 1024
@@ -31,7 +32,8 @@ DEPENDENCY_FILES = frozenset({"pom.xml", "gradle.lockfile", "verification-metada
 
 
 def _snapshot(project_root: Path, destination: Path, deadline: float,
-              extensions: frozenset[str] = frozenset({".py"}), dependency_only: bool = False) -> tuple[int, bool]:
+              extensions: frozenset[str] = frozenset({".py"}), dependency_only: bool = False,
+              file_names: frozenset[str] = frozenset()) -> tuple[int, bool]:
     """Copy source data via anchored no-follow descriptors, never project programs."""
     count, total, incomplete = 0, 0, False
     flags = os.O_RDONLY | os.O_NOFOLLOW
@@ -66,7 +68,8 @@ def _snapshot(project_root: Path, destination: Path, deadline: float,
                         finally:
                             os.close(child)
                     elif entry.is_file(follow_symlinks=False) and (
-                        entry.name in DEPENDENCY_FILES if dependency_only else Path(entry.name).suffix.lower() in extensions
+                        entry.name in DEPENDENCY_FILES if dependency_only else
+                        Path(entry.name).suffix.lower() in extensions or entry.name in file_names
                     ):
                         fd = os.open(entry.name, flags | os.O_NONBLOCK, dir_fd=directory)
                         with os.fdopen(fd, "rb") as source:
@@ -207,6 +210,10 @@ def _environment(owned: Path) -> dict[str, str]:
 _PS_ANALYZE = r'''param([string]$ModulePath, [string]$SourceRoot)
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
+# Import only the runtime's own modules before disabling all implicit discovery.
+# PSScriptAnalyzer uses Join-Path; serialization uses Select-Object/ConvertTo-Json.
+Import-Module -Name ([IO.Path]::Combine($PSHOME, 'Modules', 'Microsoft.PowerShell.Management', 'Microsoft.PowerShell.Management.psd1')) -ErrorAction Stop
+Import-Module -Name ([IO.Path]::Combine($PSHOME, 'Modules', 'Microsoft.PowerShell.Utility', 'Microsoft.PowerShell.Utility.psd1')) -ErrorAction Stop
 $PSModuleAutoLoadingPreference = 'None'
 Import-Module -Name $ModulePath -Force -WarningAction SilentlyContinue
 $diagnostics = @(Invoke-ScriptAnalyzer -Path $SourceRoot -Recurse -IncludeDefaultRules -IncludeSuppressed -Settings @{})
@@ -233,7 +240,12 @@ def run_tool(profile: IntegrationProfile, project_root: Path) -> tuple[dict | li
         dependencies = config.tool in {"trivy", "osv"}
         extensions = {"script-semantics": frozenset({".py", ".ps1", ".psm1"}),
                       "semgrep": frozenset({".kt", ".kts", ".java"})}.get(config.tool, frozenset({".ps1", ".psm1", ".psd1"}))
-        count, incomplete = _snapshot(project_root, snapshot, deadline, extensions, dependencies)
+        file_names = frozenset()
+        selected_packs = config.rule_packs or ("legacy-android-ktor",)
+        if config.tool == "semgrep" and config.rules_path is None:
+            extensions = frozenset(extension for pack in selected_packs for extension in RULE_PACKS[pack]['extensions'])
+            file_names = frozenset(name for pack in selected_packs for name in RULE_PACKS[pack]['fileNames'])
+        count, incomplete = _snapshot(project_root, snapshot, deadline, extensions, dependencies, file_names)
         notices = []
         if incomplete:
             notices.append({"code": "WG-SDK-PARTIAL-SNAPSHOT", "message": "Some inputs were skipped because of symlinks, read failures or snapshot limits."})
@@ -274,8 +286,8 @@ def run_tool(profile: IntegrationProfile, project_root: Path) -> tuple[dict | li
                     "--format", "json", "--all-packages", "--verbosity", "error", "."]
             accepted_codes = (0, 1)
         elif config.tool == "semgrep":
-            rules = config.rules_path or Path(__file__).parent / "rules" / "android-ktor.yml"
-            argv = [str(config.executable), "scan", "--config", str(rules), "--sarif", "--metrics", "off",
+            rules = [config.rules_path] if config.rules_path else [Path(__file__).parent / 'rules' / RULE_PACKS[pack]['file'] for pack in selected_packs]
+            argv = [str(config.executable), "scan", *[argument for rule in rules for argument in ('--config', str(rule))], "--sarif", "--metrics", "off",
                     "--disable-version-check", "--no-git-ignore", "--disable-nosem", "--no-rewrite-rule-ids",
                     "--max-target-bytes", str(MAX_SOURCE_FILE_BYTES), "--timeout", "10", "--jobs", "1", "--quiet", "."]
         else:
@@ -310,7 +322,7 @@ def runner_plan(tool: str) -> dict:
         "osv": (["scan", "source", "--recursive", "--no-resolve", "--config", "<owned-empty-config>", "--format", "json", "--all-packages", "--verbosity", "error", "."], "Allowlisted dependency manifest/lock files only; unresolved transitives can remain uncovered.", "Dependency names and versions are sent to the configured tool's OSV vulnerability service."),
         "script-semantics": ([], "Regular Python and PowerShell source data; bounded literal decoding and simple data-flow signals only.", "No network or tool process."),
         "local-ai": ([], "Minimized metadata from up to five selected findings; source/evidence files are never sent.", "Explicit numeric loopback model server only; advisory review, no cloud endpoint."),
-        "semgrep": (["scan", "--config", "<reviewed-local-or-bundled-rules>", "--sarif", "--metrics", "off", "--disable-version-check", "--no-git-ignore", "--disable-nosem", "--no-rewrite-rule-ids", "--max-target-bytes", str(MAX_SOURCE_FILE_BYTES), "--timeout", "10", "--jobs", "1", "--quiet", "."], "Regular Kotlin/Java source data; bundled Android/Ktor review rules or an explicitly selected external rule file.", "Local rules only; metrics/version checks disabled. No network access requested."),
+        "semgrep": (["scan", "--config", "<reviewed-local-or-bundled-rules>", "--sarif", "--metrics", "off", "--disable-version-check", "--no-git-ignore", "--disable-nosem", "--no-rewrite-rule-ids", "--max-target-bytes", str(MAX_SOURCE_FILE_BYTES), "--timeout", "10", "--jobs", "1", "--quiet", "."], "Regular Kotlin/Java source and exact AndroidManifest.xml files selected by local rule packs; or an explicitly selected external rule file.", "Local rules only; metrics/version checks disabled. No network access requested."),
     }
     if tool not in plans:
         raise ValueError("Unsupported runner")

@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "appVersion": "0.6.0",
+  "native": {
+    "kind": "Actual installed VS Code extension development host",
+    "profile": "Isolated temporary profile; no personal user profile",
+    "project": "Controlled Android/Ktor fixture",
+    "note": "Wizard controls and actual protocol execution were exercised. The Node adapter is a controlled test fixture, not a third-party security scanner.",
+    "evidence": "native/validation.json",
+    "screenshots": [
+      "native/history.png",
+      "native/sdk-argv.png",
+      "native/sdk-bound-other-project.png",
+      "native/sdk-builder.png",
+      "native/sdk-connected.png",
+      "native/sdk-permissions.png",
+      "native/sdk-saved-disabled.png"
+    ],
+    "appVersion": "0.6.0",
+    "historySchemaEvidence": "native/history-summary.json"
+  },
+  "demo": {
+    "kind": "Synthetic demo data rendered by the real webview",
+    "note": "Atlas project names, custom providers, finding counts and history differences are explicitly DEMO data. These views are layout/interaction tests, not analysis results.",
+    "evidence": "demo/validation.json",
+    "screenshots": [
+      "demo/custom-sdk-desktop.png",
+      "demo/custom-sdk-mobile.png",
+      "demo/history-desktop.png",
+      "demo/history-mobile.png",
+      "demo/tools-desktop.png",
+      "demo/tools-mobile.png"
+    ]
+  },
+  "validation": {
+    "nodeTests": 122,
+    "hardeningChecks": 5,
+    "webviewSyntaxRender": true,
+    "keyboard": "Tab and Enter activation, project selector label, custom checkbox labels, disabled scanning controls",
+    "screenReaderAudit": "Not a formal VoiceOver or assistive-technology certification",
+    "actualHistorySchemaValidated": true
+  }
+}

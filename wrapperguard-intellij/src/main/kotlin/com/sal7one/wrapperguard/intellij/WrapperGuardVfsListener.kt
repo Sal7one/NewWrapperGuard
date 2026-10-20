@@ -13,18 +13,14 @@ import com.intellij.openapi.vfs.newvfs.events.VFileEvent
  */
 class WrapperGuardVfsListener(private val project: Project) : BulkFileListener {
 
-    override fun after(events: List<VFileEvent>) {
+    override fun before(events: List<VFileEvent>) = markRelevant(events)
+    override fun after(events: List<VFileEvent>) = markRelevant(events)
+
+    private fun markRelevant(events: List<VFileEvent>) {
         if (project.isDisposed) return
-        val base = project.basePath ?: return
-        val relevant = events.any { event ->
-            val file = event.file ?: return@any false
-            !event.isFromRefresh &&
-                file.path.startsWith(base) &&
-                WrapperGuardProjectService.isWatchedFileName(file.name)
-        }
-        if (relevant) {
-            project.getService(WrapperGuardProjectService::class.java).markStaleAndScheduleRescan()
-        }
+        val service = project.getService(WrapperGuardProjectService::class.java)
+        if (events.any { service.isWatchedPath(it.path, it.file?.isDirectory == true) })
+            service.markStaleAndScheduleRescan()
     }
 
     companion object {

@@ -1,7 +1,7 @@
 # Set up optional analysis methods
 
 WrapperGuard combines tools in one workspace. The host owns user permissions, findings
-and enforcement; each analyzer owns its detection method. The Python SDK **0.2.0** uses
+and enforcement; each analyzer owns its detection method. The Python SDK **0.3.0** uses
 Python **3.10+**, has no runtime dependencies, and communicates over provider **API 1**.
 Scanner packages and model servers are separate installations.
 
@@ -10,7 +10,7 @@ Scanner packages and model servers are separate installations.
 Open **Tools** in the WrapperGuard workspace in Android Studio, IntelliJ IDEA or VS Code.
 Choose **Built-in**, **SAST**, **Supply chain** or **DAST**. The separate **Research** tab
 (**Research & AI** in VS Code) contains script behavior signals and local AI review. These categories come from the
-shared [15-method catalog](../catalog/security-methods.json).
+shared [17-method catalog](../catalog/security-methods.json).
 
 1. Choose **Install SDK…** and browse to a trusted Python 3.10+ executable outside your
    projects. The installer creates a dedicated user environment and installs the bundled
@@ -28,7 +28,7 @@ shared [15-method catalog](../catalog/security-methods.json).
 5. Results identify their provider and last-run status. Connection and permission changes
    require another scan; an old report is not a new assessment.
 
-Custom SDK registrations and existing provider files remain available. A managed connection
+Use **Add SDK / custom command** for any vendor adapter or discovered SDK. Enter literal argv, descriptive category/tags and declared inputs, then review its independent permissions. **Presets** apply reviewed method flags without installing or enabling tools. Existing provider files remain available. A managed connection
 with the same provider ID requires an explicit choice to take precedence. Disconnecting or
 disabling a method does not uninstall your tools or alter another provider's permissions.
 
@@ -49,15 +49,17 @@ Windows loopback server. The GUI does not offer unsupported direct scanner downl
 | SAST · Semgrep | Installed scanner over Kotlin/Java source; SARIF output | Off |
 | SAST · Bandit | Installed scanner over Python source, or Bandit JSON import | Off |
 | SAST · PSScriptAnalyzer | Installed PowerShell/module over source, or diagnostic JSON import | Off |
+| SAST · Sonar generic issues | Current/legacy external-issue JSON from a chosen producer | Off |
 | SAST · SARIF | Existing SARIF 2.1.0 reports from a chosen producer | Off |
 | Supply chain · Trivy | Installed scanner over selected dependency inputs, or Trivy JSON import | Off |
 | Supply chain · OSV-Scanner | Installed scanner over selected dependency inputs, or OSV-Scanner JSON import | Off |
+| Supply chain · CycloneDX | CycloneDX 1.4–1.7 vulnerability assessments; inventory alone is incomplete | Off |
 | DAST · ZAP | Existing traditional JSON report with explicit target scope | Off |
 | Research · Script behavior | Local bounded literal decoding and simple def/use signals | Off |
 | AI · Local review | Selected finding metadata sent to an explicit loopback model server | Off |
 
-The SDK recognizes **eight format identifiers**: six passive report imports (`sarif`,
-`bandit`, `psscriptanalyzer`, `trivy`, `osv`, `zap`) and two controlled advisory outputs
+The SDK recognizes **ten format identifiers**: eight passive report imports (`sarif`,
+`bandit`, `psscriptanalyzer`, `trivy`, `osv`, `zap`, `cyclonedx`, `sonar`) and two controlled advisory outputs
 (`script-semantics`, `ai-review`). Semgrep uses the existing SARIF adapter.
 
 The six included static groups can be disabled separately. Intentional exclusions produce
@@ -68,16 +70,26 @@ establish complete analysis coverage. Unknown organization SDKs remain supported
 
 ## Android and Ktor source analysis
 
-The optional Semgrep runner reads regular `.kt`, `.kts` and `.java` files from a bounded
-snapshot. It uses six [bundled review rules](../sdk/python/src/wrapperguard_sdk/rules/android-ktor.yml):
-unrestricted Ktor CORS, Android JavaScript bridges, concatenated raw SQL, empty Java and
-Kotlin server-certificate checks, and a Kotlin hostname verifier that always accepts.
+The optional Semgrep runner offers five independently selected local packs:
 
-These targeted checks need context and do not cover all Android, Ktor or Java security
-issues. They do not build an app, resolve plugins or execute Gradle/Maven. You can select
-an explicitly reviewed rule file outside the project to change or expand coverage. The
-runner uses local rules, disables metrics/version checks, and ignores repository
-`.semgrepignore` and source `nosemgrep` suppression authority.
+| Pack | Review checks |
+|---|---|
+| `legacy-android-ktor` (default) | Original six CORS, bridge, SQL and TLS checks |
+| `android-manifest` | Explicit debuggable, cleartext and backup settings |
+| `android-webview` | File-origin access, universal-origin access and debugging |
+| `jvm-crypto` | Selected weak cipher/digest calls and fixed numeric random seeds |
+| `ktor-runtime` | Stack traces in responses and unrestricted credentialed CORS |
+
+The original six rules remain the default. Selecting more packs is explicit. Kotlin/Java
+packs read `.kt`, `.kts` and/or `.java`; the manifest pack adds only exact
+`AndroidManifest.xml` files, not every XML resource. An external reviewed rule file replaces
+bundled pack selection. `rulePacks` and `rulesPath` are mutually exclusive in profiles.
+
+These targeted checks require context; they do not establish full Android/Ktor coverage.
+They do not build an app, resolve plugins or execute Gradle/Maven. Local rules disable
+metrics/version checks, and repository `.semgrepignore` / source `nosemgrep` markers cannot
+approve findings. Real positive and negative fixtures are exercised by
+`scripts/sdk-semgrep-smoke.py`.
 
 Gradle/Maven configuration checks review build inputs. Dependency scanners inspect
 supported manifest/lock data. Neither establishes that application authorization,
@@ -94,7 +106,7 @@ remain visible when they prevent complete inspection.
 | Runner | Inputs / additional setup | Network behavior |
 |---|---|---|
 | Bandit | Python source; installed absolute Bandit executable | No network requested |
-| Semgrep | Kotlin/Java source; installed executable; optional reviewed external rule file | Local rules; metrics/version checks disabled |
+| Semgrep | Kotlin/Java and exact manifests from selected packs; installed executable; optional external rule file | Local rules; metrics/version checks disabled |
 | PSScriptAnalyzer | PowerShell source; installed `pwsh` and trusted PSScriptAnalyzer module | No network requested |
 | Trivy | Allowlisted manifests/locks; optional user cache outside projects | May download vulnerability/index databases; dependency API resolution disabled |
 | OSV-Scanner | Allowlisted manifests/locks; `--no-resolve`, `--all-packages` | Sends dependency names/versions to the tool's OSV service |
@@ -121,7 +133,7 @@ See [the research mapping](research.md).
 **Local AI review** uses an already running OpenAI-compatible server at an explicit numeric
 loopback endpoint such as `http://127.0.0.1:1234/v1`. Choose its model identifier and a
 WrapperGuard JSON report outside the project. The dialog can prepare minimized input from
-the current report. No model is downloaded or bundled.
+the current report. No model is downloaded or bundled. Strict `json_schema` responses are the default; select `json_object` explicitly only for compatible servers that lack schema support. Output is validated in either mode.
 
 At most five findings contribute rule ID, title, message and severity. The SDK redacts and
 truncates metadata, removes common path/credential forms, and excludes source files,
@@ -139,7 +151,9 @@ blockers. Empty inputs and partial reviews are explicit; AI does not produce a s
 Import a current report from a tool you trust. Supported subsets use project-local physical
 locations and discard source snippets, matched secrets and HTTP bodies. Invalid paths,
 unsupported sections, malformed records, tool errors and report-level suppressions cannot
-silently become approved, clean coverage. The producing tool still owns input selection,
+silently become approved, clean coverage. CycloneDX component references must resolve; VEX annotations remain context and cannot create host approvals. A component inventory without vulnerability assessment is incomplete. Sonar imports support both legacy severities and current impact-based issues.
+
+The producing tool still owns input selection,
 configuration, vulnerability data, freshness and analysis quality.
 
 ZAP imports need exact HTTP(S) origins and optional segment-bounded path prefixes. Origin
@@ -175,6 +189,8 @@ Review the plan without executing a tool or reading its report:
   --plan --project /absolute/project
 ```
 
+Use `python -I -m wrapperguard_sdk --capabilities` to list supported formats and local packs without a profile, project, scan, installation or network request. Optional profile `projectRoot` binds report/AI input to one canonical project; GUI-created report and AI connections use this binding.
+
 The host invokes that absolute SDK Python with `-I -m wrapperguard_sdk`. Isolation prevents
 project-directory or `PYTHONPATH` module substitution. `wrapperguard-sdk` is the equivalent
 installed console entry point.
@@ -200,6 +216,22 @@ A true flag does not install or connect a tool, enable a disabled provider, or g
 An explicitly enabled method without its provider is reported as not connected. Absent
 optional flags preserve existing user-configured providers. An explicit false flag disables
 only the corresponding catalog provider; it does not change another SDK's grant.
+
+## History, multiple projects and managed storage
+
+VS Code's project selector chooses which workspace root a scan, gate, connection or
+finding navigation uses. A root-bound command independently refuses other projects.
+Reusable source runners and explicit all-project connections remain possible.
+
+**History** is opt-in in both hosts. It stores bounded issue summaries (including titles
+and relative paths), provider versions, operation and scope identity outside source. It
+excludes messages, evidence and source bytes. Retention defaults to 20 (maximum 100).
+Comparisons require the same project/operation/known scope and complete current reports.
+Imported producer provenance and opaque SDK/package/model semantics can make scope unknown; those saved runs remain visible with comparisons disabled. Approval changes do not look like remediation. Pause and clear are separate controls.
+
+**Managed storage** inventories generated SDK/profile/input data. Cleanup requires an
+explicit selection and preserves original user files, active environments and referenced
+artifacts. Disconnecting does not automatically delete or uninstall them.
 
 ## Coverage and trust
 

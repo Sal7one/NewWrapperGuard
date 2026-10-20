@@ -19,3 +19,12 @@ The inline `nosemgrep` / `nosec` text must not suppress those SDK-runner finding
 Use [the manual test instructions](../../docs/verification.md#install-and-test-the-build)
 for connection, feature-switch and permission checks. Findings are test expectations;
 this fixture does not measure malware-detection accuracy or complete app coverage.
+
+For the **additional** selectable packs, enable `android-manifest`, `android-webview`,
+`jvm-crypto` and `ktor-runtime` in the Semgrep connection. Expect three manifest settings,
+three WebView settings, three crypto/random-seed checks, stack-trace response and
+credentialed unrestricted CORS. `SafeReviewPacks.kt` must receive none of those new pack
+findings. The original six-rule default is unchanged when new packs are not selected.
+The shared real-tool smoke exercises these same positive/negative shapes; they are not a
+benchmark corpus. Use History only after opting in, and compare two complete scans with
+unchanged settings/permissions/rules; changing rule selection must disable that delta.

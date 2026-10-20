@@ -1,7 +1,7 @@
 {
   "id": "research.script-semantics",
   "displayName": "Script behavior signals",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "analysisKind": "SAST",
   "format": "script-semantics",
   "runner": {

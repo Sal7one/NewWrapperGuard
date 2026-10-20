@@ -29,9 +29,8 @@
                     anchor="bottom"
                     factoryClass="com.sal7one.wrapperguard.intellij.ui.WrapperGuardToolWindowFactory"/>
         <postStartupActivity implementation="com.sal7one.wrapperguard.intellij.WrapperGuardStartupActivity"/>
-        <beforeRunTaskProvider
-            implementation="com.sal7one.wrapperguard.intellij.execution.WrapperGuardBeforeRunTaskProvider"
-            id="WrapperGuard.BeforeRunTask"/>
+        <stepsBeforeRunProvider
+            implementation="com.sal7one.wrapperguard.intellij.execution.WrapperGuardBeforeRunTaskProvider"/>
         <externalExecutionAware id="wrapperguardVetting" key="GRADLE" order="first"
             implementationClass="com.sal7one.wrapperguard.intellij.execution.WrapperGuardGradleSyncGate"/>
     </extensions>

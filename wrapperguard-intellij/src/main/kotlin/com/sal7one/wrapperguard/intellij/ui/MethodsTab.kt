@@ -27,28 +27,42 @@ import java.nio.file.Path
 @Composable
 internal fun MethodsTab(settings: ScanSettings, report: ScanReport?, revision: Int, research: Boolean, demo: Boolean,
     onSetup: (SecurityMethod) -> Unit, onEnabled: (SecurityMethod, Boolean) -> Unit,
-    onPermissions: (SecurityMethod) -> Unit, onInstallSdk: () -> Unit, onGuide: (SecurityMethod) -> Unit) {
+    onPermissions: (SecurityMethod) -> Unit, onInstallSdk: () -> Unit, onGuide: (SecurityMethod) -> Unit,
+    onAddProvider: () -> Unit, onEditProvider: (CustomProviderState) -> Unit,
+    onCustomEnabled: (CustomProviderState, Boolean) -> Unit, onCustomPermissions: (CustomProviderState) -> Unit,
+    onCustomRemove: (CustomProviderState) -> Unit, onStorage: () -> Unit, onPresets: () -> Unit) {
     var category by remember { mutableStateOf<MethodCategory?>(null) }
+    var customSelected by remember { mutableStateOf(false) }
     val state = remember(revision, demo, settings) {
         if (demo) WrapperGuardSettings.State(methodFlags = settings.methodFlags.toMutableMap())
         else WrapperGuardSettings.getInstance().state.copy(methodFlags = WrapperGuardSettings.getInstance().state.methodFlags.toMutableMap(),
             methodConnections = WrapperGuardSettings.getInstance().state.methodConnections.map { it.copy() }.toMutableList(),
-            providers = WrapperGuardSettings.getInstance().state.providers.map { it.copy() }.toMutableList())
+            providers = WrapperGuardSettings.getInstance().state.providers.map { it.copy() }.toMutableList(),
+            customProviders = WrapperGuardSettings.getInstance().state.customProviders.map { it.copy() }.toMutableList())
     }
     val all = SecurityMethodCatalog.methods.filter { (it.category in setOf(MethodCategory.RESEARCH, MethodCategory.AI)) == research }
     val methods = all.filter { if (research) true else if (category == null) it.category != MethodCategory.BUILT_IN else it.category == category }
+    val customProviders = state.customProviders.filter { provider ->
+        if (research) provider.category in setOf("RESEARCH", "AI") else customSelected || category == null || provider.category == category?.name
+    }
     WorkspacePage {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 Text(if (research) "Research & local AI" else "Analysis tools", fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
                 Text(if (research) "Optional advisory methods. Choose the analyzer and review its limits." else "Connect independent analyzers and choose the methods used in your workspace.", color = mutedTextColor(), fontSize = 12.sp)
             }
-            OutlinedButton(onClick = onInstallSdk, enabled = !demo) { Text("Install SDK…", fontSize = 12.sp) }
+            OutlinedButton(onClick = onAddProvider, enabled = !demo) { Text("Add provider…", fontSize = 12.sp) }
+        }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            OutlinedButton(onClick = onInstallSdk, enabled = !demo) { Text("Install SDK…", fontSize = 11.sp) }
+            OutlinedButton(onClick = onPresets, enabled = !demo) { Text("Method presets…", fontSize = 11.sp) }
+            OutlinedButton(onClick = onStorage, enabled = !demo) { Text("Managed storage…", fontSize = 11.sp) }
         }
         if (!research) FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            ChoiceChip("Connections", category == null) { category = null }
+            ChoiceChip("Connections", category == null && !customSelected) { category = null; customSelected = false }
+            ChoiceChip("Custom  ${state.customProviders.size}", customSelected) { customSelected = true; category = null }
             listOf(MethodCategory.BUILT_IN to "Built-in", MethodCategory.SAST to "SAST", MethodCategory.SUPPLY_CHAIN to "Supply chain", MethodCategory.DAST to "DAST").forEach { (value, label) ->
-                ChoiceChip("$label  ${all.count { it.category == value }}", category == value) { category = value }
+                ChoiceChip("$label  ${all.count { it.category == value }}", category == value && !customSelected) { category = value; customSelected = false }
             }
         }
         if (research) WorkspacePanel("Advisory by design", subtitle = "No trained detector or model is bundled") {
@@ -62,7 +76,7 @@ internal fun MethodsTab(settings: ScanSettings, report: ScanReport?, revision: I
                 Text("Install the bundled SDK, connect an installed analyzer or existing report, then enable warnings. Permissions are reviewed separately.", color = mutedTextColor(), fontSize = 11.sp, modifier = Modifier.weight(1f))
             }
         }
-        if (category == MethodCategory.BUILT_IN && !research) {
+        if (category == MethodCategory.BUILT_IN && !research && !customSelected) {
             WorkspacePanel("Built-in methods", subtitle = "Included locally · changes apply to all projects") {
                 methods.forEachIndexed { index, method ->
                     val enabled = SecurityMethodCatalog.isEnabled(method.id, state.methodFlags)
@@ -78,7 +92,7 @@ internal fun MethodsTab(settings: ScanSettings, report: ScanReport?, revision: I
                 }
             }
             Text("Disabling a method reduces the configured scope. If every built-in method is off, built-in coverage is incomplete. Repository files cannot change these application preferences.", fontSize = 11.sp, color = mutedTextColor())
-        } else BoxWithConstraints(Modifier.fillMaxWidth()) {
+        } else if (!customSelected) BoxWithConstraints(Modifier.fillMaxWidth()) {
             val columns = if (maxWidth >= 1050.dp) 2 else 1
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 methods.chunked(columns).forEach { row ->
@@ -91,6 +105,8 @@ internal fun MethodsTab(settings: ScanSettings, report: ScanReport?, revision: I
                 }
             }
         }
+        if (customProviders.isNotEmpty()) CustomProviderCards(customProviders, state, report, demo, onEditProvider, onCustomEnabled, onCustomPermissions, onCustomRemove)
+        else if (customSelected) EmptyHint("No custom providers yet. Add an installed SDK or an API 1 command adapter to get started.")
         Text(if (demo) "Demo controls are read-only. Connections, settings and model services are not invoked." else "Application settings · connections and profiles stay outside your projects · enabled provider code runs with your permissions",
             fontSize = 10.sp, color = mutedTextColor())
     }

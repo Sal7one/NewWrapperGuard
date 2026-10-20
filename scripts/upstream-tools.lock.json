@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "platform": "linux-amd64",
+  "tools": {
+    "psscriptanalyzer": {
+      "version": "1.25.0",
+      "executable": "pwsh/pwsh",
+      "module": "psscriptanalyzer/PSScriptAnalyzer.psd1",
+      "assets": [
+        {
+          "repository": "PowerShell/PowerShell",
+          "tag": "v7.6.7",
+          "name": "powershell-7.6.7-linux-x64.tar.gz",
+          "sha256": "6896f9e3a6b0a354bf470835a96da76d2f801cd50dcf047ad7c4563bf93bf431",
+          "kind": "tar",
+          "directory": "pwsh",
+          "checksums": "hashes.sha256"
+        },
+        {
+          "repository": "PowerShell/PSScriptAnalyzer",
+          "tag": "1.25.0",
+          "name": "PSScriptAnalyzer.1.25.0.nupkg",
+          "sha256": "14e634c828eb98efb9f40b2918ba90f139ed5eccdf663a2a747736d996995d60",
+          "kind": "zip",
+          "directory": "psscriptanalyzer"
+        }
+      ]
+    },
+    "osv": {
+      "version": "2.7.0",
+      "executable": "osv/osv-scanner",
+      "assets": [
+        {
+          "repository": "google/osv-scanner",
+          "tag": "v2.7.0",
+          "name": "osv-scanner_linux_amd64",
+          "sha256": "160c6253e2922e9e0a6a9771c5c4c40a4b3c6090b34a3cdd5e80c96cc2e4218b",
+          "kind": "binary",
+          "directory": "osv",
+          "filename": "osv-scanner",
+          "checksums": "osv-scanner_SHA256SUMS"
+        }
+      ]
+    },
+    "trivy": {
+      "version": "0.76.0",
+      "executable": "trivy/trivy",
+      "assets": [
+        {
+          "repository": "aquasecurity/trivy",
+          "tag": "v0.76.0",
+          "name": "trivy_0.76.0_Linux-64bit.tar.gz",
+          "sha256": "e24b1c51293c1b15e4ba8d45bbc7891ba053f90278ec2698f3562c993e145fe7",
+          "kind": "tar",
+          "directory": "trivy",
+          "checksums": "trivy_0.76.0_checksums.txt"
+        }
+      ]
+    }
+  }
+}

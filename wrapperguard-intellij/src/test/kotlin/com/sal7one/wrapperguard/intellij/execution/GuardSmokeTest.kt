@@ -36,6 +36,13 @@ import com.sal7one.wrapperguard.intellij.demo.WrapperGuardDemo
  */
 class GuardSmokeTest : HeavyPlatformTestCase() {
 
+    fun testDescriptorRegistersBeforeRunProviderWithIdeRegistry() {
+        val provider = com.intellij.execution.BeforeRunTaskProvider.getProvider(project, WrapperGuardBeforeRunTaskProvider.KEY)
+        assertNotNull("The IDE must resolve the attached task through its project extension registry", provider)
+        assertTrue(provider is WrapperGuardBeforeRunTaskProvider)
+        assertTrue("Static vetting remains available while indexes are rebuilding", provider is com.intellij.openapi.project.DumbAware)
+    }
+
     /** A real run configuration whose type id contains "gradle" so the guard applies. */
     private class FakeGradleRunConfiguration(project: Project, factory: ConfigurationFactory) :
         RunConfigurationBase<RunConfigurationOptions>(project, factory, "fake-gradle-run") {
@@ -162,6 +169,8 @@ class GuardSmokeTest : HeavyPlatformTestCase() {
         val configuration = settings.configuration
 
         val runManager = RunManagerImpl.getInstanceImpl(project)
+        // Simulate a configuration saved before the plugin was installed. Registered providers now attach new tasks automatically.
+        runManager.setBeforeRunTasks(configuration, runManager.getBeforeRunTasks(configuration).filterNot { it.providerId == WrapperGuardBeforeRunTaskProvider.KEY })
         assertTrue(
             "pre-existing configuration starts without the guard task",
             runManager.getBeforeRunTasks(configuration).none { it.providerId == WrapperGuardBeforeRunTaskProvider.KEY }

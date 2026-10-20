@@ -37,7 +37,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 private enum class WgTab(val label: String) {
-    OVERVIEW("Summary"), FINDINGS("Findings"), GRAPH("Execution"), POLICY("Policy"), TOOLS("Tools"), RESEARCH("Research")
+    OVERVIEW("Summary"), FINDINGS("Findings"), GRAPH("Execution"), POLICY("Policy"), TOOLS("Tools"), RESEARCH("Research"), HISTORY("History")
 }
 
 private data class WorkspaceSnapshot(val report: ScanReport?, val scanning: Boolean, val error: String?)
@@ -48,6 +48,7 @@ private fun requestedDemoTab(value: String?): WgTab = when (value) {
     "policy" -> WgTab.POLICY
     "tools" -> WgTab.TOOLS
     "research" -> WgTab.RESEARCH
+    "history" -> WgTab.HISTORY
     else -> WgTab.OVERVIEW
 }
 
@@ -180,6 +181,7 @@ fun WrapperGuardApp(service: WrapperGuardProjectService, project: Project) {
         }
         Box(Modifier.fillMaxWidth().weight(1f)) {
             when {
+                activeTab == WgTab.HISTORY -> HistoryTab(project, report?.generatedAtEpochMs, service.isDemo, service.historyError)
                 activeTab == WgTab.POLICY -> PolicyTab(settings, report, openSettings, demo = service.isDemo)
                 activeTab == WgTab.TOOLS || activeTab == WgTab.RESEARCH -> MethodsTab(settings, report, methodRevision,
                     research = activeTab == WgTab.RESEARCH, demo = service.isDemo,
@@ -202,7 +204,28 @@ fun WrapperGuardApp(service: WrapperGuardProjectService, project: Project) {
                     },
                     onPermissions = { method -> if (!service.isDemo) { OptionalMethodPermissionsDialog(project, method, report).showAndGet(); refreshMethods() } },
                     onInstallSdk = { if (!service.isDemo) { InstallOptionalSdkDialog(project).showAndGet(); refreshMethods() } },
-                    onGuide = { method -> if (!service.isDemo) BrowserUtil.browse(methodGuide(method.id)) })
+                    onGuide = { method -> if (!service.isDemo) BrowserUtil.browse(methodGuide(method.id)) },
+                    onPresets = { if (!service.isDemo) { MethodPresetDialog(project).showAndGet(); refreshMethods() } },
+                    onStorage = { if (!service.isDemo) {
+                        methodProgress(project, "Reviewing WrapperGuard managed storage") { ManagedStorage.inventory() }
+                            .onSuccess { ManagedStorageDialog(project, it).showAndGet() }
+                            .onFailure { com.intellij.openapi.ui.Messages.showErrorDialog(project, it.message ?: "Storage inventory could not be read.", "WrapperGuard") }
+                        refreshMethods()
+                    } },
+                    onAddProvider = { if (!service.isDemo) { CustomProviderDialog(project).showAndGet(); refreshMethods() } },
+                    onEditProvider = { provider -> if (!service.isDemo) { CustomProviderDialog(project, provider).showAndGet(); refreshMethods() } },
+                    onCustomEnabled = { provider, enabled -> if (!service.isDemo) {
+                        runCatching {
+                            if (enabled) CustomProviders.validate(provider, OptionalMethodConnections.roots(project))
+                            CustomProviders.setEnabled(provider.id, enabled)
+                        }.onFailure { com.intellij.openapi.ui.Messages.showErrorDialog(project, it.message ?: "The provider could not be updated.", "WrapperGuard") }
+                        refreshMethods()
+                    } },
+                    onCustomPermissions = { provider -> if (!service.isDemo) { OptionalMethodPermissionsDialog(project, CustomProviders.method(provider), report, custom = true).showAndGet(); refreshMethods() } },
+                    onCustomRemove = { provider -> if (!service.isDemo) {
+                        runCatching { CustomProviders.remove(provider.id) }.onFailure { com.intellij.openapi.ui.Messages.showErrorDialog(project, it.message ?: "The connection could not be removed.", "WrapperGuard") }
+                        refreshMethods()
+                    } })
                 report == null -> WorkspacePage {
                     WorkspacePanel(if (state.scanning) "Inspecting project files" else "Start with a project scan") {
                         Text("WrapperGuard checks Gradle wrappers, build files and the scripts they call. Findings and execution paths appear here after scanning.", fontSize = 13.sp, color = mutedTextColor(), modifier = Modifier.padding(16.dp))
@@ -218,7 +241,7 @@ fun WrapperGuardApp(service: WrapperGuardProjectService, project: Project) {
                         providerNames = report.providerRuns.associate { it.descriptor.id to it.descriptor.displayName })
                     WgTab.GRAPH -> ExecutionGraphTab(report.edges, report.findings, onOpenFinding = showFinding,
                         onOpenFile = { openFindingInEditor(project, it, report.projectPath) })
-                    WgTab.POLICY, WgTab.TOOLS, WgTab.RESEARCH -> Unit
+                    WgTab.POLICY, WgTab.TOOLS, WgTab.RESEARCH, WgTab.HISTORY -> Unit
                 }
             }
         }

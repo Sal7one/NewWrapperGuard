@@ -61,6 +61,21 @@ class OptionalMethodProfilesTest {
         assertFalse(report.containsKey("runner"))
     }
 
+    @Test fun `rule packs model response and open report formats are explicit profile choices`() {
+        val semgrep = requireNotNull(SecurityMethodCatalog.find("sast.semgrep"))
+        val connection = MethodConnectionState(methodId = semgrep.id, mode = "runner", rulePacks = mutableListOf("android-webview", "jvm-crypto"))
+        val runner = OptionalMethodProfiles.profile(semgrep, connection)["runner"]!!.jsonObject
+        assertEquals(listOf("android-webview", "jvm-crypto"), runner["rulePacks"]!!.jsonArray.map { it.jsonPrimitive.content })
+        val custom = OptionalMethodProfiles.profile(semgrep, connection.copy(rulesPath = "/trusted/rules.yml"))["runner"]!!.jsonObject
+        assertFalse(custom.containsKey("rulePacks")); assertEquals("/trusted/rules.yml", custom["rulesPath"]!!.jsonPrimitive.content)
+        val ai = OptionalMethodProfiles.profile(requireNotNull(SecurityMethodCatalog.find("ai.external-model")), MethodConnectionState(methodId = "ai.external-model", mode = "runner", responseFormat = "json_object", projectRoot = "/project"))
+        assertEquals("json_object", ai["runner"]!!.jsonObject["responseFormat"]!!.jsonPrimitive.content)
+        assertEquals("/project", ai["projectRoot"]!!.jsonPrimitive.content)
+        listOf("sast.sonar" to "sonar", "sca.cyclonedx" to "cyclonedx").forEach { (id, format) ->
+            assertEquals(format, OptionalMethodProfiles.profile(requireNotNull(SecurityMethodCatalog.find(id)), MethodConnectionState(methodId = id))["format"]!!.jsonPrimitive.content)
+        }
+    }
+
     @Test fun `setup rejects paths and symlinks inside project`() {
         val temporary = Files.createTempDirectory("wg-method-paths")
         try {

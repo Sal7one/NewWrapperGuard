@@ -1,8 +1,10 @@
 # WrapperGuard engineering handover
 
-Updated **2026-10-20**. Current implementation: **app 0.5.0**, **Python SDK 0.2.0**,
-provider **API 1**, report **schemaVersion 1**. Branch: `codex/optional-security-methods`,
-based on merged master `8ed994f` (`Merge pull request #1`). The 0.5.0 stable release is pending acceptance.
+Updated **2026-10-20**. Current implementation: **app 0.6.0**, **Python SDK 0.3.0**,
+provider **API 1**, report **schemaVersion 1**. Branch: `codex/flexible-provider-platform`,
+based on `8336a61` (0.5 RC1). PR #2 remains the prerequisite release branch until merged;
+the new platform change must use a stacked PR or rebase after that merge. Stable release
+acceptance remains separate from candidate packaging.
 
 ## Workspace and ownership
 
@@ -24,7 +26,7 @@ Studio, IntelliJ IDEA, VS Code and CI. Providers own analysis; the host owns gra
 policy, attribution, approvals, deadlines and aggregate reports. No particular vendor is
 required. Existing custom providers remain supported and are not replaced by the catalog.
 
-The shared `catalog/security-methods.json` contains 15 entries grouped as Built-in, SAST,
+The shared `catalog/security-methods.json` contains 17 entries grouped as Built-in, SAST,
 Supply chain, DAST, Research and AI. The six built-in groups default on; external/research/AI
 methods default off. `ScanSettings.methodFlags` is user configuration, never repository policy.
 Kotlin loads the catalog as a core resource; VS Code packages the same catalog.
@@ -35,6 +37,10 @@ Implemented surfaces:
   explicit enabling, permissions and SDK installation.
 - **Research**: local script behavior signals and local AI review, with advisory status
   and visible limitations. Neither can create build/sync blockers.
+- **History**: explicit opt-in summaries, same-operation/known-scope comparison, retention
+  and safe clearing. Issue titles/relative paths persist; messages/evidence/source do not.
+- **Tools** additionally supports generic SDK/command setup, project scope, reviewed presets
+  and owned-storage inventory/cleanup. VS Code explicitly selects multi-root projects.
 - **Summary / Findings / Execution / Policy**: existing combined reports, editor navigation,
   call graph, provider permissions, stale/incomplete state and exports.
 - GUI dialogs create managed profiles/provider configuration outside all open projects;
@@ -44,7 +50,8 @@ Implemented surfaces:
   PowerShell/PSScriptAnalyzer, Trivy, OSV and model servers use separately installed tools.
 - CLI `--methods /absolute/user/methods.json` reads known boolean method flags from an
   outside-project file. Existing `--providers`, `--baseline`, operation and JSON/SARIF
-  interfaces remain available.
+  interfaces remain available. `--check-providers` is passive; `--conformance` explicitly
+  executes enabled providers for contract validation. SDK `--capabilities` is passive.
 
 Disabling some built-in methods emits reduced-scope notices without failing a completed
 configured scan. All built-ins off plus an enabled real external analysis provider disables
@@ -55,15 +62,16 @@ source remain incomplete; granted required-provider failures can still block.
 
 ## Integration SDK
 
-Runtime dependency-free `sdk/python` supports eight format IDs: six passive importers
-(SARIF, Bandit, PSScriptAnalyzer, Trivy, OSV-Scanner, scoped ZAP), plus script semantics
+Runtime dependency-free `sdk/python` supports ten format IDs: eight passive importers
+(SARIF, Bandit, PSScriptAnalyzer, Trivy, OSV-Scanner, scoped ZAP, CycloneDX, Sonar generic issues), plus script semantics
 and local AI review. Five fixed external runners execute Bandit, Semgrep, PSScriptAnalyzer,
 Trivy or OSV-Scanner over bounded snapshots. The SDK never builds a project or installs
 project dependencies. Direct snapshots require POSIX no-follow file access; Windows uses
 report imports, plus supported local model report review.
 
-Semgrep inspects Kotlin/Java with six curated Android/Ktor rules, or a reviewed external
-rule file. This supplies targeted source SAST rather than only Gradle/Maven build checks.
+Semgrep has five independently selected local packs: original Android/Ktor, manifest,
+WebView, JVM crypto and Ktor runtime. The original six rules remain the default; an
+external reviewed rule file replaces bundled selection. This supplies targeted source SAST rather than only Gradle/Maven build checks.
 It is not complete app-security coverage. Trivy/OSV inspect allowlisted dependency inputs;
 upstream supported/resolved versions determine coverage. Trivy may download databases;
 OSV sends package metadata to its vulnerability service. SDK SCA defaults are 120 seconds,
@@ -96,9 +104,11 @@ establish freshness. See [the operational guide](docs/integrations.md),
   cancellation. Local runner failures terminate/reap the known child.
 - SDK snapshot paths are canonicalized before scanner invocation. Rebase absolute source
   paths and supported file URIs back to original project locations; preserve valid SARIF bases.
-- Reports become stale after observed source changes. Native seals cover bounded source,
-  script and dependency inputs; VS Code rejects evaluations invalidated by observed edits.
-  These do not seal arbitrary custom-provider inputs or unobserved file-system races.
+- Reports become stale after observed source changes. Native and VS Code gates compare
+  bounded source/configuration content identities before and after provider execution.
+  Declared custom inputs, managed profiles/reports/rules and actual first-party reads
+  now participate in before/after content comparisons. Unknown custom scopes remain
+  visibly unverified; installed program code and remote services are not fully sealed.
 - Repository scanner file/depth cap notices are `WG-SCAN-LIMIT` and force incomplete coverage.
   Canonical roots and recursive discovery respect the file cap.
 - No enabled detector means incomplete; an AI-only success must never become a clean scan.
@@ -118,7 +128,7 @@ output and CI status are recorded in the verification record rather than duplica
 `buildIntegrationSdk` / `scripts/build-sdk.py` stage clean package sources and choose a
 Python 3.10+ interpreter with pip. This avoids macOS system Python 3.9 producing an
 `UNKNOWN-0.0.0` artifact or stale modules entering a wheel. The expected wheel is
-`wrapperguard_sdk-0.2.0-py3-none-any.whl`; rebuild after any SDK source/README change.
+`wrapperguard_sdk-0.3.0-py3-none-any.whl`; rebuild after any SDK source/README change.
 Both GUI packages must contain the current wheel and curated rules.
 
 Development IDE selection is explicit:
@@ -133,14 +143,14 @@ only TypeScript compilation.
 [docs/roadmap.md](docs/roadmap.md) is the prioritized backlog and milestone plan. The
 current delivery includes installers, a standalone test bundle with real scanner fixtures,
 manual test instructions and checksums. Local automation and binary verification are
-complete when recorded in the verification checkpoint. A clean CI run, installation in
-normal host profiles and actual BUILD/SYNC acceptance remain separate release gates.
+complete when recorded in the verification checkpoint. The prior RC1 CI is green; the new candidate needs its own CI and normal-host
+BUILD/SYNC acceptance. Actual GUI evidence and limitations belong in verification.
 
 Do not describe a test candidate as the stable release. Report imports do not establish
 freshness, source SAST is limited to selected rules, Windows direct source runners are
 unsupported, and scanner action grants do not sandbox installed programs. Remaining
-platform/tool matrices, accessibility, provider-declared input scope, broader seals,
-rule/dependency coverage, active DAST and realistic research evaluation have explicit
+platform/tool matrices, accessibility,
+rule/dependency coverage, provenance, active DAST and realistic research evaluation have explicit
 acceptance criteria in the roadmap.
 
 ## Documentation cleanup
